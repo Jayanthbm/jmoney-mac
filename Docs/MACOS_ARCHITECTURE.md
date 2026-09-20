@@ -1,13 +1,13 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-20 (Phase 1 analysis, independently re-verified against source — see
-> DATA_ARCHITECTURE.md §8 for the verification record).
+> Last updated: 2026-09-20 (Phase 4 app shell implemented).
 
 ## Status
 
-Analysis complete. This document describes the target architecture for the native macOS app.
-Implementation begins at Phase 4 (App Shell).
+Analysis complete (Phase 1, re-verified — see DATA_ARCHITECTURE.md §8). **App shell implemented
+(Phase 4)**: NavigationSplitView sidebar, all 11 feature views with empty states, menu commands
+(⌘N/⌘⇧N/⌘F/⌘R), Settings scene (⌘,), status bar, mock-session auth gate. Next: Phase 5 (data layer).
 
 ---
 
@@ -52,39 +52,45 @@ The React Native app is an offline-first personal finance tracker:
 ```
 Jmoney/
 ├── App/
-│   ├── JmoneyApp.swift            # @main: WindowGroup + Settings scene + Commands
-│   ├── AppCommands.swift          # ⌘N new transaction, ⌘R sync, ⌘F search, etc.
-│   └── AppEnvironment.swift       # DB pool, services, session wiring (EnvironmentValues)
+│   ├── JmoneyApp.swift            # @main: WindowGroup + Settings scene + Commands  [Phase 4 ✓]
+│   ├── AppCommands.swift          # ⌘N/⌘⇧N new+quick transaction, ⌘F find, Data menu ⌘R  [Phase 4 ✓]
+│   └── AppState.swift             # @Observable shell state: selection, sheets, search,
+│                                  #   status bar (AppEnvironment-style service wiring lands in Phase 5)
 ├── Navigation/
-│   └── SidebarView.swift          # NavigationSplitView sidebar (tab equivalents)
+│   ├── AppSection.swift           # Sidebar destinations enum  [Phase 4 ✓]
+│   ├── SidebarView.swift          # NavigationSplitView sidebar  [Phase 4 ✓]
+│   ├── RootView.swift             # Auth gate + split view + sheets + detail routing  [Phase 4 ✓]
+│   └── StatusBarView.swift        # Bottom status bar (sync status, messages)  [Phase 4 ✓]
 ├── Features/
-│   ├── Auth/                      # Login window, session store, auth gate
+│   ├── Auth/                      # AuthGateView placeholder (mock session)  [Phase 4 ✓; real auth Phase 14]
 │   ├── Dashboard/                 # Widgets: daily limit, remaining, pay day, top categories,
-│   │                              #   month/year summaries, net worth, today's activity
-│   ├── Transactions/              # List (sectioned), filters, search, stats, editor sheet
-│   ├── Budgets/                   # List, month navigation, editor, drill-down
-│   ├── Goals/
-│   ├── Reports/                   # Index + 11 report pages + drill-down
-│   ├── Calendar/
-│   ├── Categories/  Payees/  Groups/  QuickTransactions/
-│   └── Settings/                  # Appearance, reminders, lock, data mgmt, sync, account
+│   │                              #   month/year summaries, net worth, today's activity   [Phase 6]
+│   ├── Transactions/              # List (sectioned), filters, search, stats, editor sheet  [Phase 7]
+│   ├── Budgets/                   # List, month navigation, editor, drill-down   [Phase 8]
+│   ├── Goals/                     # [Phase 9]
+│   ├── Reports/                   # Index + 11 report pages + drill-down   [Phase 10]
+│   ├── Calendar/                  # [Phase 11]
+│   ├── Categories/  Payees/  Groups/  QuickTransactions/   # [Phase 12]
+│   └── Settings/                  # Pane + ⌘, scene views   [Phase 13]
 ├── Services/
-│   ├── DatabaseService.swift      # GRDB pool, migrations, WAL
-│   ├── SyncService.swift          # Full sync coordinator (mirror of syncService.ts)
+│   ├── DatabaseService.swift      # GRDB pool, migrations, WAL   [Phase 5]
+│   ├── SyncService.swift          # Full sync coordinator (mirror of syncService.ts)   [Phase 14]
 │   ├── Sync/                      # Per-entity push/pull (transactions, budgets, goals,
-│   │                              #   categories, payees, quick transactions, groups)
-│   ├── SupabaseService.swift      # Client config, session persistence
-│   ├── DashboardService.swift     # Metrics + daily-limit + payday calculations (pure, testable)
-│   ├── TransactionService.swift   # Fetch/filter/stats (mirror transactionService.ts)
+│   │                              #   categories, payees, quick transactions, groups)   [Phase 14]
+│   ├── SupabaseService.swift      # Client config, session persistence   [Phase 14]
+│   ├── DashboardService.swift     # Metrics + daily-limit + payday calculations (pure, testable)   [Phase 6]
+│   ├── TransactionService.swift   # Fetch/filter/stats (mirror transactionService.ts)   [Phase 7]
 │   ├── BudgetService.swift  GoalService.swift  ReportService.swift  CalendarService.swift
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
-│   ├── NotificationService.swift  # Daily reminders
-│   └── LocationService.swift      # GPS tagging
+│   ├── NotificationService.swift  # Daily reminders   [Phase 13]
+│   └── LocationService.swift      # GPS tagging   [Phase 7]
 ├── Models/                        # Transaction, Budget, Goal, Category, Payee,
-│                                  #   QuickTransaction, TransactionGroup, ReportItem …
-├── Stores/                        # @Observable app state: session, theme, toast/status
-└── Support/                       # Formatters (₹/en-IN), validators, date utils, timestamp rules
-JmoneyTests/                       # Business logic tests (calculations, validators, sync mappers)
+│                                  #   QuickTransaction, TransactionGroup, ReportItem …   [Phase 5]
+├── Stores/
+│   └── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
+└── Support/
+    └── Formatters.swift           # Relative time now; ₹/en-IN + date utils with data layer  [Phase 4 ✓]
+JmoneyTests/                       # Business logic tests (calculations, validators, sync mappers)  [Phase 5+]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -140,4 +146,8 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
 
 ## 8. Open Items
 
-- None blocking Phase 4. Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
+- None blocking Phase 5. Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
+- Shell notes: ⌘F is owned by Edit > Find… (no TextEditingCommands are included, so there is no
+  conflict); Find currently presents the search field on the Transactions view only. ⌘R lives in a
+  custom Data menu and reports "not connected" until the sync engine exists. The auth gate uses a
+  mock session; sign-out is added with real auth (Phase 14).

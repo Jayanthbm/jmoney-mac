@@ -103,6 +103,41 @@ No corrections to the existing feature inventory or architecture decisions were 
 
 ---
 
+## Phase 4 — Native App Shell
+
+**Status:** COMPLETE
+
+Implemented (all builds green, `BUILD SUCCEEDED` + launch smoke test passed):
+
+* `App/JmoneyApp.swift` — `WindowGroup` + `Settings` scene (⌘,) + `AppCommands`; stores injected via
+  `.environment` (`.frame(minWidth: 1000, minHeight: 640)`).
+* `App/AppState.swift` — `@Observable` shell state: sidebar selection, sheet flags, search-request
+  counter (⌘F from any section), status-bar message channel, sync/last-synced fields.
+* `App/AppCommands.swift` — File > New Transaction (⌘N), File > Quick Transaction (⌘⇧N),
+  Edit > Find… (⌘F), Data > Sync Now (⌘R).
+* `Navigation/` — `AppSection` enum (11 destinations, SF Symbols matching the RN tabs),
+  `SidebarView` (Finance/Manage/General sections), `RootView` (auth gate + split view + sheets +
+  section routing), `StatusBarView` (Finder-style bottom bar: status message + last synced).
+* `Features/` — `AuthGateView` (placeholder sign-in with mock session; non-empty validation),
+  11 feature views with `ContentUnavailableView` empty states, `NewTransactionSheet` +
+  `QuickTransactionPickerSheet` placeholders, `SettingsPaneView` (opens ⌘, window via
+  `openSettings`), `SettingsSceneView`.
+* `Stores/SessionStore.swift` — mock session (real Supabase + Keychain in Phase 14); sign-out keeps
+  local data (RN parity).
+* `Support/Formatters.swift` — relative-time helper for the status bar.
+* Removed the phase-0 `ContentView.swift` + root `JmoneyApp.swift`; ran `xcodegen generate`.
+
+Design notes for the next agent:
+
+* ⌘F owns the Edit > Find… slot — `TextEditingCommands` is NOT included, so there is no system
+  Find conflict. Find presents/focuses the Transactions search field via
+  `.searchable(text:isPresented:)` + a `searchRequestID` counter in `AppState`.
+* The status bar is the shell's toast/notification surface (replaces RN `ToastContext`); error
+  alerts arrive with real flows.
+* ⌘R currently reports "Sync isn't connected yet." — swap for the real sync trigger in Phase 14.
+* The auth gate is a mock; keep `SessionStore`'s public surface (isAuthenticated/userEmail/signOut)
+  when replacing internals with Supabase.
+
 # Phase Status
 
 | Phase | Description                         | Status      |
@@ -111,7 +146,7 @@ No corrections to the existing feature inventory or architecture decisions were 
 | 1     | Analyze React Native application    | COMPLETE    |
 | 2     | Feature inventory                   | COMPLETE    |
 | 3     | macOS architecture                  | COMPLETE    |
-| 4     | Native app shell                    | NOT STARTED |
+| 4     | Native app shell                    | COMPLETE    |
 | 5     | Data layer                          | NOT STARTED |
 | 6     | Dashboard                           | NOT STARTED |
 | 7     | Transactions                        | NOT STARTED |
@@ -132,15 +167,23 @@ No corrections to the existing feature inventory or architecture decisions were 
 
 # Current Phase
 
-**Phase:** 4 — Native App Shell
+**Phase:** 5 — Data Layer
 
-Build the SwiftUI app skeleton: `NavigationSplitView` sidebar with all areas, empty feature views,
-`WindowGroup` + `Settings` scene, `Commands` (⌘N new transaction, ⌘R sync, ⌘F search), app
-environment wiring, and the auth gate placeholder. Do not start the data layer until the shell
-compiles and navigates.
+Add the GRDB persistence layer per `DATA_ARCHITECTURE.md` §5:
 
-Recommended order after that: 5 (Data layer + GRDB schema/migrations) → 14-in-part (Supabase client +
-session store, so sync can be built) → 6 (Dashboard) → 7 (Transactions) → remaining features.
+1. Add the GRDB.swift SPM dependency to `project.yml` (and run `xcodegen generate` — the file set
+   or config change always requires regeneration).
+2. `Services/DatabaseService.swift`: single `DatabasePool` (WAL), `DatabaseMigrator` v1 creating the
+   exact tables + indexes from `DATA_ARCHITECTURE.md` §1.2/§1.3.
+3. `Models/`: DTO structs with column names matching the RN schema exactly (transactions incl.
+   denormalized name columns, goals, budgets, categories, payees, quick_transactions,
+   transaction_groups).
+4. Wire `DatabaseService` into the environment (`AppState`/new store), replace the mock
+   `SessionStore` trigger path with a DB-backed readiness check where sensible.
+5. Start `JmoneyTests` (add a test target in `project.yml`) with tests for migrations and the
+   timestamp rules (`transactionTimestamp.ts` semantics — see §2/§7).
+
+Then 14-in-part (Supabase client + session) → 6 (Dashboard) → 7 (Transactions) → remaining features.
 
 ---
 
@@ -247,6 +290,38 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 * None blocking. The macOS docs contain two intentional forward decisions (export feature in Phase
   15; parameterized SQL replacing RN string interpolation) — both documented.
 
+## Phase 4 — Native App Shell
+
+**Status:** COMPLETE (2026-09-20)
+
+### What was done
+
+* Built the full shell per `MACOS_ARCHITECTURE.md` §3: `WindowGroup` + `Settings` scene + `Commands`,
+  `NavigationSplitView` sidebar (Finance/Manage/General sections hosting all 11 areas), section
+  routing, and a Finder-style bottom status bar (status message + "Last synced").
+* Wired menu commands: File > New Transaction (⌘N), File > Quick Transaction (⌘⇧N), Edit > Find…
+  (⌘F presents/focuses the Transactions search field via `.searchable(text:isPresented:)`),
+  Data > Sync Now (⌘R, placeholder until the sync engine exists).
+* Every feature area has a native `ContentUnavailableView` empty state; Transactions adds an
+  empty-state "New Transaction" action button; Settings pane opens the ⌘, window via
+  `@Environment(\.openSettings)`.
+* Auth gate placeholder with mock session (`SessionStore`); sign-in validates non-empty email +
+  password (mirrors the RN login's minimal validation). Real Supabase auth stays in Phase 14.
+* Removed phase-0 `ContentView.swift`/root `JmoneyApp.swift`; ran `xcodegen generate` (required —
+  XcodeGen projects reference files explicitly, so any file add/remove needs regeneration).
+
+### Verification
+
+* `BUILD SUCCEEDED` (Debug) with no compile warnings.
+* Launch smoke test: app opened from the built product, ran (process alive after 4 s), quit cleanly.
+
+### Issues / deviations
+
+* SwiftUI has no `CommandGroupPlacement.find`; ⌘F is registered on Edit > Find… via
+  `CommandGroup(after: .pasteboard)`. Because `TextEditingCommands` is not included, SwiftUI's
+  default Edit menu has no Find submenu and the shortcut is conflict-free.
+* ⌘R currently reports "Sync isn't connected yet." via the status bar (honest placeholder).
+
 ---
 
 # Decision Log
@@ -261,6 +336,10 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-20 | MVVM with `@Observable`; GRDB `ValueObservation` for reactive data | Testable business logic; replaces RN `DeviceEventEmitter` refresh events | Phase 1 |
 | 2026-09-20 | Sidebar navigation hosting all areas                       | Native Mac equivalent of tabs + stack screens | Phase 1 |
 | 2026-09-20 | Deployment target macOS 14+                                | `@Observable`, modern NavigationSplitView | Phase 1 |
+| 2026-09-20 | Bottom status bar as the shell's status/toast surface       | Native Mac pattern replacing RN toasts + "Synced Xm ago" subtitle | Phase 4 |
+| 2026-09-20 | Mock session behind `SessionStore` until Phase 14           | Auth gate exercised end-to-end without blocking shell work | Phase 4 |
+| 2026-09-20 | ⌘F via Edit > Find… (`CommandGroup(after: .pasteboard)`)    | SwiftUI default Edit menu has no Find submenu (no `TextEditingCommands`), so the shortcut is conflict-free | Phase 4 |
+| 2026-09-20 | `ContentUnavailableView` for all feature empty states       | Native macOS 14 empty-state component; a11y for free | Phase 4 |
 
 ---
 
@@ -273,18 +352,29 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Start with Phase 4 (Native App Shell) using `MACOS_ARCHITECTURE.md` §3 as the module layout:
+Phase 4 (app shell) is complete and green. Start **Phase 5 (Data Layer)** per `DATA_ARCHITECTURE.md`
+§5 — the full instructions are in the "Current Phase" section above. Summary:
 
-1. Add dependencies to `project.yml` when needed (GRDB, supabase-swift at Phase 5; shell needs none).
-2. Build the sidebar shell with placeholder views for: Dashboard, Transactions, Budgets, Reports,
-   Calendar, Goals, Categories, Payees, Groups, Quick Transactions, Settings.
-3. Add `Commands` for ⌘N (new transaction), ⌘R (sync), ⌘F (search) and a `Settings` scene (⌘,).
-4. Wire an app environment holder for future services (DB, session, sync).
-5. Keep every screen's empty state present from the start.
-6. Run `xcodegen generate` (if project.yml changed) and the build command; do not commit a red build.
-7. Then proceed to Phase 5 per `DATA_ARCHITECTURE.md` §5, and Phase 6+ per the matrix.
+1. Add GRDB.swift to `project.yml` packages, then run `xcodegen generate` (file/config changes
+   always require regeneration — XcodeGen references files explicitly).
+2. `Services/DatabaseService.swift`: `DatabasePool` (WAL) + `DatabaseMigrator` v1 with the exact
+   tables/indexes from `DATA_ARCHITECTURE.md` §1.2–§1.3.
+3. `Models/`: DTOs with column names identical to the RN schema (including denormalized
+   transaction columns).
+4. Add a `JmoneyTests` target; first tests: migrations apply, timestamp rules (§2/§7).
+5. Keep the shell working: wire `DatabaseService` into the environment without breaking the mock
+   auth gate; the gate stays mock until Phase 14.
+6. Build + test before committing; do not commit a red build.
 
-Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
+Shell pointers (already built, don't redo):
+
+* `AppState` (`App/AppState.swift`) is the shell's observable hub — extend it (or add stores) for
+  DB/sync wiring; status bar reads `statusMessage`/`isSyncing`/`lastSyncDate`.
+* ⌘F → `AppState.requestSearchFocus()` → Transactions presents search via `.searchable
+  (text:isPresented:)`. Wire additional searchable views to the same counter as they gain search.
+* ⌘N/⌘⇧N open placeholder sheets (`NewTransactionSheet`, `QuickTransactionPickerSheet`) — replace
+  their bodies in Phase 7/12.
+* Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit
 

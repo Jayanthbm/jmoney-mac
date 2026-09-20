@@ -2,8 +2,7 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-20 (Phase 1 analysis; independently re-verified against source — every
-> section below was checked screen-by-screen and module-by-module; see DATA_ARCHITECTURE.md §8).
+> Last updated: 2026-09-20 (Phase 4 app shell implemented — see §1 for completed rows).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -15,16 +14,16 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Bottom tab navigation | `NativeTabs` with 5 tabs: Dashboard, Transactions, Budgets, Reports, Settings | `NavigationSplitView` sidebar listing all major areas | NOT STARTED | Sidebar also hosts secondary areas (Calendar, Goals, Categories, Payees, Groups, Quick Transactions) that are stack screens on mobile |
-| Root loader / redirect | `app/index.tsx` waits for auth session, redirects to login or dashboard | Window scene waits for DB init + session restore before showing content | NOT STARTED | RN blocks render until `initDB()` completes |
-| Auth-gated routing | `RootLayoutNav` redirects unauthenticated users to `/(auth)/login` | Same gate at app-scene level; login window/sheet when signed out | NOT STARTED | |
-| Modal transaction sheet | `add-transaction` transparent modal, slide-from-bottom | Sheet (`⌘N` new transaction) | NOT STARTED | |
-| Screen titles + last-synced subtitle | Header title with "Synced: Xm ago" | Toolbar title with subtitle; refresh toolbar button | NOT STARTED | `getRelativeTime` formatting |
-| iOS home-screen quick actions | `expo-quick-actions`: "New Transaction", "Quick Transaction" | Menu bar extra / Dock menu equivalents | NOT STARTED | Native fit: File > New Transaction (⌘N), File > Quick Transaction |
-| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | NOT STARTED | |
-| Toast notifications | `ToastContext` global toasts (success/error/info) | Native alerts / transient banners / status feedback in toolbar | NOT STARTED | |
+| Bottom tab navigation | `NativeTabs` with 5 tabs: Dashboard, Transactions, Budgets, Reports, Settings | `NavigationSplitView` sidebar listing all major areas | COMPLETE | Phase 4 shell: Finance / Manage / General sidebar sections host all 11 areas (tabs + stack-screen equivalents) |
+| Root loader / redirect | `app/index.tsx` waits for auth session, redirects to login or dashboard | Window scene waits for DB init + session restore before showing content | IN PROGRESS | Gate exists (mock session); DB-init wait arrives with the Phase 5 data layer |
+| Auth-gated routing | `RootLayoutNav` redirects unauthenticated users to `/(auth)/login` | Same gate at app-scene level; login window/sheet when signed out | IN PROGRESS | Phase 4: `AuthGateView` with mock sign-in; real Supabase + Keychain in Phase 14 |
+| Modal transaction sheet | `add-transaction` transparent modal, slide-from-bottom | Sheet (`⌘N` new transaction) | IN PROGRESS | Phase 4: placeholder sheet presented by ⌘N; editor fields in Phase 7 |
+| Screen titles + last-synced subtitle | Header title with "Synced: Xm ago" | Toolbar title with subtitle; refresh toolbar button | IN PROGRESS | Phase 4: status bar shows "Last synced: …"; real timestamps with data layer/sync |
+| iOS home-screen quick actions | `expo-quick-actions`: "New Transaction", "Quick Transaction" | Menu bar extra / Dock menu equivalents | IN PROGRESS | Phase 4: File > New Transaction (⌘N), File > Quick Transaction (⌘⇧N) |
+| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | IN PROGRESS | ⌘N + empty-state action buttons live; per-view toolbar `+` arrives with each feature |
+| Toast notifications | `ToastContext` global toasts (success/error/info) | Native alerts / transient banners / status feedback in toolbar | IN PROGRESS | Phase 4: bottom status bar carries transient messages; error alerts arrive with real flows |
 | Error boundaries | `DataErrorBoundary` wraps transaction list | Graceful error views with retry | NOT STARTED | |
-| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | NOT STARTED | |
+| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | IN PROGRESS | Phase 4: `ContentUnavailableView` empty state on all 11 areas; loading states arrive with data |
 
 ## 2. Authentication & Security
 
@@ -173,7 +172,7 @@
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Dark/light theme colors | iOS-system palette (see ThemeContext) | System materials + equivalent palette | NOT STARTED | |
-| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | NOT STARTED | |
+| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | Phase 4: ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired |
 | Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | NOT STARTED | |
 | CSV/JSON export | **Not implemented** (README claims it; no code found) | Planned as macOS-only enhancement (Phase 15) | NOT STARTED | Documented to avoid false parity claims |
 | ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |
