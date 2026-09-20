@@ -438,3 +438,8 @@ recorded in a follow-up docs commit per the established pattern.
 
 `d626515` — 2026-09-20 — "phase: add macos app shell" (hash recorded in a follow-up docs commit per
 the established pattern).
+
+### Phase 5 Commit
+
+`296a5de` — 2026-09-20 — "phase: add data layer" (hash recorded in a follow-up docs commit per the
+established pattern).
