@@ -1,0 +1,20 @@
+name: Jmoney
+
+options:
+  bundleIdPrefix: com.jayanth
+  deploymentTarget:
+    macOS: "14.0"
+
+targets:
+  Jmoney:
+    type: application
+    platform: macOS
+
+    sources:
+      - Jmoney
+
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.jayanth.jmoney
+      SWIFT_VERSION: "5.0"
+      MACOSX_DEPLOYMENT_TARGET: "14.0"
+      GENERATE_INFOPLIST_FILE: YES
