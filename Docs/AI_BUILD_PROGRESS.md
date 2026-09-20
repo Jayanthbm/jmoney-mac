@@ -45,21 +45,34 @@ Completed:
 * Initial SwiftUI application created.
 * Initial project successfully builds with `xcodebuild`.
 
-Build command:
+---
 
-```bash
-xcodebuild \
-  -project Jmoney.xcodeproj \
-  -scheme Jmoney \
-  -configuration Debug \
-  build
-```
+## Phase 1 — Analyze React Native Application (+ Phases 2–3 deliverables)
 
-Result:
+**Status:** COMPLETE
 
-```text
-BUILD SUCCEEDED
-```
+The React Native application was fully inspected (not from docs alone). Files read include:
+`app/_layout.tsx`, all tab screens, all stack/modal screens (add-transaction, goals, calendar,
+categories, payees, groups, quick-transactions, daily-limit-detail), all 11 report routes (inventoried),
+`src/db/*` (schema, migrations, all query modules), `src/services/*` (dashboard, transaction, budget,
+goal, report, calendar, group, notification) , `src/services/sync/*` (all 7 entity sync modules +
+coordinator), `src/store/*`, key hooks (`useAppSettings`, `useBiometrics`, `useDashboardData`,
+`useDashboardSync`), `src/utils/*` (validators, formatters, dataMappers, transactionTimestamp,
+dateUtils), `src/models/types.ts`, `src/constants/*`, `app.json`, `package.json`, and `AI_CONTEXT.md`.
+
+Deliverables produced:
+
+* `Docs/MACOS_FEATURE_MATRIX.md` — complete feature inventory with macOS equivalents (Phases 1–2).
+* `Docs/MACOS_ARCHITECTURE.md` — target macOS architecture (Phase 3).
+* `Docs/DATA_ARCHITECTURE.md` — schema, sync protocol, business rules, persistence decision (Phase 3).
+
+Verification:
+
+* No CSV/JSON export exists in the RN code despite README claims (documented as new macOS feature).
+* `ajv` dependency is unused; no macOS counterpart required.
+* Confirmed `resetAppData` does not delete `quick_transactions` (parity quirk, documented).
+
+Build status: `BUILD SUCCEEDED` (Debug, verified 2026-09-20 after docs update).
 
 ---
 
@@ -68,9 +81,9 @@ BUILD SUCCEEDED
 | Phase | Description                         | Status      |
 | ----- | ----------------------------------- | ----------- |
 | 0     | Project initialization              | COMPLETE    |
-| 1     | Analyze React Native application    | NOT STARTED |
-| 2     | Feature inventory                   | NOT STARTED |
-| 3     | macOS architecture                  | NOT STARTED |
+| 1     | Analyze React Native application    | COMPLETE    |
+| 2     | Feature inventory                   | COMPLETE    |
+| 3     | macOS architecture                  | COMPLETE    |
 | 4     | Native app shell                    | NOT STARTED |
 | 5     | Data layer                          | NOT STARTED |
 | 6     | Dashboard                           | NOT STARTED |
@@ -92,23 +105,23 @@ BUILD SUCCEEDED
 
 # Current Phase
 
-**Phase:** 1 — Analyze React Native Application
+**Phase:** 4 — Native App Shell
 
-The next AI agent must begin by inspecting:
+Build the SwiftUI app skeleton: `NavigationSplitView` sidebar with all areas, empty feature views,
+`WindowGroup` + `Settings` scene, `Commands` (⌘N new transaction, ⌘R sync, ⌘F search), app
+environment wiring, and the auth gate placeholder. Do not start the data layer until the shell
+compiles and navigates.
 
-`/Users/jayanthbharadwajm/development/jayledger`
-
-Do not start large-scale implementation before understanding the existing application.
+Recommended order after that: 5 (Data layer + GRDB schema/migrations) → 14-in-part (Supabase client +
+session store, so sync can be built) → 6 (Dashboard) → 7 (Transactions) → remaining features.
 
 ---
 
 # Git
 
-The repository is already initialized with Git.
+The repository is initialized with Git. Every completed phase must have its own Git commit.
 
-Every completed phase must have its own Git commit.
-
-Expected workflow:
+Workflow:
 
 ```bash
 git status
@@ -117,16 +130,7 @@ git add .
 git commit -m "<phase-specific message>"
 ```
 
-Do not commit unrelated changes.
-
-Before committing:
-
-1. Ensure the project builds.
-2. Ensure tests pass where applicable.
-3. Update this file.
-4. Update the relevant documentation.
-5. Review `git diff`.
-6. Commit the completed phase.
+Do not commit unrelated changes. Before committing: build, update docs, review the diff.
 
 ---
 
@@ -135,35 +139,17 @@ Before committing:
 Every AI agent must:
 
 1. Read this file first.
-2. Inspect the current Git status.
-3. Inspect the latest Git commits.
-4. Determine the current phase.
-5. Review existing documentation.
-6. Continue from the current state rather than starting over.
-7. Never assume previous work is missing.
-8. Never undo completed functionality without a documented reason.
-9. Update this file before finishing its work.
-10. Commit completed phases.
-
-If a phase is partially complete, continue from the existing implementation.
-
-Do not restart the phase from scratch.
+2. Inspect the current Git status and latest commits.
+3. Determine the current phase.
+4. Review `MACOS_FEATURE_MATRIX.md`, `MACOS_ARCHITECTURE.md`, `DATA_ARCHITECTURE.md`.
+5. Continue from the current state rather than starting over.
+6. Never undo completed functionality without a documented reason.
+7. Update this file before finishing its work.
+8. Commit completed phases and record the hash below.
 
 ---
 
 # Build Requirement
-
-The project must remain buildable.
-
-Run:
-
-```bash
-xcodegen generate
-```
-
-when `project.yml` changes.
-
-Then:
 
 ```bash
 xcodebuild \
@@ -173,6 +159,7 @@ xcodebuild \
   build
 ```
 
+Run `xcodegen generate` first if `project.yml` changed.
 A phase should not be marked COMPLETE if the project does not build.
 
 ---
@@ -183,95 +170,87 @@ A phase should not be marked COMPLETE if the project does not build.
 
 **Status:** COMPLETE
 
-The initial native macOS project was created and verified.
+The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
----
+## Phase 1 (with Phases 2–3 deliverables)
 
-## Phase 1
+**Status:** COMPLETE (2026-09-20)
 
-**Status:** NOT STARTED
+### What was done
 
-### Objective
+* Inspected the React Native source in depth: navigation, every screen, DB schema/queries, services,
+  sync engine, auth, settings, validation, formatting, and date handling.
+* Produced `MACOS_FEATURE_MATRIX.md`: 12 sections, every RN feature inventoried with its planned
+  macOS equivalent and status. Nothing silently dropped; justified omissions noted (haptics,
+  keep-awake; CSV/JSON export does not exist in RN and is planned as a macOS addition).
+* Produced `MACOS_ARCHITECTURE.md`: SwiftUI + `@Observable` MVVM, GRDB persistence,
+  supabase-swift, sidebar navigation, mobile→Mac interaction mapping, performance strategy.
+* Produced `DATA_ARCHITECTURE.md`: exact local schema, sync protocol (push `sync_status=1`,
+  full-replace pulls for meta entities, incremental `tid`-cursor pulls for transactions, force
+  resync), business-rule formulas (daily limit, net worth, report comparisons, validation bounds),
+  AsyncStorage key inventory, and the persistence decision with rationale.
+* Verified the macOS project still builds (`BUILD SUCCEEDED`).
 
-Analyze the existing React Native application.
+### Key findings the next agent must know
 
-### Required analysis
+1. **Business logic lives in SQL** (`src/db/reportQueries.ts`, `transactionQueries.ts`) plus pure
+   functions in services. Reproduce formulas exactly — they are tabulated in
+   `DATA_ARCHITECTURE.md` §2.
+2. **Sync protocol is specific**: `sync_status` 1=dirty; pushes upsert-by-id; deletes push remote
+   delete then hard-delete locally; meta entities full-replace on pull; transactions pull
+   incrementally by server `tid` in 1000-row chunks; force-resync wipes local transactions first.
+3. **Denormalized columns**: transactions store `category_name/icon/app_icon`, `payee_name/logo`,
+   `group_name` copies; must be maintained on save and populated via joins on pull.
+4. **Timestamp semantics**: `transaction_timestamp` ISO-local; `date` derived `yyyy-MM-dd`; Supabase
+   push strips the timezone suffix. See `DATA_ARCHITECTURE.md` §7.
+5. **Quirks to preserve (or explicitly flag)**: `resetAppData` skips `quick_transactions`;
+   group delete leaves dangling `group_id` values; old rows can contain literal `'null'` ids which
+   queries filter out; RN interpolates strings into SQL (macOS must parameterize).
+6. **Currency** is ₹ (en-IN). Theme palette is iOS-system-like; keep light/dark support.
 
-* Application architecture
-* Navigation
-* Screens
-* Components
-* State management
-* Database
-* Data models
-* Business logic
-* Calculations
-* Transactions
-* Budgets
-* Goals
-* Reports
-* Dashboard
-* Calendar
-* Categories
-* Payees
-* Groups
-* Authentication
-* Supabase
-* Synchronization
-* Offline behavior
-* Import/export
-* Settings
-* Validation
-* Error handling
-* Theme behavior
-* Any other user-facing functionality
+### Issues / deviations
 
-### Deliverables
-
-* `Docs/MACOS_FEATURE_MATRIX.md`
-* `Docs/MACOS_ARCHITECTURE.md`
-* Initial `Docs/DATA_ARCHITECTURE.md`
-
-### Completion criteria
-
-Phase 1 is complete when the agent has enough understanding of the existing application to create a reliable macOS implementation plan.
+* None blocking. The macOS docs contain two intentional forward decisions (export feature in Phase
+  15; parameterized SQL replacing RN string interpolation) — both documented.
 
 ---
 
 # Decision Log
-
-Document important architectural decisions here.
 
 | Date       | Decision                                                   | Reason                                    | Agent         |
 | ---------- | ---------------------------------------------------------- | ----------------------------------------- | ------------- |
 | 2026-09-20 | Native SwiftUI macOS application                           | Proper native Mac experience              | Initial setup |
 | 2026-09-20 | Existing React Native app remains reference implementation | Preserve functionality and business rules | Initial setup |
 | 2026-09-20 | XcodeGen used for project generation                       | Reproducible project configuration        | Initial setup |
+| 2026-09-20 | SQLite via GRDB.swift, schema mirrored from RN app         | Proven SQL aggregations; sync protocol fidelity; offline-first performance (SwiftData/Core Data rejected) | Phase 1 |
+| 2026-09-20 | supabase-swift + Keychain session storage                  | Same backend/auth as RN; secrets from build config, never in source | Phase 1 |
+| 2026-09-20 | MVVM with `@Observable`; GRDB `ValueObservation` for reactive data | Testable business logic; replaces RN `DeviceEventEmitter` refresh events | Phase 1 |
+| 2026-09-20 | Sidebar navigation hosting all areas                       | Native Mac equivalent of tabs + stack screens | Phase 1 |
+| 2026-09-20 | Deployment target macOS 14+                                | `@Observable`, modern NavigationSplitView | Phase 1 |
 
 ---
 
 # Known Issues
 
-None currently.
+* None in the macOS project. (RN-side observations that constrain the port are listed in
+  `DATA_ARCHITECTURE.md` §7 — they are parity constraints, not defects to fix silently.)
 
 ---
 
 # Next Agent Instructions
 
-Start with Phase 1.
+Start with Phase 4 (Native App Shell) using `MACOS_ARCHITECTURE.md` §3 as the module layout:
 
-Do not immediately build UI.
+1. Add dependencies to `project.yml` when needed (GRDB, supabase-swift at Phase 5; shell needs none).
+2. Build the sidebar shell with placeholder views for: Dashboard, Transactions, Budgets, Reports,
+   Calendar, Goals, Categories, Payees, Groups, Quick Transactions, Settings.
+3. Add `Commands` for ⌘N (new transaction), ⌘R (sync), ⌘F (search) and a `Settings` scene (⌘,).
+4. Wire an app environment holder for future services (DB, session, sync).
+5. Keep every screen's empty state present from the start.
+6. Run `xcodegen generate` (if project.yml changed) and the build command; do not commit a red build.
+7. Then proceed to Phase 5 per `DATA_ARCHITECTURE.md` §5, and Phase 6+ per the matrix.
 
-First inspect the existing React Native project thoroughly and produce the feature inventory and architecture documentation.
-
-After completing Phase 1:
-
-1. Run the build.
-2. Update this file.
-3. Update the relevant documentation.
-4. Review Git changes.
-5. Commit the phase.
-6. Record the commit hash below.
+Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit
 
