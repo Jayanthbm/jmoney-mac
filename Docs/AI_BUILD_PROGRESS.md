@@ -254,4 +254,5 @@ Do not re-analyze the RN app from scratch — this file plus the three docs are 
 
 ### Phase 1 Commit
 
-Not yet committed.
+`6b1f36d` — 2026-09-20 — "phase: analyze existing application" (recorded in a follow-up docs commit;
+the hash refers to the phase commit containing the full documentation update).
