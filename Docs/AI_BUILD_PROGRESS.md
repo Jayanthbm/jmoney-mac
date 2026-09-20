@@ -385,3 +385,8 @@ the hash refers to the phase commit containing the full documentation update).
 
 `56a8c37` — 2026-09-20 — "phase: verify source analysis and document sync quirks". The hash below is
 recorded in a follow-up docs commit per the established pattern.
+
+### Phase 4 Commit
+
+`d626515` — 2026-09-20 — "phase: add macos app shell" (hash recorded in a follow-up docs commit per
+the established pattern).
