@@ -18,54 +18,111 @@
 		34698AB1106D7A6B25D3DAE0 /* TransactionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBDC3C4E6B4D2289221B366F /* TransactionsView.swift */; };
 		347BBCB478184AC307F304ED /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C92B32BC181E01BDAB05A25 /* StatusBarView.swift */; };
 		4573B7E829DA6873B57F6B14 /* BudgetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC3B496C922758DB5909A7E /* BudgetsView.swift */; };
+		501662BBD62417ACD88A7A94 /* DatabaseSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B361C94207B2951458D32AC4 /* DatabaseSchemaTests.swift */; };
 		53A95649FE22BADA0F0C4966 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89FFECAE0D5F521917B3151E /* SessionStore.swift */; };
+		542A2A1ABBA1DE4633DBDDDB /* QuickTransaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = E719F8B9F6CCD7AE202C5648 /* QuickTransaction.swift */; };
+		5CB4158A0D532B181B327964 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 2049DC3A4558067EF3C12BB1 /* GRDB */; };
 		72822FF59F484428BB89B121 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65169BB951F85CE02085CBE5 /* Formatters.swift */; };
 		8A99F990F0B6F2BC8A134B51 /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA8F6DC3D4E912D26AEA170E /* GoalsView.swift */; };
 		8CC1FDF0E3A11203418C2EF4 /* PayeesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D9139EF8C18347318488189 /* PayeesView.swift */; };
 		93910583E7283EA9BF531490 /* GroupsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9459B84BAAFB483E2C54FC5 /* GroupsView.swift */; };
+		93BD32DAF6763A9DDDF70B72 /* Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6515E9E8EEB7626CAE87D215 /* Budget.swift */; };
+		998C40F9CD09FFF59AF183DD /* DatabaseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8016A498073BE7DC1E91CABA /* DatabaseService.swift */; };
 		9A37C67B5209A8D4E33DA1E0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12ACAD5050A02A1895061B1C /* SidebarView.swift */; };
+		9AD464C81ECC3072A287E4BE /* TransactionGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B6566A8E3AFAD25B97D432F /* TransactionGroup.swift */; };
+		9C5D8F5F518BDB24BBFD808A /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0B60B56A5B92F84C2FE33DF /* Transaction.swift */; };
 		ABDD93AA6E7EB4C1C2491050 /* SettingsSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BCAA3041078C0CD099FF01 /* SettingsSceneView.swift */; };
 		B2D5DC9490DFD851FCB18793 /* SettingsPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EA8F9CB6004506068F009E3 /* SettingsPaneView.swift */; };
 		B6AFD2569F07F3AEF002CE66 /* QuickTransactionPickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929848A4883795D8138B131B /* QuickTransactionPickerSheet.swift */; };
 		B8361FD9B78F3EF6338BD249 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E126ABC43F06779F26BC2C9 /* AppState.swift */; };
+		B9CB34F3D6E05D43A47ECB40 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996D83F96F8D9E179B121499 /* Category.swift */; };
 		BE245A706B02DF4765821240 /* AuthGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC91B0D6D6CB7F404AFBBD74 /* AuthGateView.swift */; };
+		C4FCEC996DB852753791DCA1 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F9267111B469739A0044675 /* Goal.swift */; };
 		C711E563970D247523BB07D5 /* JmoneyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F72CAC1114F31F75ADC5B5 /* JmoneyApp.swift */; };
 		C9755AEF578F6DA68CD474F9 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23DA19125C6E0357132BA80F /* RootView.swift */; };
+		DC858AAD90D3EE2B4C83ECDD /* Payee.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60EF012B5FB135BFCC3603E /* Payee.swift */; };
+		E107E55F49280FC1E93063CC /* Timestamps.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46ACC09622D4CA84EE9C35EF /* Timestamps.swift */; };
+		E3D783FBBE525407E25F9D39 /* TimestampRuleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B3E710B377FA4F546AB169E /* TimestampRuleTests.swift */; };
+		E4BD1447806835453D8D2BE5 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = C1B38E8C714280F74C8D2D10 /* GRDB */; };
+		EACC1DAFDDB893C5A9817FD5 /* RecordPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 172C1E4BC4DFB9E250957DC9 /* RecordPersistenceTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		129498CEB20A63940D98AD15 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 685A26439FB6E62FB988CDE6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A61BF42A4686E27816BBDBEE;
+			remoteInfo = Jmoney;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		004D25A05B0711E6A619C3E4 /* CategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesView.swift; sourceTree = "<group>"; };
 		12ACAD5050A02A1895061B1C /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		172C1E4BC4DFB9E250957DC9 /* RecordPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordPersistenceTests.swift; sourceTree = "<group>"; };
 		23DA19125C6E0357132BA80F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		2CF8D90EC62B5D5CBE3C5FBF /* ReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsView.swift; sourceTree = "<group>"; };
 		2EA8F9CB6004506068F009E3 /* SettingsPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPaneView.swift; sourceTree = "<group>"; };
 		36DE7921491C9E29BB1A725F /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
+		3B3E710B377FA4F546AB169E /* TimestampRuleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimestampRuleTests.swift; sourceTree = "<group>"; };
 		3C92B32BC181E01BDAB05A25 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
 		3F47F04920BB60D76FD462EC /* QuickTransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickTransactionsView.swift; sourceTree = "<group>"; };
+		46ACC09622D4CA84EE9C35EF /* Timestamps.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Timestamps.swift; sourceTree = "<group>"; };
+		4B6566A8E3AFAD25B97D432F /* TransactionGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionGroup.swift; sourceTree = "<group>"; };
 		4E126ABC43F06779F26BC2C9 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		5D9139EF8C18347318488189 /* PayeesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayeesView.swift; sourceTree = "<group>"; };
+		6515E9E8EEB7626CAE87D215 /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
 		65169BB951F85CE02085CBE5 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 		7A936528C4E9254AE3598D4A /* AppCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCommands.swift; sourceTree = "<group>"; };
+		8016A498073BE7DC1E91CABA /* DatabaseService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseService.swift; sourceTree = "<group>"; };
 		89FFECAE0D5F521917B3151E /* SessionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStore.swift; sourceTree = "<group>"; };
+		8F9267111B469739A0044675 /* Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Goal.swift; sourceTree = "<group>"; };
 		929848A4883795D8138B131B /* QuickTransactionPickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickTransactionPickerSheet.swift; sourceTree = "<group>"; };
+		996D83F96F8D9E179B121499 /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
 		A5F72CAC1114F31F75ADC5B5 /* JmoneyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JmoneyApp.swift; sourceTree = "<group>"; };
 		AA8F6DC3D4E912D26AEA170E /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
+		B361C94207B2951458D32AC4 /* DatabaseSchemaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseSchemaTests.swift; sourceTree = "<group>"; };
 		BC91B0D6D6CB7F404AFBBD74 /* AuthGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthGateView.swift; sourceTree = "<group>"; };
 		BCC6326E7CBC7BFEF19B9A9B /* NewTransactionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewTransactionSheet.swift; sourceTree = "<group>"; };
+		C0B60B56A5B92F84C2FE33DF /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
 		D3BCAA3041078C0CD099FF01 /* SettingsSceneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSceneView.swift; sourceTree = "<group>"; };
 		DDC3B496C922758DB5909A7E /* BudgetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetsView.swift; sourceTree = "<group>"; };
+		E413FB04E6D54B0F39FFA692 /* JmoneyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = JmoneyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E719F8B9F6CCD7AE202C5648 /* QuickTransaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickTransaction.swift; sourceTree = "<group>"; };
 		E80D54449115AA1540E160A4 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 		EBDC3C4E6B4D2289221B366F /* TransactionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionsView.swift; sourceTree = "<group>"; };
 		ECCC2AD99586123B6683C7B2 /* Jmoney.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Jmoney.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F60EF012B5FB135BFCC3603E /* Payee.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Payee.swift; sourceTree = "<group>"; };
 		F6D03D46351537F86CE3FF4F /* AppSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSection.swift; sourceTree = "<group>"; };
 		F9459B84BAAFB483E2C54FC5 /* GroupsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		3CD9E93F1C43798B0F633DB6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E4BD1447806835453D8D2BE5 /* GRDB in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AEA8C64AD73F08316E8D61E3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5CB4158A0D532B181B327964 /* GRDB in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		005C388FD4281A538122AA18 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 				ECCC2AD99586123B6683C7B2 /* Jmoney.app */,
+				E413FB04E6D54B0F39FFA692 /* JmoneyTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,6 +139,7 @@
 			isa = PBXGroup;
 			children = (
 				65169BB951F85CE02085CBE5 /* Formatters.swift */,
+				46ACC09622D4CA84EE9C35EF /* Timestamps.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -102,6 +160,14 @@
 			path = Dashboard;
 			sourceTree = "<group>";
 		};
+		3D1942BFD3AE9625D3A90FBE /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				8016A498073BE7DC1E91CABA /* DatabaseService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
 		42418A020C3BDCF8EA338D24 /* QuickTransactions */ = {
 			isa = PBXGroup;
 			children = (
@@ -120,6 +186,20 @@
 				3C92B32BC181E01BDAB05A25 /* StatusBarView.swift */,
 			);
 			path = Navigation;
+			sourceTree = "<group>";
+		};
+		590B6F5A2F0C427D746B923C /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				6515E9E8EEB7626CAE87D215 /* Budget.swift */,
+				996D83F96F8D9E179B121499 /* Category.swift */,
+				8F9267111B469739A0044675 /* Goal.swift */,
+				F60EF012B5FB135BFCC3603E /* Payee.swift */,
+				E719F8B9F6CCD7AE202C5648 /* QuickTransaction.swift */,
+				C0B60B56A5B92F84C2FE33DF /* Transaction.swift */,
+				4B6566A8E3AFAD25B97D432F /* TransactionGroup.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		5CEB56F3B39E9E1CFB90AF8E /* Transactions */ = {
@@ -173,10 +253,21 @@
 			path = Goals;
 			sourceTree = "<group>";
 		};
+		8DA70845064E6E186F16F007 /* JmoneyTests */ = {
+			isa = PBXGroup;
+			children = (
+				B361C94207B2951458D32AC4 /* DatabaseSchemaTests.swift */,
+				172C1E4BC4DFB9E250957DC9 /* RecordPersistenceTests.swift */,
+				3B3E710B377FA4F546AB169E /* TimestampRuleTests.swift */,
+			);
+			path = JmoneyTests;
+			sourceTree = "<group>";
+		};
 		AC4D54355077198409F3D64D = {
 			isa = PBXGroup;
 			children = (
 				DD1FBB410F584ABB839C67DC /* Jmoney */,
+				8DA70845064E6E186F16F007 /* JmoneyTests */,
 				005C388FD4281A538122AA18 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -186,7 +277,9 @@
 			children = (
 				86166E757EFFA294105763A8 /* App */,
 				FF0D6CE90E5F7270B3756060 /* Features */,
+				590B6F5A2F0C427D746B923C /* Models */,
 				5407805F7802FF3706343F45 /* Navigation */,
+				3D1942BFD3AE9625D3A90FBE /* Services */,
 				709507DB9929DE3DD7E70A2F /* Stores */,
 				1230A788D2D918954B84ABE6 /* Support */,
 			);
@@ -248,11 +341,32 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		7FA15D3F2E4CD46E7970D44F /* JmoneyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 44C029463C9A23C01F04CDE7 /* Build configuration list for PBXNativeTarget "JmoneyTests" */;
+			buildPhases = (
+				5798F1FDC39E8FA31A2C5162 /* Sources */,
+				AEA8C64AD73F08316E8D61E3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				ED60C765B71A22DC20268588 /* PBXTargetDependency */,
+			);
+			name = JmoneyTests;
+			packageProductDependencies = (
+				2049DC3A4558067EF3C12BB1 /* GRDB */,
+			);
+			productName = JmoneyTests;
+			productReference = E413FB04E6D54B0F39FFA692 /* JmoneyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		A61BF42A4686E27816BBDBEE /* Jmoney */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B90F1149C317ACCC2772C4F6 /* Build configuration list for PBXNativeTarget "Jmoney" */;
 			buildPhases = (
 				D711D2C96637BD79F40DE2C2 /* Sources */,
+				3CD9E93F1C43798B0F633DB6 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -260,6 +374,7 @@
 			);
 			name = Jmoney;
 			packageProductDependencies = (
+				C1B38E8C714280F74C8D2D10 /* GRDB */,
 			);
 			productName = Jmoney;
 			productReference = ECCC2AD99586123B6683C7B2 /* Jmoney.app */;
@@ -285,17 +400,31 @@
 			);
 			mainGroup = AC4D54355077198409F3D64D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				32C7AB1FD69F84208FA0BEB5 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 005C388FD4281A538122AA18 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				A61BF42A4686E27816BBDBEE /* Jmoney */,
+				7FA15D3F2E4CD46E7970D44F /* JmoneyTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		5798F1FDC39E8FA31A2C5162 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				501662BBD62417ACD88A7A94 /* DatabaseSchemaTests.swift in Sources */,
+				EACC1DAFDDB893C5A9817FD5 /* RecordPersistenceTests.swift in Sources */,
+				E3D783FBBE525407E25F9D39 /* TimestampRuleTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D711D2C96637BD79F40DE2C2 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -304,16 +433,22 @@
 				1DEA41EF936CC149B70B2ADF /* AppSection.swift in Sources */,
 				B8361FD9B78F3EF6338BD249 /* AppState.swift in Sources */,
 				BE245A706B02DF4765821240 /* AuthGateView.swift in Sources */,
+				93BD32DAF6763A9DDDF70B72 /* Budget.swift in Sources */,
 				4573B7E829DA6873B57F6B14 /* BudgetsView.swift in Sources */,
 				31A2F52354FB53B06D46DFA4 /* CalendarView.swift in Sources */,
 				17EEC898B2D68E2050CC00DC /* CategoriesView.swift in Sources */,
+				B9CB34F3D6E05D43A47ECB40 /* Category.swift in Sources */,
 				2D6EC67FC45A679D9A450E3F /* DashboardView.swift in Sources */,
+				998C40F9CD09FFF59AF183DD /* DatabaseService.swift in Sources */,
 				72822FF59F484428BB89B121 /* Formatters.swift in Sources */,
+				C4FCEC996DB852753791DCA1 /* Goal.swift in Sources */,
 				8A99F990F0B6F2BC8A134B51 /* GoalsView.swift in Sources */,
 				93910583E7283EA9BF531490 /* GroupsView.swift in Sources */,
 				C711E563970D247523BB07D5 /* JmoneyApp.swift in Sources */,
 				018D18E7902209AFB7AB9ED8 /* NewTransactionSheet.swift in Sources */,
+				DC858AAD90D3EE2B4C83ECDD /* Payee.swift in Sources */,
 				8CC1FDF0E3A11203418C2EF4 /* PayeesView.swift in Sources */,
+				542A2A1ABBA1DE4633DBDDDB /* QuickTransaction.swift in Sources */,
 				B6AFD2569F07F3AEF002CE66 /* QuickTransactionPickerSheet.swift in Sources */,
 				065E329A347D6C9CB79F8210 /* QuickTransactionsView.swift in Sources */,
 				267ABEE62E5B163234EF4A94 /* ReportsView.swift in Sources */,
@@ -323,11 +458,22 @@
 				ABDD93AA6E7EB4C1C2491050 /* SettingsSceneView.swift in Sources */,
 				9A37C67B5209A8D4E33DA1E0 /* SidebarView.swift in Sources */,
 				347BBCB478184AC307F304ED /* StatusBarView.swift in Sources */,
+				E107E55F49280FC1E93063CC /* Timestamps.swift in Sources */,
+				9C5D8F5F518BDB24BBFD808A /* Transaction.swift in Sources */,
+				9AD464C81ECC3072A287E4BE /* TransactionGroup.swift in Sources */,
 				34698AB1106D7A6B25D3DAE0 /* TransactionsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		ED60C765B71A22DC20268588 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A61BF42A4686E27816BBDBEE /* Jmoney */;
+			targetProxy = 129498CEB20A63940D98AD15 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		3825776E76A0D6BB3B0C0D18 /* Release */ = {
@@ -403,6 +549,24 @@
 			};
 			name = Release;
 		};
+		C9B0359FD52CE29FC60C7862 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.jayanth.JmoneyTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jmoney.app/Contents/MacOS/Jmoney";
+			};
+			name = Release;
+		};
 		DC37E2E584CF371AFD05EA50 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -417,6 +581,24 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.jayanth.jmoney;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		DEDC8CF7DD941482E4B16A77 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.jayanth.JmoneyTests;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Jmoney.app/Contents/MacOS/Jmoney";
 			};
 			name = Debug;
 		};
@@ -495,6 +677,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		44C029463C9A23C01F04CDE7 /* Build configuration list for PBXNativeTarget "JmoneyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DEDC8CF7DD941482E4B16A77 /* Debug */,
+				C9B0359FD52CE29FC60C7862 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		B90F1149C317ACCC2772C4F6 /* Build configuration list for PBXNativeTarget "Jmoney" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -505,6 +696,30 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		32C7AB1FD69F84208FA0BEB5 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2049DC3A4558067EF3C12BB1 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 32C7AB1FD69F84208FA0BEB5 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
+		};
+		C1B38E8C714280F74C8D2D10 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 32C7AB1FD69F84208FA0BEB5 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 685A26439FB6E62FB988CDE6 /* Project object */;
 }

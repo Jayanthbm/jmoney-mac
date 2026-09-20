@@ -2,7 +2,7 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-20 (Phase 4 app shell implemented — see §1 for completed rows).
+> Last updated: 2026-09-20 (Phase 5 data layer implemented — see §11 for updated rows).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -157,7 +157,7 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Offline-first local DB | expo-sqlite (WAL), all reads/writes local | SQLite (GRDB) WAL | NOT STARTED | See DATA_ARCHITECTURE.md |
+| Offline-first local DB | expo-sqlite (WAL), all reads/writes local | SQLite (GRDB) WAL | IN PROGRESS | Phase 5: WAL pool + v1 migration with the exact RN schema/indexes/defaults, column-faithful DTOs — 21 unit tests green. Query/read-write services land with each feature phase; push/pull below in Phase 14 |
 | Push local changes | Entities with `sync_status = 1` upserted; deleted rows push remote delete then hard delete locally | Same protocol | NOT STARTED | |
 | Pull: full replace | Goals, budgets, categories, payees, quick transactions, groups: delete-all-local then re-insert from Supabase | Same | NOT STARTED | Last-writer-wins by whole-table replace |
 | Pull: incremental | Transactions: pull `tid > MAX(local tid)`, chunked (1000), joined category/payee/group names denormalized | Same | NOT STARTED | Server `tid` sequence is sync cursor |
@@ -177,7 +177,7 @@
 | CSV/JSON export | **Not implemented** (README claims it; no code found) | Planned as macOS-only enhancement (Phase 15) | NOT STARTED | Documented to avoid false parity claims |
 | ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |
 | Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | NOT STARTED | `utils/validators.ts` |
-| Date/time handling | date-fns; `transaction_timestamp` ISO local format; `date` = `yyyy-MM-dd` derived; Supabase push strips timezone suffix | Foundation/Date + shared date utils; preserve timestamp semantics | NOT STARTED | `transactionTimestamp.ts` rules must be replicated exactly |
+| Date/time handling | date-fns; `transaction_timestamp` ISO local format; `date` = `yyyy-MM-dd` derived; Supabase push strips timezone suffix | Foundation/Date + shared date utils; preserve timestamp semantics | IN PROGRESS | Phase 5: `Support/Timestamps.swift` ports `transactionTimestamp.ts` byte-compatibly (suffix conversion, prefix-day extraction, lowercase-t/z + no-colon offsets, UTC date-only quirk) — 11 fixed-timezone tests green |
 | Currency | ₹ / en-IN | Same default; store currency in config | NOT STARTED | |
 
 ---

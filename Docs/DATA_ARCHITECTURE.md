@@ -1,12 +1,16 @@
 # Jmoney macOS — Data Architecture
 
 > Populated after analyzing the React Native application's database, offline-first behavior,
-> synchronization, and Supabase integration. Last updated: 2026-09-20 (Phase 1 analysis,
-> independently re-verified against source by second agent — see §8).
+> synchronization, and Supabase integration. Last updated: 2026-09-20 (Phase 5 data layer
+> implemented: GRDB v1 migration + DTOs + timestamp rules, unit tested).
 
 ## Status
 
-Analysis complete. Persistence decision made (§5). Implementation at Phase 5 (Data Layer).
+Analysis complete (§8). **Persistence implemented (Phase 5)**: `Services/DatabaseService.swift`
+opens a WAL `DatabasePool` and migrates to the exact schema in §1.2–§1.3 (verified by tests:
+tables, columns, defaults, composite index column order, quick-transactions born-dirty quirk).
+DTOs in `Models/` match every column name. `Support/Timestamps.swift` ports `transactionTimestamp.ts`
+byte-compatibly (fixed-timezone tests). Sync/push-pull logic itself lands in Phase 14.
 
 ---
 

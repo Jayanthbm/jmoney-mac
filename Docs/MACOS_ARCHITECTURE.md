@@ -1,13 +1,14 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-20 (Phase 4 app shell implemented).
+> Last updated: 2026-09-20 (Phase 5 data layer implemented on top of the Phase 4 shell).
 
 ## Status
 
 Analysis complete (Phase 1, re-verified — see DATA_ARCHITECTURE.md §8). **App shell implemented
-(Phase 4)**: NavigationSplitView sidebar, all 11 feature views with empty states, menu commands
-(⌘N/⌘⇧N/⌘F/⌘R), Settings scene (⌘,), status bar, mock-session auth gate. Next: Phase 5 (data layer).
+(Phase 4)**. **Data layer implemented (Phase 5)**: GRDB WAL pool, v1 migration mirroring the RN
+schema, column-faithful DTOs, and the timestamp-rules port — all unit tested (21 tests green).
+Next: Phase 6 (Dashboard).
 
 ---
 
@@ -73,7 +74,7 @@ Jmoney/
 │   ├── Categories/  Payees/  Groups/  QuickTransactions/   # [Phase 12]
 │   └── Settings/                  # Pane + ⌘, scene views   [Phase 13]
 ├── Services/
-│   ├── DatabaseService.swift      # GRDB pool, migrations, WAL   [Phase 5]
+│   ├── DatabaseService.swift      # GRDB WAL pool + v1 migration (exact RN schema)  [Phase 5 ✓]
 │   ├── SyncService.swift          # Full sync coordinator (mirror of syncService.ts)   [Phase 14]
 │   ├── Sync/                      # Per-entity push/pull (transactions, budgets, goals,
 │   │                              #   categories, payees, quick transactions, groups)   [Phase 14]
@@ -84,13 +85,13 @@ Jmoney/
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
 │   ├── NotificationService.swift  # Daily reminders   [Phase 13]
 │   └── LocationService.swift      # GPS tagging   [Phase 7]
-├── Models/                        # Transaction, Budget, Goal, Category, Payee,
-│                                  #   QuickTransaction, TransactionGroup, ReportItem …   [Phase 5]
+├── Models/                        # 7 DTOs, column names identical to the RN schema  [Phase 5 ✓]
 ├── Stores/
 │   └── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
-└── Support/
-    └── Formatters.swift           # Relative time now; ₹/en-IN + date utils with data layer  [Phase 4 ✓]
-JmoneyTests/                       # Business logic tests (calculations, validators, sync mappers)  [Phase 5+]
+├── Support/
+│   ├── Formatters.swift           # Relative time now; ₹/en-IN + date utils with data layer  [Phase 4 ✓]
+│   └── Timestamps.swift           # transactionTimestamp.ts port, byte-compatible  [Phase 5 ✓]
+JmoneyTests/                       # 21 tests: schema/defaults/indexes, record round-trips, timestamp rules  [Phase 5 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -146,8 +147,12 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
 
 ## 8. Open Items
 
-- None blocking Phase 5. Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
+- None blocking Phase 6. Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
 - Shell notes: ⌘F is owned by Edit > Find… (no TextEditingCommands are included, so there is no
   conflict); Find currently presents the search field on the Transactions view only. ⌘R lives in a
   custom Data menu and reports "not connected" until the sync engine exists. The auth gate uses a
   mock session; sign-out is added with real auth (Phase 14).
+- Data-layer notes: `DatabaseService` is `@Observable` and injected via `.environment`; the pool
+  opens + migrates in `prepare()` (idempotent) called from `RootView.task`, mirroring the RN boot
+  order (`initDB()` before navigation). Status bar reports "Local database ready."/failure. Tests
+  run via the explicit `Jmoney` scheme (`xcodebuild … test -destination 'platform=macOS'`).

@@ -5,6 +5,11 @@ options:
   deploymentTarget:
     macOS: "14.0"
 
+packages:
+  GRDB:
+    url: https://github.com/groue/GRDB.swift
+    from: "7.0.0"
+
 targets:
   Jmoney:
     type: application
@@ -13,8 +18,35 @@ targets:
     sources:
       - Jmoney
 
+    dependencies:
+      - package: GRDB
+
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.jayanth.jmoney
       SWIFT_VERSION: "5.0"
       MACOSX_DEPLOYMENT_TARGET: "14.0"
       GENERATE_INFOPLIST_FILE: YES
+
+  JmoneyTests:
+    type: bundle.unit-test
+    platform: macOS
+
+    sources:
+      - JmoneyTests
+
+    dependencies:
+      - target: Jmoney
+      - package: GRDB
+
+    settings:
+      SWIFT_VERSION: "5.0"
+      GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  Jmoney:
+    build:
+      targets:
+        Jmoney: all
+    test:
+      targets:
+        - JmoneyTests

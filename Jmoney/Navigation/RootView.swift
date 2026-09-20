@@ -5,27 +5,45 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var sessionStore
+    @Environment(DatabaseService.self) private var database
 
     var body: some View {
         @Bindable var appState = appState
 
-        if sessionStore.isAuthenticated {
-            NavigationSplitView {
-                SidebarView()
-            } detail: {
-                SectionDetailView()
+        Group {
+            if sessionStore.isAuthenticated {
+                NavigationSplitView {
+                    SidebarView()
+                } detail: {
+                    SectionDetailView()
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    StatusBarView()
+                }
+                .sheet(isPresented: $appState.showNewTransaction) {
+                    NewTransactionSheet()
+                }
+                .sheet(isPresented: $appState.showQuickTransactionPicker) {
+                    QuickTransactionPickerSheet()
+                }
+            } else {
+                AuthGateView()
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                StatusBarView()
-            }
-            .sheet(isPresented: $appState.showNewTransaction) {
-                NewTransactionSheet()
-            }
-            .sheet(isPresented: $appState.showQuickTransactionPicker) {
-                QuickTransactionPickerSheet()
-            }
+        }
+        .task {
+            prepareDatabase()
+        }
+    }
+
+    /// Mirrors the RN app's boot order: `initDB()` completes before navigation
+    /// renders. The mock auth gate keeps this simple until Phase 14, when the
+    /// gate will wait for both DB readiness and session restore.
+    private func prepareDatabase() {
+        database.prepare()
+        if database.initializationError != nil {
+            appState.statusMessage = "Local database failed to open."
         } else {
-            AuthGateView()
+            appState.statusMessage = "Local database ready."
         }
     }
 }

@@ -147,7 +147,7 @@ Design notes for the next agent:
 | 2     | Feature inventory                   | COMPLETE    |
 | 3     | macOS architecture                  | COMPLETE    |
 | 4     | Native app shell                    | COMPLETE    |
-| 5     | Data layer                          | NOT STARTED |
+| 5     | Data layer                          | COMPLETE    |
 | 6     | Dashboard                           | NOT STARTED |
 | 7     | Transactions                        | NOT STARTED |
 | 8     | Budgets                             | NOT STARTED |
@@ -167,23 +167,28 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 5 — Data Layer
+**Phase:** 6 — Dashboard
 
-Add the GRDB persistence layer per `DATA_ARCHITECTURE.md` §5:
+Implement the dashboard over the Phase 5 data layer, reproducing the RN calculations exactly
+(`DATA_ARCHITECTURE.md` §2 — formulas are normative):
 
-1. Add the GRDB.swift SPM dependency to `project.yml` (and run `xcodegen generate` — the file set
-   or config change always requires regeneration).
-2. `Services/DatabaseService.swift`: single `DatabasePool` (WAL), `DatabaseMigrator` v1 creating the
-   exact tables + indexes from `DATA_ARCHITECTURE.md` §1.2/§1.3.
-3. `Models/`: DTO structs with column names matching the RN schema exactly (transactions incl.
-   denormalized name columns, goals, budgets, categories, payees, quick_transactions,
-   transaction_groups).
-4. Wire `DatabaseService` into the environment (`AppState`/new store), replace the mock
-   `SessionStore` trigger path with a DB-backed readiness check where sensible.
-5. Start `JmoneyTests` (add a test target in `project.yml`) with tests for migrations and the
-   timestamp rules (`transactionTimestamp.ts` semantics — see §2/§7).
+1. `Services/DashboardService.swift`: pure, testable ports of `dashboardService.ts` —
+   `processSummary`, `calculateDailyLimit` ((income − (expense − spentToday)) ÷ remaining days incl.
+   today, floor 0, remaining = max(0, limit − spent), remaining% = remaining/(remaining+spent)×100),
+   `calculatePayDayInfo` (daysInMonth − currentDay + 1, next payday `MMM 01`).
+2. `DashboardViewModel` (`@Observable`): `fetchDashboardMetrics` — month MTD, prev-month MTD
+   comparison (same day-of-month), year YTD + prev-year YTD (same day), net worth, spent today,
+   top-3 expense categories — mirroring the parallel fetch in `dashboardService.ts`.
+3. Widgets in `Features/Dashboard/`: daily limit card (+ drill-down to "Today's Activity" — the
+   RN `daily-limit-detail` screen: spent today + today's transaction list), month-remaining card,
+   pay-day card, top categories, This Month / This Year summary cards (click-through to the
+   Monthly/Yearly Summary report views), net-worth card.
+4. Unit tests first for the pure calculations (daily limit edge cases: zero income, overspend,
+   spent = 0 → 100%; pay day; processSummary type mapping).
+5. Widgets render zero-values with the local (empty) DB; the first-launch sync modal stays a
+   Phase 14 item.
 
-Then 14-in-part (Supabase client + session) → 6 (Dashboard) → 7 (Transactions) → remaining features.
+After 6: 7 (Transactions — list/filters/editor on GRDB) → remaining phases per the matrix.
 
 ---
 
@@ -322,6 +327,47 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
   default Edit menu has no Find submenu and the shortcut is conflict-free.
 * ⌘R currently reports "Sync isn't connected yet." via the status bar (honest placeholder).
 
+## Phase 5 — Data Layer
+
+**Status:** COMPLETE (2026-09-20)
+
+### What was done
+
+* `project.yml`: added the GRDB.swift SPM package (`from: "7.0.0"`), a `JmoneyTests` unit-test
+  target, and an explicit `Jmoney` scheme with a test action. Ran `xcodegen generate`.
+* `Services/DatabaseService.swift`: `@Observable` service owning a WAL `DatabasePool`
+  (Application Support/Jmoney/jmoney.db) and `DatabaseMigrator` v1 that creates the exact RN
+  schema — all 7 tables, every column + default, and all 11 indexes (incl. composite column order).
+  The v1 migration creates the final schema directly; fresh installs skip the RN app's incremental
+  ALTER history (net-identical). `prepare()` is idempotent and called from `RootView.task`,
+  mirroring the RN boot order (`initDB()` before navigation); status bar reports readiness/failure.
+* `Models/`: 7 DTOs (`Transaction`, `Goal`, `Budget`, `Category`, `Payee`, `QuickTransaction`,
+  `TransactionGroup`) with column names identical to the RN schema via explicit `CodingKeys`;
+  documented quirks inline (denormalized name columns, local-only `is_living_cost`, born-dirty
+  quick transactions, no goal priority).
+* `Support/Timestamps.swift`: byte-compatible port of `transactionTimestamp.ts` — suffix detection,
+  UTC→local wall-clock conversion on push, first-space→`T` replacement, prefix-based day
+  extraction, JS `new Date` fallbacks (lowercase `t`/`z`, no-colon offsets, date-only = UTC
+  midnight), `split('T')[0]` fallback. `timeZone` parameter (default `.current`) enables
+  deterministic tests.
+* `JmoneyTests/` (21 tests, all green): schema/tables/columns/defaults/indexes, quick-transactions
+  born-dirty quirk, migration idempotency, DTO round-trips incl. NULL columns, timestamp rules
+  with fixed timezones.
+
+### Verification
+
+* `xcodebuild … build` → `BUILD SUCCEEDED`; `xcodebuild … test -destination 'platform=macOS'` →
+  `TEST SUCCEEDED` (21 tests, 0 failures).
+* Launch smoke test: app ran, DB created at `~/Library/Application Support/Jmoney/jmoney.db` with
+  WAL sidecar files; `sqlite3` confirmed all 7 tables + `grdb_migrations`.
+
+### Issues / deviations
+
+* GRDB's `MutablePersistableRecord.insert` is `mutating` — test records must be `var`.
+* Two timestamp tests caught real port bugs before commit (colon insertion point for `+0200`
+  offsets; lowercase `t` separator) — fixed; tests are doing their job.
+* GRDB adds a `grdb_migrations` table absent in RN — internal bookkeeping, not a parity concern.
+
 ---
 
 # Decision Log
@@ -340,6 +386,9 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-20 | Mock session behind `SessionStore` until Phase 14           | Auth gate exercised end-to-end without blocking shell work | Phase 4 |
 | 2026-09-20 | ⌘F via Edit > Find… (`CommandGroup(after: .pasteboard)`)    | SwiftUI default Edit menu has no Find submenu (no `TextEditingCommands`), so the shortcut is conflict-free | Phase 4 |
 | 2026-09-20 | `ContentUnavailableView` for all feature empty states       | Native macOS 14 empty-state component; a11y for free | Phase 4 |
+| 2026-09-20 | GRDB.swift 7.x via SPM; explicit `Jmoney` scheme with tests | Current stable line; reproducible builds; `xcodebuild test` works | Phase 5 |
+| 2026-09-20 | v1 migration builds the final schema directly               | Fresh installs skip the RN app's incremental ALTER history; net-identical, testable | Phase 5 |
+| 2026-09-20 | `timeZone` parameter on timestamp ports (default `.current`)| Same behavior as JS device-local time, but deterministically testable | Phase 5 |
 
 ---
 
@@ -352,28 +401,27 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Phase 4 (app shell) is complete and green. Start **Phase 5 (Data Layer)** per `DATA_ARCHITECTURE.md`
-§5 — the full instructions are in the "Current Phase" section above. Summary:
+Phases 4 (shell) and 5 (data layer) are complete and green. Start **Phase 6 (Dashboard)** — full
+instructions in the "Current Phase" section above. Summary:
 
-1. Add GRDB.swift to `project.yml` packages, then run `xcodegen generate` (file/config changes
-   always require regeneration — XcodeGen references files explicitly).
-2. `Services/DatabaseService.swift`: `DatabasePool` (WAL) + `DatabaseMigrator` v1 with the exact
-   tables/indexes from `DATA_ARCHITECTURE.md` §1.2–§1.3.
-3. `Models/`: DTOs with column names identical to the RN schema (including denormalized
-   transaction columns).
-4. Add a `JmoneyTests` target; first tests: migrations apply, timestamp rules (§2/§7).
-5. Keep the shell working: wire `DatabaseService` into the environment without breaking the mock
-   auth gate; the gate stays mock until Phase 14.
-6. Build + test before committing; do not commit a red build.
+1. Port the pure calculations first (`Services/DashboardService.swift` from `dashboardService.ts`)
+   with unit tests before touching UI — formulas are normative in `DATA_ARCHITECTURE.md` §2.
+2. `DashboardViewModel` (`@Observable`) runs the metric queries against `DatabaseService.pool` on a
+   read connection; use GRDB `ValueObservation` where it simplifies refreshes.
+3. Replace `DashboardView`'s placeholder with the widget stack (daily limit + Today's Activity
+   drill-down, remaining, pay day, top categories, This Month/This Year with click-through to the
+   report views, net worth). Keep the empty-DB zero state readable.
+4. Keep the sync modal out (Phase 14); ⌘R still reports "not connected".
+5. `xcodegen generate` after any file addition; build + test green before committing.
 
-Shell pointers (already built, don't redo):
+Existing infrastructure (don't redo):
 
-* `AppState` (`App/AppState.swift`) is the shell's observable hub — extend it (or add stores) for
-  DB/sync wiring; status bar reads `statusMessage`/`isSyncing`/`lastSyncDate`.
-* ⌘F → `AppState.requestSearchFocus()` → Transactions presents search via `.searchable
-  (text:isPresented:)`. Wire additional searchable views to the same counter as they gain search.
-* ⌘N/⌘⇧N open placeholder sheets (`NewTransactionSheet`, `QuickTransactionPickerSheet`) — replace
-  their bodies in Phase 7/12.
+* `DatabaseService` (`@Observable`, `.environment`-injected; `prepare()` idempotent from
+  `RootView.task`). Pool access: `database.pool` after `prepare()`, error in `initializationError`.
+* DTOs in `Models/` map columns 1:1; `Transaction` carries the denormalized name columns.
+* `TransactionTimestamp` (`Support/Timestamps.swift`) for all timestamp derivations — do not
+  re-implement with different semantics.
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (21 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit
