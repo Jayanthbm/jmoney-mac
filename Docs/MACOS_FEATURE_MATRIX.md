@@ -2,7 +2,8 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-20 (Phase 1 analysis).
+> Last updated: 2026-09-20 (Phase 1 analysis; independently re-verified against source — every
+> section below was checked screen-by-screen and module-by-module; see DATA_ARCHITECTURE.md §8).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -77,7 +78,7 @@
 | --- | --- | --- | --- | --- |
 | Budget list | Budgets with amount, spent, progress bar per selected month | List/table with progress columns | NOT STARTED | |
 | Month navigation | Prev/next month + year/month picker, "Back to Today" | Toolbar month picker + stepper | NOT STARTED | Bounded by min transaction date → current month end |
-| Budget spending calc | Σ expenses in month for the budget's category set (`getBudgetSpending`) | Same SQL aggregate | NOT STARTED | `budget.categories` is a JSON array of category IDs |
+| Budget spending calc | Σ expenses in month for the budget's category set (`getBudgetSpending`) | Same SQL aggregate | NOT STARTED | `budget.categories` is a JSON array of category IDs. Sync quirks verified: push normalizes interval `Monthly`→`Month`; budgets with empty category arrays are silently skipped on push (stay dirty) |
 | Sorting | Name / amount / spent / remaining, asc/desc | Sort menu | NOT STARTED | |
 | Add/edit budget | Name, logo, amount, interval, start date, category multi-select (expense categories only) | Sheet with same fields | NOT STARTED | Validation: name required, ≥1 category, valid amount |
 | Delete budget | Soft delete + confirmation | Same | NOT STARTED | |
@@ -131,8 +132,8 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Categories CRUD | Add (name, type Expense/Income, app icon); list/grid view toggle; search; sort by name/priority | Management view with editor | NOT STARTED | Categories are add-only in RN UI (no edit/delete UI for categories) |
-| Category living cost flag | `is_living_cost` toggle exists in DB layer (feeds Living Costs report) | Toggle in category editor | NOT STARTED | Verify UI presence — DB layer supports it |
+| Categories CRUD | Add (name, type Expense/Income, app icon); list/grid view toggle; search; sort by name/priority | Management view with editor | NOT STARTED | Categories are add-only in RN UI (no edit/delete UI for categories). New categories auto-assign `priority = MAX+1`. Goals list has no priority; defaults to name ASC |
+| Category living cost flag | `is_living_cost` toggle exists in DB layer (feeds Living Costs report) | Toggle in category editor | NOT STARTED | ⚠️ Verified quirk: the flag is **local-only** — excluded from category push and omitted from pull insert, so it resets to 0 after every full sync pull. Replicate for parity; flag to user as candidate fix |
 | Category reorder | Explicit reorder mode with up/down arrows; priority persisted; pushed on Done | Drag-and-drop reorder (native) | NOT STARTED | |
 | Category → transactions | Tap category → transactions filtered to it | Same navigation | NOT STARTED | |
 | Payees CRUD | Add (name, logo); list/grid; search; sort; reorder; tap → filtered transactions | Management view with editor | NOT STARTED | |

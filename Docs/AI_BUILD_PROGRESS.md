@@ -74,6 +74,33 @@ Verification:
 
 Build status: `BUILD SUCCEEDED` (Debug, verified 2026-09-20 after docs update).
 
+### Phase 1 Verification Pass (second agent, 2026-09-20)
+
+A second agent independently re-verified the analysis by reading the actual RN source — all 7 sync
+modules, all 8 query modules, `database.ts`, every service, the key hooks, all utils/models/
+constants, `package.json`, and the main screens. **Verdict: the Phase 1 documentation is accurate**;
+schema, sync protocol, formulas, validators, feature inventory, and quirks all match the code.
+
+New findings folded into the docs (all now in `DATA_ARCHITECTURE.md` §2–§4, §7, §8):
+
+1. `is_living_cost` is **local-only** (stripped from push, omitted from pull insert) → resets to 0
+   after every pull; Living Costs report silently loses its selection after sync.
+2. Budget push normalizes interval `Monthly`→`Month` and **silently skips** budgets with empty
+   category arrays (they remain dirty forever).
+3. Quick-transactions pull deletes only `deleted = 0` rows (other meta entities delete all).
+4. Group last-sync key mismatch: `groupService` uses `@last_sync_groups_`, `groupSync` uses
+   `@last_sync_transaction_groups_`.
+5. `transaction_timestamp` is written as **UTC** ISO at save and converted to local wall-clock only
+   at push; `date` on pull is derived from the raw string prefix (docs previously said "ISO local").
+6. New categories/payees/groups/quick-transactions auto-assign `priority = MAX(priority)+1`.
+7. Reset-data clears an exact, partial list of AsyncStorage keys (now enumerated in the docs); it
+   does not clear quick-tx/group sync keys or per-user view-mode keys.
+8. Quick-transactions `sync_status` defaults to 1 (born dirty); goals default-sort by name (no
+   priority column); `TABLES` also names `profiles`/`attachments`/`sync_log` which are
+   Supabase-only (no local tables).
+
+No corrections to the existing feature inventory or architecture decisions were required.
+
 ---
 
 # Phase Status
@@ -190,6 +217,9 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
   resync), business-rule formulas (daily limit, net worth, report comparisons, validation bounds),
   AsyncStorage key inventory, and the persistence decision with rationale.
 * Verified the macOS project still builds (`BUILD SUCCEEDED`).
+* **Verification pass (second agent):** re-read the RN source end-to-end and confirmed the
+  documentation; 8 previously undocumented quirks discovered and folded into
+  `DATA_ARCHITECTURE.md` (see the Phase 1 section above for the list).
 
 ### Key findings the next agent must know
 
@@ -207,6 +237,10 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
    group delete leaves dangling `group_id` values; old rows can contain literal `'null'` ids which
    queries filter out; RN interpolates strings into SQL (macOS must parameterize).
 6. **Currency** is ₹ (en-IN). Theme palette is iOS-system-like; keep light/dark support.
+7. **Second-pass quirks (must-read before implementing sync/categories/budgets)**: `is_living_cost`
+   is local-only and resets on pull; empty-category budgets are never pushed; timestamps are UTC at
+   save, local wall-clock at push; new meta entities auto-assign priority `MAX+1`. Full list in
+   `DATA_ARCHITECTURE.md` §2–§4 and §8.
 
 ### Issues / deviations
 

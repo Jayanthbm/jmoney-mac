@@ -1,7 +1,8 @@
 # Jmoney macOS — Data Architecture
 
 > Populated after analyzing the React Native application's database, offline-first behavior,
-> synchronization, and Supabase integration. Last updated: 2026-09-20 (Phase 1 analysis).
+> synchronization, and Supabase integration. Last updated: 2026-09-20 (Phase 1 analysis,
+> independently re-verified against source by second agent — see §8).
 
 ## Status
 
@@ -82,7 +83,7 @@ chain instead (documented improvement, not a behavior change).
 | Sorting | Transactions: date desc then `transaction_timestamp` desc. Entities: `priority ASC, name ASC` default; user-selectable sorts per screen (see matrix) |
 | Defaults | New expense → category "general"; new income → category "salary" (case-insensitive name match) |
 | Validation | amount > 0 and ≤ 999,999,999; description ≤ 500 chars; category required; goal name required + current ≥ 0; budget name + ≥1 category + amount valid |
-| Timestamps | `transaction_timestamp` = ISO local; `date` derived (`yyyy-MM-dd`); on push to Supabase the timezone suffix is stripped (`yyyy-MM-ddTHH:mm:ss.SSS`); on pull `date` is re-derived from the timestamp |
+| Timestamps | `transaction_timestamp` written at save via `date.toISOString()` (**UTC, 'Z' suffix**); `date` column = local calendar `yyyy-MM-dd` derived at save. On push to Supabase the timestamp is converted to the device's **local wall-clock without suffix** (`yyyy-MM-dd'T'HH:mm:ss.SSS`); on pull `date` is re-derived from the raw string prefix (`getTransactionDate` matches `^(\d{4}-\d{2}-\d{2})[T ]`). Net effect: after the first push/pull cycle timestamps are local wall-clock; before that, a pulled row's `date` can differ from the source device's local date near midnight |
 | Currency | `₹`, locale `en-IN`, 0 or 2 fraction digits |
 
 ## 3. Synchronization Protocol (preserve exactly)
@@ -98,9 +99,20 @@ chain instead (documented improvement, not a behavior change).
 3. Else: `UPSERT (onConflict: id)`; for transactions, capture the returned server `tid` and store it
    locally with `sync_status = 0`.
 
+Entity-specific push details (verified in source):
+- **Budgets**: `interval` normalized `'Monthly'` → `'Month'` before push (Supabase constraint);
+  `categories` JSON string → array; budgets whose category array is empty are **silently skipped**
+  (logged only) and remain `sync_status = 1` forever.
+- **Categories**: `is_living_cost` is stripped from the push payload (local-only field, see §4).
+- **Transactions**: `payee_id`/`group_id` holding the literal string `'null'` are converted to real
+  `NULL` before push.
+
 ### 3.3 Pull (Supabase → local)
 - **Meta entities** (goals, budgets, categories, payees, quick transactions, groups): *full replace* —
   delete all local rows for the user, then insert everything from Supabase with `sync_status = 0`.
+  One deviation: the **quick-transactions pull deletes only `deleted = 0` rows**, so locally
+  soft-deleted-but-unpushed presets survive a pull (defensive; every sync pushes before pulling).
+  The categories pull insert omits `is_living_cost`, so the flag resets to `0` on every pull (see §4).
 - **Transactions**: *incremental* — pull rows with `tid > MAX(local tid)`, ordered by `tid`,
   chunked at 1000, using server-side joins to denormalize category/payee/group names. Insert/replace
   with `sync_status = 0` and locally-derived `date`.
@@ -133,11 +145,30 @@ chain instead (documented improvement, not a behavior change).
   `transactions`, `budgets`, `goals`, `categories`, `payees`, `transaction_groups`, then clearing
   sync flags/prefs. ⚠️ It does **not** delete `quick_transactions` — replicate this quirk for parity
   and surface it to the user as a decision item in a later phase.
+  Exact AsyncStorage keys cleared (verified in `useAppSettings.ts`): `notification_pref`,
+  `@last_sync_master_`, `@last_sync_transactions_`, `@last_sync_budgets_`, `@last_sync_goals_`,
+  `@last_sync_categories_`, `@last_sync_payees_`, `@initial_budget_sync_checked_`,
+  `@initial_goals_sync_checked_`, `@initial_categories_sync_checked_`,
+  `@initial_payees_sync_checked_`, `reports_view_mode`. It does **not** clear
+  `@last_sync_quick_transactions_`, `@last_sync_transaction_groups_`, `@last_sync_groups_`, or any
+  per-user view-mode keys (`@category_view_mode_`, `@payee_view_mode_`, `@group_view_mode_`,
+  `@quick_transaction_view_mode_`).
+- **`is_living_cost` is local-only**: the category push strips it and the pull insert omits it, so
+  the flag **resets to `0` after every full pull** — the Living Costs report silently loses its
+  selection after sync. Replicate for parity, but flag to the user as a candidate fix.
+- **Priority auto-assignment**: new categories/payees/groups/quick-transactions get
+  `priority = MAX(priority) + 1` when created without an explicit priority.
 - **Group deletion** hard-deletes only the group row; member transactions keep a dangling `group_id`
   (filters/reports tolerate this by joining names).
 - **Category/payee deletion** is not exposed in the RN UI; do not add destructive paths without
   flagging them as new behavior.
+- **Group last-sync key mismatch**: `groupService` reads/writes `@last_sync_groups_` while
+  `groupSync.ts` writes `@last_sync_transaction_groups_`. The groups screen's "never synced"
+  auto-sync check therefore reads a key the sync module never writes. Preserve the observable
+  behavior (sync runs on first open); do not copy the key confusion.
 - Sync-status fields must never be user-visible data; they are protocol internals.
+- The `TABLES` constant also names `profiles`, `attachments`, `sync_log` — Supabase-side references
+  only, with no local tables. Do not create local equivalents.
 
 ## 5. macOS Persistence Decision
 
@@ -187,4 +218,28 @@ Service ──write (sync_status=1)──▶ SQLite           │
 - `payee_id`/`group_id` can hold the literal string `'null'` in old data; RN filters these out
   (`!= 'null'`, `!= 'undefined'`, `!= ''`) in several queries — replicate the guards.
 - Keep `date` and `transaction_timestamp` semantics byte-compatible with `transactionTimestamp.ts`
-  to avoid cross-device date drift.
+  to avoid cross-device date drift (see the Timestamps row in §2 for the exact UTC→local pipeline).
+- New quick-transaction rows are born dirty: the migration adds `sync_status` to
+  `quick_transactions` with `DEFAULT 1`, so they push on the first sync after install/upgrade.
+- Goals have no `priority` column; the goals list default sort is `name ASC` (unlike every other
+  management list, which defaults to `priority ASC, name ASC`).
+
+## 8. Verification Record (second agent, 2026-09-20)
+
+The Phase 1 analysis was independently re-verified by reading the actual RN source (not the docs):
+all 7 sync modules, all 8 query modules, `database.ts`, `dashboardService`, `transactionService`,
+`reportService`, `budgetService`, `goalService`, `calendarService`, the 4 entity services,
+`AuthContext`, `useDashboardData`/`useDashboardSync`/`useBiometrics`/`useAppSettings`, all utils,
+models, constants, `package.json`, and the main screens (`_layout`, tabs, transactions, dashboard,
+settings, reports index, add-transaction).
+
+Confirmed unchanged from the original analysis: schema/indexes, push/pull protocol and full-sync
+order, `tid` cursor + 1000-row chunking, all §2 formulas, validators, search semantics, the
+`'null'`/`'undefined'` guards, 11-report inventory and comparison logic, `resetAppData` quirk,
+auth 7s timeout, biometric hardware/enrollment checks, reminder times (9:00/18:00/21:00/Custom),
+and `ajv` being an unused dependency (0 references in `src/` and `app/`).
+
+Additions found during re-verification are folded into §2–§4 above: the UTC-at-save timestamp
+pipeline, budget push normalization/skip rules, quick-transaction pull deviation, `is_living_cost`
+being local-only (resets on pull), priority auto-assignment, the group last-sync key mismatch, and
+the exact reset-data key list.

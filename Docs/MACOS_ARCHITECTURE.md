@@ -1,7 +1,8 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-20 (Phase 1 analysis).
+> Last updated: 2026-09-20 (Phase 1 analysis, independently re-verified against source — see
+> DATA_ARCHITECTURE.md §8 for the verification record).
 
 ## Status
 
@@ -25,6 +26,10 @@ The React Native app is an offline-first personal finance tracker:
 - **Business logic** lives in `src/services/*` and `src/db/*Queries*` (SQL aggregations), with pure
   calculation helpers (daily limit, pay day, goal/budget sorting, report comparison) that are unit
   tested. The macOS port must reproduce these calculations exactly.
+- **Sync-specific push details verified in source**: budget interval normalized `Monthly`→`Month`
+  and empty-category budgets skipped on push; `is_living_cost` never leaves the device; timestamps
+  are saved as UTC ISO and converted to local wall-clock at push. Full detail in
+  DATA_ARCHITECTURE.md §2–§4.
 
 ## 2. macOS Technology Decisions
 
