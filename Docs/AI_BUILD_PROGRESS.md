@@ -152,7 +152,7 @@ Design notes for the next agent:
 | 7     | Transactions                        | COMPLETE    |
 | 8     | Budgets                             | COMPLETE    |
 | 9     | Goals                               | COMPLETE    |
-| 10    | Reports                             | NOT STARTED |
+| 10    | Reports                             | COMPLETE    |
 | 11    | Calendar                            | NOT STARTED |
 | 12    | Categories / Payees / Groups        | NOT STARTED |
 | 13    | Settings                            | NOT STARTED |
@@ -167,47 +167,37 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 10 — Reports
+**Phase:** 11 — Calendar
 
-Phase 9 (Goals) is complete, built, and tested (200 tests green — see the Progress Log).
+Phase 10 (Reports) is complete, built, and tested (296 tests green — see the Progress Log).
 
-Goal: the Reports area — the report index plus the 11 report types and their drill-downs, all
-reusing the shared row renderers and the read-path service pattern.
+Goal: the Calendar — a month grid of days with each day's net (and income/expense split), today
+highlighted, month navigation bounded by the earliest transaction, and a day selection that shows
+that day's transactions.
 
-1. Read `MACOS_FEATURE_MATRIX.md` §7 for the full report inventory (11 report types plus the type
-   toggle, period selectors, comparison column, drill-down, search/sort) and `DATA_ARCHITECTURE.md`
-   §2 for the comparison formula (diff% = (current − previous) / previous × 100, previous matched by
-   name/type, MTD-vs-MTD or YTD-vs-YTD for the current period and full-vs-full otherwise, new items
-   with no previous showing +100%).
-2. This is the largest read-only phase: `src/services/reportService.ts` (267 lines) plus
-   `src/db/reportQueries.ts` (395) are the specification. The screens are the `app/reports/` folder
-   (`monthly-summary`, `yearly-summary`, `category-summary`, `payee-summary`, `group-summary`,
-   `yearly-category`, `yearly-payee`, `living-costs`, `subscription-bills`, `payee-overview`,
-   `category-overview`) with the shared pieces in `src/components/reports/` (`ReportListItem`,
-   `ReportSummary`, `ReportSelectors`, `ReportSortPicker`, `ReportDrillDownModal`,
-   `ReportEmptyState`, `ReportConfigModal`).
-3. `Services/ReportService.swift` — port the pure calculations (`reportTypes` config,
-   `processSummary`, the comparison maths, the "Subscription"/"Bills" name match, the
-   `is_living_cost` filter, the group-priority sort overrides) separately from the parameterized
-   queries, so the whole phase is testable against an in-memory `DatabaseQueue`.
-4. `Features/Reports/`: the index (11 cards, view-mode toggle persisted like
-   `reports_view_mode` — decide whether to keep that preference in `UserDefaults` and say so), then
-   the report pages sharing one row renderer, a type segmented control, period selectors
-   (`YearMonthSelector` → the budget `BudgetMonthPicker` is a good starting point), a sort menu, a
-   toolbar search field, and the drill-down sheet reusing `TransactionRow`.
-5. `AppState.requestedReport` + `ReportDestination` (Phase 6) already records the dashboard
-   click-through; Phase 10 must consume it so the dashboard cards land on the right report.
-6. Only `transactions`, `categories`, `payees` and `transaction_groups` are read here — no writes,
-   so there is nothing to flag for sync.
-7. Reuse, don't rebuild: `TransactionRow`, `ProgressBarView`, `AppFormat.currency`,
-   `AppState.statusMessage`, and the stable-sort pattern the budgets/goals phases established.
+1. Read `MACOS_FEATURE_MATRIX.md` §8 for the calendar inventory and `DATA_ARCHITECTURE.md` §2 for
+   the day-aggregation rules. The specification is `app/calendar-view.tsx` (the screen is reached
+   from the dashboard, not a tab), `src/services/calendarService.ts`, and
+   `src/components/calendar/CalendarGrid.tsx` + `CalendarDaySummary.tsx`.
+2. `Services/CalendarService.swift` — follow the established service shape: pure statics (the month
+   grid build, weekday offsets/leading blanks, per-day aggregation, month bounds) plus parameterized
+   queries taking a `Database`. The day totals must use the same income-positive / expense-negative
+   convention as `TransactionService.sections` and `DashboardService`.
+3. Reuse rather than rebuild: `TransactionRow` for the day's transaction list, `BudgetMonthPicker` /
+   `ReportPeriodPicker` as the pattern for the month stepper, `AppFormat` for the labels, and the
+   `AppState.dataRevision` reload hook.
+4. Week start matters and is easy to get wrong: the RN app forces Monday in its quick date ranges
+   (`weekStartsOn: 1`). Check what the calendar screen itself does and preserve it; if it uses the
+   platform default, say so explicitly rather than picking one silently.
+5. The mobile layout maps onto Mac as a `Grid` of day cells with a detail pane or a sheet for the
+   selected day — the dashboard's `TodaysActivityView` is the closest existing drill-down to reuse.
 
 Still outstanding from Phase 7 (documented, not silently dropped — pick these up before the Phase 7
 row is treated as fully at parity): location tagging on create plus the location edit sheet;
 quick-transaction presets (the bolt FAB / ⌘⇧N picker); Material→SF Symbol category icon mapping
 (belongs with Phase 12).
 
-After 10: 11 (Calendar) → remaining phases per the matrix.
+After 11: 12 (Categories / Payees / Groups) → remaining phases per the matrix.
 
 ---
 
@@ -621,6 +611,99 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 ---
 
+## Phase 10 — Reports
+
+**Status:** COMPLETE (2026-09-21)
+
+### What was done
+
+* `Services/ReportService.swift` — ports `reportService.ts` + the report queries in
+  `reportQueries.ts` + the derived state of `useReportData`:
+  * **pure**: `previousPeriod` (the comparison windows), `isCurrentPeriod`, `isSameMonth`,
+    `applyingComparison` (name/type matching and the diff percentage), `summaryMetrics`,
+    `sorted` (search + the three-key comparator), `present` (totals, `totalDiff`, `showTrends`),
+    `trend` (the label/appearance decisions), `canStepBack`/`canStepForward`/
+    `steppedPeriod`/`showsBackToCurrent`;
+  * **queries**: `incomeExpenseSummary`, `monthlyLivingCosts`, `subscriptionBills`,
+    `summaryByCategory`, `yearlySummaryByCategory`, `summaryByPayee`, `yearlySummaryByPayee`,
+    `monthlySummary`, `yearlySummary`, `payeesOverview`, `categoriesOverview`,
+    `summaryByGroup`, `yearlySummaryByGroup`, `groupsOverview`, `categoriesSummaryByGroup`,
+    `transactionsByGroupAndCategory`, `aggregatedData`, `transactions`, plus `drillDown` and
+    `reportData`. Every query is parameterized (the RN code interpolates the user id, and some
+    reports interpolate more), per-user and `deleted = 0` scoped.
+  * **one write**: `setLivingCost` (`toggleCategoryLivingCost`) flips `is_living_cost`, a
+    **local-only** flag — it is deliberately *not* marked `sync_status = 1`, because the sync layer
+    strips that column on push and omits it on pull.
+* `Features/Reports/ReportDestination.swift` — the Phase 6 enum grew into the full 11-report
+  catalog: titles, descriptions, SF Symbol icons and the index colours from `reportsList`, plus the
+  per-report selector flags (`hasTypeToggle`, `showsYear`, `showsMonth`, `isYearly`, `isSummary`,
+  `supportsComparison`, `isOverview`, `drillsDownByCategory`) and the two toggle labels.
+* `Features/Reports/ReportsViewModel.swift` — the index's grid/list preference (`UserDefaults` under
+  the source's `reports_view_mode` key, validated on read) and `ReportDetailViewModel`
+  (period/type/sort/search selection, one `pool.read` per load, drill-downs, the living-cost list).
+* `Features/Reports/` — `ReportsView` (index + `NavigationStack`), `ReportDetailView` (one
+  config-driven page for all eleven reports), `ReportPeriodPicker`, `ReportSummaryView`
+  (grid + banner + trend label + empty state), `ReportItemRow` + `ReportGroupRow`,
+  `ReportDrillDownView`, `LivingCostConfigView`. The Phase 6 placeholder index is gone.
+* `AppState.consumeRequestedReport()` — the dashboard click-through is now consumed by the reports
+  section and pushed onto its stack, so a dashboard card lands on its report.
+* Tests, 96 new (296 total): `ReportCalculationTests` (the comparison windows incl. the clamping
+  cases, diffs, the summary grid, search/sort/stability/priority, totals, trends, period
+  navigation, the catalog flags), `ReportServiceTests` (every report query, scoping, the `'null'`
+  guards, the living-cost filter and toggle, the comparison pass over the database, all seven
+  drill-down variants), `ReportsViewRenderingTests` (index list+grid, all eleven pages, the summary
+  grid, the banner, the four row shapes, the group row, both sheets, the empty states, and the view
+  model defaults/persistence).
+
+### Verification
+
+* `xcodebuild … clean build` → `BUILD SUCCEEDED`, no warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (296 tests, 0 failures).
+* Launch smoke test: the built app ran for 6 s and quit cleanly.
+* The tests caught a real bug before commit: the full-month comparison window's end date was
+  computed as `start + 1 month − 1 second`, which lands mid-day on the *first* of the following
+  month (the window builder uses noon in the day) — so the "previous month" silently included the
+  whole current month and every summary comparison was wrong. It now comes from the month interval.
+  Two test expectations were also wrong rather than the code (see below).
+
+### Issues / deviations
+
+* **The comparison windows clamp instead of rolling.** The source builds them with the JS `Date`
+  constructor, which rolls day overflow *forward*: on 31 March an MTD-vs-MTD window ends on 3 March
+  of the previous month, and the March after a leap day ends the YTD window on 1 March. Both are
+  meaningless as comparison bounds, so the day is clamped to the target month's length instead —
+  the same class of decision as Phase 8's month normalization. Tested for both cases.
+* **`minDate` is parsed in the local calendar.** The source does `new Date('2024-01-15')`, which JS
+  reads as UTC midnight, so in a negative-offset zone the earliest month shifted by a day. Parsing
+  the column value in the calendar's zone (as the rest of the app already does) removes the quirk.
+* **`summaryByGroup` / `yearlyGroup` are ported but have no catalog entry.** The source's
+  `fetchReportData` and `handleReportDrillDown` both handle `yearlyGroup`, and
+  `getReportYearlySummaryByGroup` exists — but no entry in the RN index reaches either, because
+  there is no `app/reports/yearly-group.tsx`. Rather than invent a twelfth report, the SQL is ported
+  and covered by the service tests, and the omission is recorded here.
+* **A preserved source inconsistency:** the "Transactions By Group" overview lists **all-time**
+  totals (it is `getReportGroupsOverview`), but its drill-down window is the **selected month** — the
+  source only widens the window for the two overviews and the yearly reports. A group's total can
+  therefore exceed the sum of the rows its drill-down shows. Tested so it stays deliberate.
+* **The index is one config-driven page, not eleven screens.** The RN app has eleven near-identical
+  screens differing only in their `ReportSelectors` props and one summary/data switch; those flags
+  live on `ReportDestination` and drive a single `ReportDetailView`. The two genuine special cases
+  (the group accordion, the living-cost config sheet) are handled inside it.
+* **The period picker disables out-of-range months.** The RN `YearMonthSelector` lets you pick a
+  month with no data; the stepper's bounds are applied to the month grid as well, which is the same
+  rule the budgets phase's picker uses.
+* **Report row glyphs are SF Symbols, not the stored Material icon names.** The same decision as
+  `TransactionRow`: `category_app_icon` mapping belongs with Phase 12's category icon picker.
+* **The `payees`/`categories` search field lives in a row above the list**, mirroring the RN
+  `searchContainer` layout, rather than as a `.searchable` modifier (which cannot be applied
+  conditionally without a wrapper). The sort picker is a toolbar menu; the sort caption sits under
+  the field as in the source.
+* **Two test expectations were wrong, not the code:** a 100% rise in *spending* is bad (red), so
+  `isPositive` is false even though the percent is suppressed when there is no previous amount; and
+  the group drill-down window is the month, as the preserved-inconsistency test above now documents.
+
+---
+
 # Decision Log
 
 | Date       | Decision                                                   | Reason                                    | Agent         |
@@ -666,6 +749,13 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-21 | An empty "Currently Saved" is an error, not a missing required field | `parseFloat('')` is `NaN` in the source, whose message is "Current amount cannot be negative" — preserved so the rules stay identical | Phase 9 |
 | 2026-09-21 | The goal save button stays enabled                              | The RN modal disables it while the name is empty, which makes its own name error unreachable; inline errors need the button pressable | Phase 9 |
 | 2026-09-21 | Goal logos use `AsyncImage` for `http` URLs, else the 🎯 tile   | Mirrors `logo.startsWith('http')`; anything else (including '') gets the placeholder | Phase 9 |
+| 2026-09-21 | Report comparison windows clamp instead of rolling (MTD/YTD)  | The JS `Date` constructor rolls day overflow forward (31 Mar → 3 Mar of the previous month), which is meaningless as a comparison bound; same class of fix as Phase 8's month normalization | Phase 10 |
+| 2026-09-21 | `previousTotal` sums unfiltered rows while `totalAmount` sums filtered ones | Preserves the source's ordering; changing it would alter every banner trend | Phase 10 |
+| 2026-09-21 | Reports are one config-driven page, with the per-report flags on `ReportDestination` | Eleven near-identical RN screens differ only in their selector props; one page plus a catalog is the macOS reading and keeps the flags testable | Phase 10 |
+| 2026-09-21 | `reports_view_mode` persists to `UserDefaults`                    | A local UI preference, not user data, so it does not belong in the DB or in sync | Phase 10 |
+| 2026-09-21 | Report search matches `name`/`category_name`/`payee_name` only     | Faithful to `sortReportData`'s search branch, which omits `group_name` even though its sort branch uses it | Phase 10 |
+| 2026-09-21 | Toggling `is_living_cost` does not set `sync_status = 1`           | The column is stripped on push and omitted on pull, so flagging it dirty would cause a pointless push cycle | Phase 10 |
+| 2026-09-21 | `summaryByGroup`/`yearlyGroup` SQL is ported without a catalog entry | The source handles them but no RN screen reaches them; porting the SQL keeps the service a complete mirror without inventing UI | Phase 10 |
 
 ---
 
@@ -678,7 +768,7 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Phases 4–9 are complete and green (200 tests). Start **Phase 10 (Reports)** — full instructions in
+Phases 4–10 are complete and green (296 tests). Start **Phase 11 (Calendar)** — full instructions in
 the "Current Phase" section above, which also lists the Phase 7 items still outstanding (location
 tagging, quick-transaction presets, category icon mapping).
 
@@ -704,15 +794,18 @@ Existing infrastructure (don't redo):
   meta entities): a list query, a per-row enrichment aggregate where needed, a stable sorted
   comparator, and `save`/`softDelete`. Their view models show the observed-sort reload pattern, and
   `InitialSyncGuard` is where any further first-open sync predicate belongs (Phase 14).
-* Reports (Phase 10) is read-only: follow the same service shape but skip the write path. Its RN
-  specification is `reportService.ts` + `reportQueries.ts` + the `app/reports/` screens.
+* Reports (Phase 10) is complete: `ReportService` is the reference for a **read-only aggregate**
+  service (pure statics + parameterized queries, one `pool.read` per screen load), and
+  `Features/Reports/` shows the config-driven-page pattern. Reuse `ReportService.sorted`'s stable
+  comparator shape, `ReportService.drillDown`'s window selection, and `TransactionRow` for any
+  transaction list. `ReportDestination` is now the full 11-report catalog.
 * `Validators` (amount/transaction/budget/goal) and `Support/Formatters.swift` cover the shared
   formatting and validation rules; extend rather than duplicate.
 * `AppState.dataRevision` / `markDataChanged()` is how a write tells open views to reload;
   `AppState.statusMessage` is the toast surface the RN screens use `showToast` for.
 * `TransactionRow` is shared with the dashboard and the budget drill-down; keep new list renderers
   consistent with it.
-* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (200 passing).
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (296 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit
@@ -753,4 +846,9 @@ the established pattern).
 ### Phase 9 Commit
 
 `8c0ab15` — 2026-09-21 — "phase: implement goals" (hash recorded in a follow-up docs commit per
+the established pattern).
+
+### Phase 10 Commit
+
+`PENDING` — 2026-09-21 — "phase: implement reports" (hash recorded in a follow-up docs commit per
 the established pattern).

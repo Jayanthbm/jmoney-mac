@@ -36,13 +36,20 @@ final class AppState {
         transactionEditor = .edit(transaction)
     }
 
-    /// Report another section asked for (dashboard click-through). Phase 10's
-    /// report pages consume it; the placeholder reports view echoes it today.
+    /// Report another section asked for (dashboard click-through). The reports
+    /// section pushes it and clears it through `consumeRequestedReport()`.
     private(set) var requestedReport: ReportDestination?
 
     func openReport(_ destination: ReportDestination) {
         requestedReport = destination
         selectedSection = .reports
+    }
+
+    /// Reads and clears the pending click-through, so the reports section pushes
+    /// each requested report exactly once.
+    func consumeRequestedReport() -> ReportDestination? {
+        defer { requestedReport = nil }
+        return requestedReport
     }
 
     // MARK: Search

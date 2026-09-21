@@ -14,9 +14,11 @@ filter/search/statistics layer, the editor, soft deletion, and the shared transa
 **Budgets implemented (Phase 8)**: month spending over the transaction ledger, the pace-bar list,
 month navigation with the same data-range bounds as the source, sorting, the editor, soft deletion,
 and the per-budget drill-down. **Goals implemented (Phase 9)**: the progress list, the three sort
-orders, the editor with its live preview, soft deletion, and the shared first-open sync predicate —
-all unit tested (200 tests green).
-Next: Phase 10 (Reports).
+orders, the editor with its live preview, soft deletion, and the shared first-open sync predicate.
+**Reports implemented (Phase 10)**: the 11-report index and a config-driven report page with period
+selectors, the previous-period comparison, search/sort, the group accordion, the living-cost
+configuration sheet, and drill-downs — all unit tested (296 tests green).
+Next: Phase 11 (Calendar).
 
 ---
 
@@ -83,8 +85,10 @@ Jmoney/
 │   │                              #   drill-down sheet, editor-target enum  [Phase 8 ✓]
 │   ├── Goals/                     # GoalsViewModel + editor view model, progress list, sort menu,
 │   │                              #   editor sheet, editor-target enum  [Phase 9 ✓]
-│   ├── Reports/                   # ReportDestination enum [Phase 6 ✓]; index + 11 report pages
-│   │                              #   + drill-down [Phase 10]
+│   ├── Reports/                   # ReportDestination catalog (11 reports) + per-report flags,
+│   │                              #   index + NavigationStack, one config-driven report page,
+│   │                              #   period picker, summary grid/banner, report rows + group
+│   │                              #   accordion, drill-down sheet, living-cost config  [Phase 10 ✓]
 │   ├── Calendar/                  # [Phase 11]
 │   ├── Categories/  Payees/  Groups/  QuickTransactions/   # [Phase 12]
 │   └── Settings/                  # Pane + ⌘, scene views   [Phase 13]
@@ -102,7 +106,10 @@ Jmoney/
 │   │                              #   (mirror of budgetService.ts + budgetQueries.ts)  [Phase 8 ✓]
 │   ├── GoalService.swift          # Progress maths, sorting, fetch + save & soft delete
 │   │                              #   (mirror of goalService.ts + metaQueries.ts)  [Phase 9 ✓]
-│   ├── ReportService.swift  CalendarService.swift
+│   ├── ReportService.swift        # Report queries, previous-period comparison, summary grid,
+│   │                              #   stable sorting/search, drill-downs, living-cost flag
+│   │                              #   (mirror of reportService.ts + reportQueries.ts)  [Phase 10 ✓]
+│   ├── CalendarService.swift
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
 │   ├── NotificationService.swift  # Daily reminders   [Phase 13]
 │   └── LocationService.swift      # GPS tagging   [Phase 7]
@@ -116,12 +123,14 @@ Jmoney/
 │   ├── Timestamps.swift           # transactionTimestamp.ts port + `instant`/`utcISOString`  [Phase 5 ✓, Phase 7 ✓]
 │   ├── Validators.swift           # validators.ts port (amount + transaction + budget + goal)  [Phase 7–9 ✓]
 │   └── InitialSyncGuard.swift     # Shared first-open sync predicate (goals + budgets)  [Phase 9 ✓]
-JmoneyTests/                       # 200 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+JmoneyTests/                       # 296 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
                                    #   drill-down & writes, budget render smoke, goal card maths/sorting/
-                                   #   validation, goal SQL & writes, goal render smoke  [Phase 5–9 ✓]
+                                   #   validation, goal SQL & writes, goal render smoke, report comparison
+                                   #   windows/diffs/summaries/sorting/trends, report SQL & all seven
+                                   #   drill-downs, report render smoke  [Phase 5–10 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -198,8 +207,8 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   calculations plus parameterized GRDB queries that take a `Database`, so every rule is testable
   against an in-memory `DatabaseQueue` with no app running. The seven metric queries share one
   `pool.read` (one consistent snapshot) instead of the RN app's seven parallel queries. Report
-  click-through is recorded on `AppState.requestedReport` and echo-rendered by the Reports
-  placeholder until Phase 10. `TodaysActivityView` now uses the shared `TransactionRow`. ⌘R still
+  click-through is recorded on `AppState.requestedReport` and now consumed by `ReportsView`, which
+  pushes the requested report. `TodaysActivityView` uses the shared `TransactionRow`. ⌘R still
   reports "not connected" (Phase 14).
 - Transactions notes: `AppState.transactionEditor` drives the editor sheet (⌘N sets `.new`, a row
   sets `.edit(tx)`); `AppState.dataRevision` / `markDataChanged()` replaces the RN
@@ -226,6 +235,16 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   sort value ("Amount") while the sort sheet labels the same mode "Target Amount". The first-open
   sync condition now lives in `Support/InitialSyncGuard.swift` and is shared with budgets, each with
   its own thin named wrapper.
-- Reports (Phase 10) is read-only and the largest remaining surface: 11 report types over the same
-  four tables, with period comparisons and drill-downs. Follow the service pattern but skip the write
-  path, and consume `AppState.requestedReport` for the dashboard click-through.
+- Reports notes: `Services/ReportService.swift` is the read-only aggregate service — pure statics
+  (`previousPeriod`, `applyingComparison`, `summaryMetrics`, `sorted`, `present`, `trend`, the period
+  bounds) plus parameterized queries over a `Database`, with `reportData` composing base + previous
+  rows. Every report page loads in one `pool.read`. `ReportDestination` is the single source of the
+  per-report behaviour flags (which screen shows a type toggle, a month, a comparison, search/sort),
+  so one `ReportDetailView` serves all eleven instead of eleven near-identical screens; the two
+  genuine special cases (the group accordion in `ReportGroupRow`, the living-cost config sheet) live
+  inside it. `ReportPeriodPicker` is the budgets `BudgetMonthPicker` pattern with the report bounds.
+  Search/sort exist only on the two overviews, matching the source. `setLivingCost` is the phase's
+  only write and is deliberately **not** marked `sync_status = 1` — `is_living_cost` never syncs.
+  The comparison windows clamp day overflow instead of rolling it forward as the JS `Date`
+  constructor does (Phase 8's `setMonth` decision, applied again). `summaryByGroup`/`yearlyGroup` are
+  ported but unreachable from the index, exactly as in the RN app.

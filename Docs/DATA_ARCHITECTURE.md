@@ -96,7 +96,11 @@ chain instead (documented improvement, not a behavior change).
 | Budget month bounds | Navigation runs from the month of `MIN(date)` over non-deleted transactions (falling back to **today** when there is no history, so a fresh account cannot page back) up to the current month end. `endOfMonth(subMonths(selectedDate,1)) >= startOfMonth(minDate)` gates "previous"; `startOfMonth(addMonths(selectedDate,1)) <= endOfMonth(maxDate)` gates "next" |
 | Budget sort | `name` uses locale collation (`localeCompare`); `amount`, `spent` and `remaining` compare numerically, where remaining is `(a.amount − a.spent) − (b.amount − b.spent)`. `Array.prototype.sort` is stable, so equal keys keep the `ORDER BY name` order — restored explicitly in Swift |
 | Goal progress | `current_amount / goal_amount` — the sort key uses the unclamped ratio; the card clamps the *percentage* to 100, rounds it for display, and floors `remaining` at 0. `goal_amount = 0` yields 0 rather than dividing. Implemented as `GoalService.cardInfo` / `progressRatio` |
-| Report comparison | diff% = (current − previous)/previous × 100; previous matched by name/type; MTD-vs-MTD or YTD-vs-YTD for current period, full-vs-full otherwise; new items with no previous show +100% |
+| Report comparison | diff% = (current − previous)/previous × 100; previous matched by name/type; MTD-vs-MTD or YTD-vs-YTD for current period, full-vs-full otherwise; new items with no previous show +100%. Windows clamp an overflowing day onto the target month's last day (31 Mar MTD ends 28/29 Feb) instead of rolling forward as the JS `Date` constructor does — see the Phase 10 note below |
+| Report total vs previous total | The banner's `totalAmount` sums the **filtered/sorted** rows, but `previousTotal` sums the **unfiltered** ones, so a search changes the trend's numerator but not its denominator. `payees`/`categories` always report a 0 total diff. Implemented as `ReportService.present` |
+| Report drill-down window | `payees`/`categories` scan all time (`1970-01-01`…`2099-12-31`), the yearly reports the whole selected year, everything else the selected month. `subscriptionAndBills` additionally filters by category name only and ignores the row's type. Preserved inconsistency: the **groups overview lists all-time totals while its drill-down uses the month window** |
+| Report search/sort | Search matches `name`/`category_name`/`payee_name` (no `group_name`); sort is `name` or `amount`, with a group-priority override that applies only when *both* rows carry a priority and is not reversed by the sort direction. `Array.prototype.sort` stability restored explicitly |
+| Living costs | `categories.is_living_cost` is a local-only flag: it is stripped on push and omitted on pull, so it resets to 0 after a full pull. The report's configuration sheet writes it **without** setting `sync_status = 1`, since a dirty flag would create a pointless push |
 | Filtered total | Σ(income − expense) over the active transaction filter |
 | Calendar day total | Σ(income − expense) for the selected date |
 | Search | numbers → exact amount match; otherwise LIKE on description and amount-as-text. The numeric form is `^-?\d+(\.\d+)?$`, and when it matches the LIKE is **not** run at all (so `5` does not match a description containing "5"). Exception: `getMonthlyFilteredStats` never takes the numeric branch — its search is always the LIKE, so there `50` *does* match "500 note electricity" |
@@ -243,6 +247,14 @@ Service ──write (sync_status=1)──▶ SQLite           │
   `quick_transactions` with `DEFAULT 1`, so they push on the first sync after install/upgrade.
 - Goals have no `priority` column; the goals list default sort is `name ASC` (unlike every other
   management list, which defaults to `priority ASC, name ASC`).
+- The report comparison windows are the one place the port **deliberately changes a source result**.
+  `reportService.ts` builds them with `new Date(y, m, d)`, which rolls day overflow forward: an
+  MTD-vs-MTD window for 31 March ends on 3 March of the previous month, and a leap day makes the YTD
+  window end on 1 March. Both are meaningless as comparison bounds, so the day is clamped to the
+  target month's length instead (the same decision Phase 8 made for `setMonth`). `previousPeriod`
+  carries the details; the clamping cases are tested.
+- The reports phase's only write is `is_living_cost` (`ReportService.setLivingCost`). Do not add
+  `sync_status = 1` to it: the column never leaves the device, so it must not create a push cycle.
 
 ## 8. Verification Record (second agent, 2026-09-20)
 

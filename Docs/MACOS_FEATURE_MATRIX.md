@@ -102,23 +102,23 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Reports index | 11 report cards, grid/list view toggle (persisted `reports_view_mode`) | Source-list / collection with view toggle | NOT STARTED | |
-| Monthly Summary | Income/expense for month vs previous period (MTD-vs-MTD or full month) | Report page | NOT STARTED | `reportType: monthlySummary` |
-| Yearly Summary | Income/expense for year vs previous year (YTD-vs-YTD or full year) | Report page | NOT STARTED | |
-| Transactions By Category | Per-category totals for month, with comparison % | Report page | NOT STARTED | |
-| Transactions By Payee | Per-payee totals for month, with comparison % | Report page | NOT STARTED | |
-| Transactions By Group | Per-group totals for month, with comparison % | Report page | NOT STARTED | |
-| Transactions By Year | Per-category yearly totals with comparison | Report page | NOT STARTED | |
-| Yearly Payees | Per-payee yearly totals with comparison | Report page | NOT STARTED | |
-| Monthly Living Costs | Expenses restricted to `is_living_cost = 1` categories for month | Report page | NOT STARTED | |
-| Subscription and Bills | Expenses in categories literally named 'Subscription' or 'Bills' | Report page | NOT STARTED | Preserves exact behavior |
-| Payees Overview | All-time totals per payee (Expense or Income) | Report page | NOT STARTED | |
-| Categories Overview | All-time totals per category (Expense or Income) | Report page | NOT STARTED | |
-| Expense/Income type toggle | All reports support type switch | Segmented control | NOT STARTED | |
-| Month/year selectors | `YearMonthSelector` on each report | Date pickers | NOT STARTED | |
-| Previous-period comparison | diff% vs previous period (prev item matched by name/type) | Δ column / indicator | NOT STARTED | MTD vs MTD for current period; full-vs-full otherwise; `useFullPreviousPeriod` flag |
-| Report drill-down | Tap report row → underlying transactions for that item/period | Selection opens detail view | NOT STARTED | `handleReportDrillDown` |
-| Report search/sort | Search by name; sort by name/amount (priority overrides for groups) | Toolbar search + sort menu | NOT STARTED | |
+| Reports index | 11 report cards, grid/list view toggle (persisted `reports_view_mode`) | Source-list / collection with view toggle | COMPLETE | `ReportsView` pushes each report on a `NavigationStack`; the toggle persists to `UserDefaults` under the same key. The dashboard click-through (`AppState.requestedReport`) is consumed and pushed, replacing the Phase 6 echo |
+| Monthly Summary | Income/expense for month vs previous period (MTD-vs-MTD or full month) | Report page | COMPLETE | `reportType: monthlySummary`. Four-metric grid (income/expense/saved/spent %); no rows, matching the source |
+| Yearly Summary | Income/expense for year vs previous year (YTD-vs-YTD or full year) | Report page | COMPLETE | The "Full Year" toggle replaces "Full Month" |
+| Transactions By Category | Per-category totals for month, with comparison % | Report page | COMPLETE | Category drill-down; the dashboard's "Top Categories" card lands here |
+| Transactions By Payee | Per-payee totals for month, with comparison % | Report page | COMPLETE | Rows skip `payee_id = 'null'` as the source does |
+| Transactions By Group | Per-group totals for month, with comparison % | Report page | COMPLETE | All-time per the source's `getReportGroupsOverview`, ordered by the group's `priority` (the sort comparator's priority override) and the only report with the expandable group›category accordion. **Its drill-down window is the selected month, not all time** — a preserved source inconsistency |
+| Transactions By Year | Per-category yearly totals with comparison | Report page | COMPLETE | No month selector |
+| Yearly Payees | Per-payee yearly totals with comparison | Report page | COMPLETE | No month selector |
+| Monthly Living Costs | Expenses restricted to `is_living_cost = 1` categories for month | Report page | COMPLETE | Adds the config sheet (search + tile grid) that writes `is_living_cost`; the write is local-only and deliberately not marked dirty for sync |
+| Subscription and Bills | Expenses in categories literally named 'Subscription' or 'Bills' | Report page | COMPLETE | Preserves exact behavior, incl. the name-only drill-down that ignores the row's type |
+| Payees Overview | All-time totals per payee (Expense or Income) | Report page | COMPLETE | No period selector, no comparison, search + sort only |
+| Categories Overview | All-time totals per category (Expense or Income) | Report page | COMPLETE | Same as above |
+| Expense/Income type toggle | All reports support type switch | Segmented control | COMPLETE | Hidden on the two summaries, living costs and subscriptions — `ReportDestination.hasTypeToggle` |
+| Month/year selectors | `YearMonthSelector` on each report | Date pickers | COMPLETE | Toolbar stepper + popover (year menu, month grid). Out-of-range months are disabled; yearly reports show the year only |
+| Previous-period comparison | diff% vs previous period (prev item matched by name/type) | Δ column / indicator | COMPLETE | MTD vs MTD for current period; full-vs-full otherwise; `useFullPreviousPeriod` flag, exposed as the "Full Month"/"Full Year" toggle. Windows clamp instead of rolling (see the progress log) |
+| Report drill-down | Tap report row → underlying transactions for that item/period | Selection opens detail view | COMPLETE | `handleReportDrillDown`; seven window/target variants, all covered by tests. The drill-down sheet reuses `TransactionRow` |
+| Report search/sort | Search by name; sort by name/amount (priority overrides for groups) | Toolbar search + sort menu | COMPLETE | Search + sort exist on the two overviews only, matching the RN screens. Search deliberately ignores `group_name` (the source's search branch omits it while its sort branch uses it) |
 
 ## 8. Calendar
 
