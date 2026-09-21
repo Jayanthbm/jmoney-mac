@@ -671,3 +671,8 @@ the established pattern).
 
 `f8851fb` — 2026-09-21 — "phase: implement transaction list, filters, search, and editor" (hash
 recorded in a follow-up docs commit per the established pattern).
+
+### Phase 8 Commit
+
+`c7ff6c8` — 2026-09-21 — "phase: implement budgets" (hash recorded in a follow-up docs commit per
+the established pattern).
