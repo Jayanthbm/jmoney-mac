@@ -850,5 +850,5 @@ the established pattern).
 
 ### Phase 10 Commit
 
-`PENDING` — 2026-09-21 — "phase: implement reports" (hash recorded in a follow-up docs commit per
+`8d35677` — 2026-09-21 — "phase: implement reports" (hash recorded in a follow-up docs commit per
 the established pattern).
