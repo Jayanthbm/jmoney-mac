@@ -319,7 +319,18 @@ struct ReportDetailView: View {
                 }
                 .help("Select a period")
                 .popover(isPresented: $showPeriodPicker, arrowEdge: .bottom) {
-                    ReportPeriodPicker(viewModel: viewModel)
+                    MonthYearPicker(
+                        year: viewModel.year,
+                        monthIndex: viewModel.monthIndex,
+                        showsMonth: destination.showsMonth,
+                        selectableYears: selectableYears,
+                        isMonthSelectable: { monthIndex in
+                            isMonthSelectable(monthIndex, inYear: viewModel.year)
+                        },
+                        onSelect: { year, monthIndex in
+                            viewModel.select(year: year, monthIndex: monthIndex)
+                        }
+                    )
                 }
 
                 Button {
@@ -360,6 +371,40 @@ struct ReportDetailView: View {
                 .help("Choose which categories count as living costs")
             }
         }
+    }
+
+    // MARK: - Period picker bounds
+
+    /// Newest year first, down to the year of the earliest transaction.
+    private var selectableYears: [Int] {
+        let maximum = viewModel.calendar.component(.year, from: viewModel.now)
+        let minimum = viewModel.calendar.component(.year, from: viewModel.minDate)
+        guard minimum <= maximum else { return [maximum] }
+        return Array((minimum...maximum).reversed())
+    }
+
+    /// The source disables a month outside `[startOfMonth(minDate),
+    /// endOfMonth(maxDate)]`; the stepper enforces the same bounds. Yearly
+    /// reports only care about the year.
+    private func isMonthSelectable(_ monthIndex: Int, inYear year: Int) -> Bool {
+        let calendar = viewModel.calendar
+        guard
+            let target = calendar.date(from: DateComponents(year: year, month: monthIndex + 1, day: 1))
+        else { return false }
+
+        let minimum = calendar.date(
+            from: calendar.dateComponents([.year, .month], from: viewModel.minDate)
+        ) ?? viewModel.minDate
+        let maximum = calendar.date(
+            from: calendar.dateComponents([.year, .month], from: viewModel.now)
+        ) ?? viewModel.now
+
+        if !destination.showsMonth {
+            let targetYear = calendar.component(.year, from: target)
+            return targetYear >= calendar.component(.year, from: minimum)
+                && targetYear <= calendar.component(.year, from: maximum)
+        }
+        return target >= minimum && target <= maximum
     }
 
     // MARK: - Bindings

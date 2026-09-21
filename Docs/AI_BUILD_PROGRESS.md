@@ -153,7 +153,7 @@ Design notes for the next agent:
 | 8     | Budgets                             | COMPLETE    |
 | 9     | Goals                               | COMPLETE    |
 | 10    | Reports                             | COMPLETE    |
-| 11    | Calendar                            | NOT STARTED |
+| 11    | Calendar                            | COMPLETE    |
 | 12    | Categories / Payees / Groups        | NOT STARTED |
 | 13    | Settings                            | NOT STARTED |
 | 14    | Authentication / Sync               | NOT STARTED |
@@ -167,37 +167,41 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 11 — Calendar
+**Phase:** 12 — Categories / Payees / Groups / Quick Transactions
 
-Phase 10 (Reports) is complete, built, and tested (296 tests green — see the Progress Log).
+Phase 11 (Calendar) is complete, built, and tested (344 tests green — see the Progress Log).
 
-Goal: the Calendar — a month grid of days with each day's net (and income/expense split), today
-highlighted, month navigation bounded by the earliest transaction, and a day selection that shows
-that day's transactions.
+Goal: the four management screens — categories, payees, transaction groups and quick
+transactions — including their editors, prioritisation, and the **Material→SF Symbol icon mapping**
+that Phases 7/10/11 deliberately left out (every category/report row currently draws a neutral
+glyph instead of the stored `app_icon`).
 
-1. Read `MACOS_FEATURE_MATRIX.md` §8 for the calendar inventory and `DATA_ARCHITECTURE.md` §2 for
-   the day-aggregation rules. The specification is `app/calendar-view.tsx` (the screen is reached
-   from the dashboard, not a tab), `src/services/calendarService.ts`, and
-   `src/components/calendar/CalendarGrid.tsx` + `CalendarDaySummary.tsx`.
-2. `Services/CalendarService.swift` — follow the established service shape: pure statics (the month
-   grid build, weekday offsets/leading blanks, per-day aggregation, month bounds) plus parameterized
-   queries taking a `Database`. The day totals must use the same income-positive / expense-negative
-   convention as `TransactionService.sections` and `DashboardService`.
-3. Reuse rather than rebuild: `TransactionRow` for the day's transaction list, `BudgetMonthPicker` /
-   `ReportPeriodPicker` as the pattern for the month stepper, `AppFormat` for the labels, and the
-   `AppState.dataRevision` reload hook.
-4. Week start matters and is easy to get wrong: the RN app forces Monday in its quick date ranges
-   (`weekStartsOn: 1`). Check what the calendar screen itself does and preserve it; if it uses the
-   platform default, say so explicitly rather than picking one silently.
-5. The mobile layout maps onto Mac as a `Grid` of day cells with a detail pane or a sheet for the
-   selected day — the dashboard's `TodaysActivityView` is the closest existing drill-down to reuse.
+1. Read `MACOS_FEATURE_MATRIX.md` §9 for the inventory. The specification per screen is
+   `app/categories.tsx`, `app/payees.tsx`, `app/groups.tsx`, `app/quick-transactions.tsx` plus
+   `src/services/{category,payee,group,quickTransaction}Service.ts` and
+   `src/components/categories/` + `src/components/payees/`. Verify each before porting rather than
+   trusting this list — it is a pointer, not a summary.
+2. `Services/CategoryService.swift`, `PayeeService.swift`, `GroupService.swift`,
+   `QuickTransactionService.swift` — the `BudgetService`/`GoalService` shape: list query, stable
+   sorted comparator, `save`, soft/hard delete as the table requires (groups hard-delete their row
+   only, leaving member transactions with a dangling `group_id`; categories/payees/groups have **no**
+   `deleted` column).
+3. Prioritisation (drag-reorder in RN) needs a design decision: native `onMove` in a `List` is the
+   obvious macOS reading, and `metaQueries.ts`'s `updateCategoryPriorities` shows the write shape.
+   Report what you chose, and keep the `priority ASC, name ASC` ordering every other screen relies
+   on.
+4. The icon mapping is the piece with the most reuse: a single Material→SF Symbol table (the RN app
+   stores Material names in `app_icon`) should back `TransactionRow`, `BudgetRow`, `ReportItemRow`,
+   the living-cost config tiles and the new icon pickers. Do not fork a second table.
+5. Quick transactions carry `identifier`, `priority` and a `sync_status` default of 1 (see
+   `DATA_ARCHITECTURE.md` §7) — preserve both.
 
 Still outstanding from Phase 7 (documented, not silently dropped — pick these up before the Phase 7
 row is treated as fully at parity): location tagging on create plus the location edit sheet;
-quick-transaction presets (the bolt FAB / ⌘⇧N picker); Material→SF Symbol category icon mapping
-(belongs with Phase 12).
+quick-transaction presets (the bolt FAB / ⌘⇧N picker — the Phase 12 quick-transaction screen is what
+makes that prefill possible, so it may land here).
 
-After 11: 12 (Categories / Payees / Groups) → remaining phases per the matrix.
+After 12: 13 (Settings) → remaining phases per the matrix.
 
 ---
 
@@ -704,6 +708,75 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 ---
 
+## Phase 11 — Calendar
+
+**Status:** COMPLETE (2026-09-21)
+
+### What was done
+
+* `Services/CalendarService.swift` — ports `calendarService.ts` plus the period logic the screen in
+  `app/calendar-view.tsx` keeps inline:
+  * **pure**: `daysInMonth` (the `eachDayOfInterval` grid), `leadingSlots`, `dayNetTotal`,
+    `dateForPeriod` (`getNewDateForPeriod`), `steppedMonth`, `canStepBack`/`canStepForward`,
+    `isSameDay`, `dayHeading`, `netText`, and the month-bound helpers;
+  * **queries**: `transactions(userId:date:)` (`getTransactionsByDate`, delegating to the
+    dashboard's identical SQL) and `minDate` (the earliest month the grid may page back to).
+* `Support/TransactionBounds.swift` — **new**: the `MIN(date)` bound is now needed by budgets,
+  reports *and* the calendar, so the query has one implementation. `BudgetService.minTransactionDate`
+  and `ReportDetailViewModel.loadBounds` delegate to it (the same extraction pattern as Phase 9's
+  `InitialSyncGuard`), and the calendar no longer reaches into `BudgetService` for a generic query.
+* `Support/MonthYearPicker.swift` — **new**: the month/year popover was about to be written a third
+  time (budgets, reports, calendar), so it is now one value-driven component (years in, a
+  month-selectable predicate, an `onSelect`). `BudgetMonthPicker` and `ReportPeriodPicker` are
+  deleted and all three screens use the shared picker.
+* `Features/Calendar/` — `CalendarViewModel`, `CalendarMonthGrid`, `CalendarDaySummaryBar`, and the
+  rewritten `CalendarView`. The Phase 4 placeholder is gone.
+* Tests, 48 new (344 total): `CalendarCalculationTests` (the grid build, Sunday-first leading blanks,
+  the day net and the sign convention, the period day rule, the month-step clamp, both navigation
+  bounds, and the view model's navigation/derived state), `CalendarServiceTests` (the day list's
+  scoping/ordering/empty state, the day boundary, the earliest-transaction bound and its fallbacks),
+  `CalendarViewRenderingTests` (the screen in both collapse states, the grid across three month
+  shapes, the summary bar's three states, the extracted picker in both shapes, and the derived
+  values the screen reads).
+
+### Verification
+
+* `xcodebuild … clean build` → `BUILD SUCCEEDED`, no warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (344 tests, 0 failures).
+  The green suite still includes Phases 5–10, so the two extractions and the budgets/reports picker
+  swap did not regress them.
+* Launch smoke test: the built app ran for 6 s and quit cleanly.
+
+### Issues / deviations
+
+* **The RN grid has no per-day amounts.** The Phase 11 brief in this file implied each cell would
+  show that day's net; it does not — `CalendarGrid.tsx` renders day numbers only, and the selected
+  day's total lives in `CalendarDaySummary`. The brief was wrong and no per-day amount was added: it
+  would have been an unrequested divergence, not parity. The cell's net is now only in the day bar.
+* **The grid is Sunday-first.** `CalendarGrid` pads with `days[0].getDay()` and labels the columns
+  Sun…Sat — date-fns' default. That is deliberately *not* the Monday-first week
+  `TransactionService.DatePreset.thisWeek` forces (`weekStartsOn: 1`); both are preserved as they
+  are, and the test names which is which so a future agent does not "fix" one to match the other.
+* **An explicit period change uses a different day rule than a step.** `getNewDateForPeriod` takes a
+  day that does not fit the new month to the **1st** (`newDay = currentDay > daysInNewMonth ? 1 :
+  currentDay`), while date-fns `subMonths` *clamps* onto the last day. The source uses each where it
+  appears, so a stepper arrow clamps and a month-grid pick jumps to the 1st. Both are tested.
+* `currentMonth` is normalized to the first of the month (as Phase 8 did for budgets), which removes
+  a class of off-by-a-day questions without changing anything displayed — the source only ever uses
+  month boundaries.
+* **Today gets a thin outline when it is not the selected day.** The only macOS addition in this
+  phase: on the source the two coincide at launch, so the distinction is invisible until you
+  navigate away, where a pointer benefits from knowing where "today" is.
+* **The collapse toggle and "Goto Today" move to the toolbar** (the matrix's macOS column calls for
+  exactly that), and the pane split is calendar-left / day-right instead of stacked. "Goto Today"
+  keeps the source's rule of appearing only when a non-today date is selected.
+* **The two shared extractions are a deliberate scope expansion** for a calendar phase. Rationale:
+  the picker was a third copy-paste of ~100 lines, and `MIN(date)` had already leaked from budgets
+  into reports. Both are mechanical moves with the full suite re-run; the extracted picker also got
+  its own render test, which the two originals never had.
+
+---
+
 # Decision Log
 
 | Date       | Decision                                                   | Reason                                    | Agent         |
@@ -756,6 +829,11 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-21 | Report search matches `name`/`category_name`/`payee_name` only     | Faithful to `sortReportData`'s search branch, which omits `group_name` even though its sort branch uses it | Phase 10 |
 | 2026-09-21 | Toggling `is_living_cost` does not set `sync_status = 1`           | The column is stripped on push and omitted on pull, so flagging it dirty would cause a pointless push cycle | Phase 10 |
 | 2026-09-21 | `summaryByGroup`/`yearlyGroup` SQL is ported without a catalog entry | The source handles them but no RN screen reaches them; porting the SQL keeps the service a complete mirror without inventing UI | Phase 10 |
+| 2026-09-21 | The `MIN(date)` bound is shared (`TransactionBounds`)                  | A third consumer (the calendar) arrived, and reports had already reached into `BudgetService` for a generic query; same extraction pattern as `InitialSyncGuard` | Phase 11 |
+| 2026-09-21 | One `MonthYearPicker` replaces the budgets and reports copies          | The month/year popover was written twice and about to be written a third time; the shared component is value-driven so each screen keeps its own selection semantics | Phase 11 |
+| 2026-09-21 | The calendar grid stays Sunday-first, the quick ranges stay Monday-first | `CalendarGrid` uses date-fns' default week start while `DatePreset.thisWeek` forces `weekStartsOn: 1`; both are the source's, so both are preserved and named in tests | Phase 11 |
+| 2026-09-21 | The calendar grid shows day numbers only, no per-day amounts         | Faithful to `CalendarGrid.tsx`; the selected day's total is in the day summary. Adding per-day nets would be a divergence, and the Phase 11 brief that implied otherwise was wrong | Phase 11 |
+| 2026-09-21 | A period pick jumps a too-long day to the 1st; a step clamps to the month end | `getNewDateForPeriod` and date-fns `subMonths` genuinely differ in the source, so each is used where it appears | Phase 11 |
 
 ---
 
@@ -768,9 +846,10 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Phases 4–10 are complete and green (296 tests). Start **Phase 11 (Calendar)** — full instructions in
-the "Current Phase" section above, which also lists the Phase 7 items still outstanding (location
-tagging, quick-transaction presets, category icon mapping).
+Phases 4–11 are complete and green (344 tests). Start **Phase 12 (Categories / Payees / Groups /
+Quick Transactions)** — full instructions in the "Current Phase" section above, which also lists the
+Phase 7 items still outstanding (location tagging, quick-transaction presets, and the category icon
+mapping that this phase owns).
 
 Existing infrastructure (don't redo):
 
@@ -805,7 +884,7 @@ Existing infrastructure (don't redo):
   `AppState.statusMessage` is the toast surface the RN screens use `showToast` for.
 * `TransactionRow` is shared with the dashboard and the budget drill-down; keep new list renderers
   consistent with it.
-* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (296 passing).
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (344 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit
@@ -851,4 +930,9 @@ the established pattern).
 ### Phase 10 Commit
 
 `8d35677` — 2026-09-21 — "phase: implement reports" (hash recorded in a follow-up docs commit per
+the established pattern).
+
+### Phase 11 Commit
+
+`PENDING` — 2026-09-21 — "phase: implement calendar" (hash recorded in a follow-up docs commit per
 the established pattern).

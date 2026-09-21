@@ -432,19 +432,15 @@ enum BudgetService {
     ///
     /// The source falls back to **today** (not Jan 1) when there is no history, so
     /// a fresh account cannot page back into empty months.
+    /// The earliest month the budget list can page back to. The query itself is
+    /// shared with the reports and calendar screens — see `TransactionBounds`.
     static func minTransactionDate(
         userId: String,
         now: Date = Date(),
         calendar: Calendar = .current,
         in db: Database
     ) throws -> Date {
-        let row = try Row.fetchOne(
-            db,
-            sql: "SELECT MIN(date) as min_date FROM transactions WHERE user_id = ? AND deleted = 0",
-            arguments: [userId]
-        )
-        guard let raw: String = row?["min_date"], !raw.isEmpty else { return now }
-        return AppFormat.date(fromYearMonthDay: raw, calendar: calendar) ?? now
+        try TransactionBounds.minDate(userId: userId, now: now, calendar: calendar, in: db)
     }
 
     /// `getCategories(userId).filter(c => c.type === 'Expense')` — the editor's

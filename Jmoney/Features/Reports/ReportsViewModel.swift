@@ -271,8 +271,8 @@ final class ReportDetailViewModel {
         }
     }
 
-    /// `getMinTransactionDate` — bounds the period selector. Shares the budgets
-    /// phase's port of the same query.
+    /// `getMinTransactionDate` — bounds the period selector. The same query
+    /// serves the budgets and calendar screens (`TransactionBounds`).
     @MainActor
     func loadBounds(pool: DatabasePool?, userId: String?) async {
         guard let pool, let userId else {
@@ -281,7 +281,7 @@ final class ReportDetailViewModel {
         }
         do {
             minDate = try await pool.read { db in
-                try BudgetService.minTransactionDate(
+                try TransactionBounds.minDate(
                     userId: userId, now: now, calendar: calendar, in: db
                 )
             }

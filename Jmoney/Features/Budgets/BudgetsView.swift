@@ -10,7 +10,8 @@ import SwiftUI
 ///
 /// Month and sort changes are observed rather than driven imperatively, so the
 /// stepper, the period picker, "Back to Today", and the sort menu all reload
-/// through the same path.
+/// through the same path. The period popover is the shared `MonthYearPicker`,
+/// which the reports and calendar screens use too.
 ///
 /// The RN header's manual sync button is not reproduced: there is no sync engine
 /// until Phase 14. The first-open auto-sync guard is kept as a pure predicate on
@@ -196,7 +197,19 @@ struct BudgetsView: View {
             }
             .help("Select a period")
             .popover(isPresented: $showMonthPicker, arrowEdge: .bottom) {
-                BudgetMonthPicker(viewModel: viewModel)
+                MonthYearPicker(
+                    year: viewModel.selectedMonthYear,
+                    monthIndex: viewModel.selectedMonthIndex,
+                    selectableYears: viewModel.selectableYears,
+                    isMonthSelectable: { monthIndex in
+                        viewModel.isMonthSelectable(
+                            year: viewModel.selectedMonthYear, monthIndex: monthIndex
+                        )
+                    },
+                    onSelect: { year, monthIndex in
+                        viewModel.select(year: year, monthIndex: monthIndex)
+                    }
+                )
             }
 
             Button {

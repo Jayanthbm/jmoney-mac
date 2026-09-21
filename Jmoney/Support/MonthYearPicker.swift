@@ -1,15 +1,26 @@
 import SwiftUI
 
-/// The month/year picker behind the period label, mirroring `YearMonthSelector`.
+/// The month/year picker behind a period label — the RN `YearMonthSelector` as
+/// the budgets, reports and calendar screens use it.
 ///
-/// The RN component is a two-column bottom sheet (years down to the earliest
-/// transaction, months with out-of-range entries disabled). Here both columns live
-/// in a popover: a year menu and a month grid, with the same disabled states.
+/// Value-driven rather than view-model-driven, because three screens now share
+/// it: the caller supplies the years to offer, which months are reachable, and
+/// what a selection means (budgets and reports replace the whole period, the
+/// calendar also moves the selected day).
 ///
-/// Like the source, a pick applies immediately — the RN `Confirm Selection` button
-/// only closes the sheet — so choosing a month dismisses this popover.
-struct BudgetMonthPicker: View {
-    let viewModel: BudgetsViewModel
+/// Like the source: the year is a menu, the months a 3-column grid, out-of-range
+/// entries are disabled, and a pick applies immediately (the RN sheet's
+/// "Confirm Selection" button only closes the sheet). `showsMonth: false` renders
+/// the year menu alone, matching `showMonths={false}` on the yearly reports.
+struct MonthYearPicker: View {
+    let year: Int
+    let monthIndex: Int
+    var showsMonth = true
+    /// Newest first, down to the earliest period with data.
+    let selectableYears: [Int]
+    let isMonthSelectable: (Int) -> Bool
+    let onSelect: (_ year: Int, _ monthIndex: Int) -> Void
+
     @Environment(\.dismiss) private var dismiss
 
     private static let monthNames = [
@@ -27,7 +38,7 @@ struct BudgetMonthPicker: View {
                 .foregroundStyle(.secondary)
 
             Picker("Year", selection: yearBinding) {
-                ForEach(viewModel.selectableYears, id: \.self) { year in
+                ForEach(selectableYears, id: \.self) { year in
                     Text(String(year)).tag(year)
                 }
             }
@@ -35,11 +46,12 @@ struct BudgetMonthPicker: View {
             .labelsHidden()
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Divider()
-
-            LazyVGrid(columns: columns, spacing: 6) {
-                ForEach(Array(Self.monthNames.enumerated()), id: \.offset) { index, name in
-                    monthButton(index: index, fullName: name)
+            if showsMonth {
+                Divider()
+                LazyVGrid(columns: columns, spacing: 6) {
+                    ForEach(Array(Self.monthNames.enumerated()), id: \.offset) { index, name in
+                        monthButton(index: index, fullName: name)
+                    }
                 }
             }
         }
@@ -49,12 +61,11 @@ struct BudgetMonthPicker: View {
 
     @ViewBuilder
     private func monthButton(index: Int, fullName: String) -> some View {
-        let year = viewModel.selectedMonthYear
-        let selectable = viewModel.isMonthSelectable(year: year, monthIndex: index)
-        let selected = viewModel.isSelected(year: year, monthIndex: index)
+        let selectable = isMonthSelectable(index)
+        let selected = index == monthIndex
 
         Button {
-            viewModel.select(year: year, monthIndex: index)
+            onSelect(year, index)
             dismiss()
         } label: {
             Text(String(fullName.prefix(3)))
@@ -76,13 +87,12 @@ struct BudgetMonthPicker: View {
     }
 
     /// Picking a year keeps the month number — `newDate.setFullYear(y)` in the
-    /// source. It can land on a month outside the data range (before the earliest
-    /// transaction in that year); the month grid shows which ones those are, and
-    /// the source does not clamp either.
+    /// source. It can land on a month outside the data range; the grid shows which
+    /// ones those are, and the source does not clamp either.
     private var yearBinding: Binding<Int> {
         Binding(
-            get: { viewModel.selectedMonthYear },
-            set: { viewModel.select(year: $0, monthIndex: viewModel.selectedMonthIndex) }
+            get: { year },
+            set: { onSelect($0, monthIndex) }
         )
     }
 }

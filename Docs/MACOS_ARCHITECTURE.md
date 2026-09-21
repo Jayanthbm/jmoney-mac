@@ -17,8 +17,10 @@ and the per-budget drill-down. **Goals implemented (Phase 9)**: the progress lis
 orders, the editor with its live preview, soft deletion, and the shared first-open sync predicate.
 **Reports implemented (Phase 10)**: the 11-report index and a config-driven report page with period
 selectors, the previous-period comparison, search/sort, the group accordion, the living-cost
-configuration sheet, and drill-downs — all unit tested (296 tests green).
-Next: Phase 11 (Calendar).
+configuration sheet, and drill-downs. **Calendar implemented (Phase 11)**: the bounded month grid,
+day selection, the day's net, and the day's transaction list, plus two shared extractions
+(`TransactionBounds`, `MonthYearPicker`) — all unit tested (344 tests green).
+Next: Phase 12 (Categories / Payees / Groups / Quick Transactions).
 
 ---
 
@@ -89,7 +91,8 @@ Jmoney/
 │   │                              #   index + NavigationStack, one config-driven report page,
 │   │                              #   period picker, summary grid/banner, report rows + group
 │   │                              #   accordion, drill-down sheet, living-cost config  [Phase 10 ✓]
-│   ├── Calendar/                  # [Phase 11]
+│   ├── Calendar/                  # CalendarViewModel, month grid, day summary bar, screen
+│   │                              #   (two-pane: grid left, day right)  [Phase 11 ✓]
 │   ├── Categories/  Payees/  Groups/  QuickTransactions/   # [Phase 12]
 │   └── Settings/                  # Pane + ⌘, scene views   [Phase 13]
 ├── Services/
@@ -109,7 +112,9 @@ Jmoney/
 │   ├── ReportService.swift        # Report queries, previous-period comparison, summary grid,
 │   │                              #   stable sorting/search, drill-downs, living-cost flag
 │   │                              #   (mirror of reportService.ts + reportQueries.ts)  [Phase 10 ✓]
-│   ├── CalendarService.swift
+│   ├── CalendarService.swift      # Month grid build, day net, period day rule + month stepping,
+│   │                              #   navigation bounds, day queries
+│   │                              #   (mirror of calendarService.ts + the screen's period logic)  [Phase 11 ✓]
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
 │   ├── NotificationService.swift  # Daily reminders   [Phase 13]
 │   └── LocationService.swift      # GPS tagging   [Phase 7]
@@ -122,15 +127,18 @@ Jmoney/
 │   ├── ProgressViews.swift        # Native progress ring + bar (replaces the RN circular-progress trick)  [Phase 6 ✓]
 │   ├── Timestamps.swift           # transactionTimestamp.ts port + `instant`/`utcISOString`  [Phase 5 ✓, Phase 7 ✓]
 │   ├── Validators.swift           # validators.ts port (amount + transaction + budget + goal)  [Phase 7–9 ✓]
-│   └── InitialSyncGuard.swift     # Shared first-open sync predicate (goals + budgets)  [Phase 9 ✓]
-JmoneyTests/                       # 296 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+│   ├── InitialSyncGuard.swift     # Shared first-open sync predicate (goals + budgets)  [Phase 9 ✓]
+│   ├── TransactionBounds.swift    # Shared `MIN(date)` bound (budgets + reports + calendar)  [Phase 11 ✓]
+│   └── MonthYearPicker.swift      # Shared month/year popover (budgets + reports + calendar)  [Phase 11 ✓]
+JmoneyTests/                       # 344 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
                                    #   drill-down & writes, budget render smoke, goal card maths/sorting/
                                    #   validation, goal SQL & writes, goal render smoke, report comparison
                                    #   windows/diffs/summaries/sorting/trends, report SQL & all seven
-                                   #   drill-downs, report render smoke  [Phase 5–10 ✓]
+                                   #   drill-downs, report render smoke, calendar grid/day-net/period
+                                   #   rules/bounds, calendar SQL & render smoke  [Phase 5–11 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -248,3 +256,14 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   The comparison windows clamp day overflow instead of rolling it forward as the JS `Date`
   constructor does (Phase 8's `setMonth` decision, applied again). `summaryByGroup`/`yearlyGroup` are
   ported but unreachable from the index, exactly as in the RN app.
+- Calendar notes: `Services/CalendarService.swift` holds the grid build, the day net, and the period
+  rules so the screen only arranges. Two period rules coexist deliberately because the source uses
+  both: an explicit period pick jumps a day that does not fit the new month to the **1st**
+  (`getNewDateForPeriod`), while a stepper step *clamps* onto the month end (date-fns `subMonths`).
+  The grid is **Sunday-first** (date-fns' default), unlike the Monday-first week the transaction
+  quick ranges force. The pane split is calendar-left / day-right; collapse hides the month pane and
+  the toolbar keeps "Goto Today" (offered only away from today). Two extractions landed here because
+  a third consumer arrived: `Support/TransactionBounds.swift` (the `MIN(date)` bound, shared with
+  budgets and reports — reports used to reach into `BudgetService` for it) and
+  `Support/MonthYearPicker.swift` (the month/year popover, replacing `BudgetMonthPicker` and
+  `ReportPeriodPicker`). `TransactionRow` is again the shared row renderer.

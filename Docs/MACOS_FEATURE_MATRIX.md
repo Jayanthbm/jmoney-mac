@@ -124,12 +124,12 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Month calendar grid | Selectable days, month bounds = min transaction date → end of current month | Native calendar grid or date picker + day list | NOT STARTED | |
-| Day transactions | List of that day's transactions | Split view: calendar left, transactions right | NOT STARTED | |
-| Daily net total | Σ(Income − Expense) for selected day | Summary header | NOT STARTED | |
-| Month/year jump + prev/next | `YearMonthSelector`, bounded navigation | Same | NOT STARTED | |
-| Goto Today | Button when a non-today date is selected | Toolbar button | NOT STARTED | |
-| Collapsible calendar | Collapse grid to focus on list | Sidebar/segmented toggle | NOT STARTED | |
+| Month calendar grid | Selectable days, month bounds = min transaction date → end of current month | Native calendar grid or date picker + day list | COMPLETE | `CalendarMonthGrid`: seven columns **Sunday-first** with leading blanks (date-fns' default — *not* the Monday-first week the transaction quick ranges force, which is also preserved). Day numbers only: the source grid carries no per-day amounts. Today gets a thin outline when it is not the selected day (the one macOS addition) |
+| Day transactions | List of that day's transactions | Split view: calendar left, transactions right | COMPLETE | `getTransactionsByDate`, ordered by timestamp newest-first, rendered with the shared `TransactionRow`. Empty state: "No activity on this day" |
+| Daily net total | Σ(Income − Expense) for selected day | Summary header | COMPLETE | `CalendarDaySummaryBar`; `+` prefix only for a non-negative net (the currency helper drops the minus) with colour carrying the direction |
+| Month/year jump + prev/next | `YearMonthSelector`, bounded navigation | Same | COMPLETE | Toolbar arrows plus the shared `MonthYearPicker`. Bounds are `MIN(date)` → end of the current month; a fresh account cannot page back at all |
+| Goto Today | Button when a non-today date is selected | Toolbar button | COMPLETE | Toolbar, and only offered when a non-today date is selected (the source's rule) |
+| Collapsible calendar | Collapse grid to focus on list | Sidebar/segmented toggle | COMPLETE | Hides the month pane (toolbar and day-bar buttons); "Goto Today" also un-collapses, as in the source |
 
 ## 9. Categories / Payees / Groups / Quick Transactions
 
