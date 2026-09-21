@@ -23,7 +23,10 @@ struct RootView: View {
                 .sheet(item: $appState.transactionEditor) { target in
                     TransactionEditorView(target: target)
                 }
-                .sheet(isPresented: $appState.showQuickTransactionPicker) {
+                .sheet(
+                    isPresented: $appState.showQuickTransactionPicker,
+                    onDismiss: openPendingQuickTransaction
+                ) {
                     QuickTransactionPickerSheet()
                 }
             } else {
@@ -33,6 +36,14 @@ struct RootView: View {
         .task {
             prepareDatabase()
         }
+    }
+
+    /// The quick-transaction picker hands its selection over as it closes; the
+    /// editor then opens on top, which is the "one click to log a template" flow the
+    /// RN app gets by routing to `add-transaction?quickTransaction=…`.
+    private func openPendingQuickTransaction() {
+        guard let template = appState.consumePendingQuickTransaction() else { return }
+        appState.beginTransaction(from: template)
     }
 
     /// Mirrors the RN app's boot order: `initDB()` completes before navigation

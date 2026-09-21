@@ -52,8 +52,16 @@ struct TransactionsView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
+        .onChange(of: appState.transactionFilterRequestID) { _, _ in
+            Task { await applyRequestedFilters() }
+        }
         .task {
             await viewModel.loadLookups(pool: database.pool, userId: sessionStore.userId)
+            // A click-through from a category or payee row arrives before the first
+            // load, so it is consumed here rather than in a second pass.
+            if let request = appState.consumeRequestedTransactionFilters() {
+                apply(request)
+            }
             await reload()
         }
         .task(id: searchText) {
@@ -279,7 +287,15 @@ struct TransactionsView: View {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            // The RN screen's bolt FAB, beside the add FAB.
+            Button {
+                appState.showQuickTransactionPicker = true
+            } label: {
+                Label("Quick Transaction", systemImage: "bolt")
+            }
+            .help("Quick Transaction (⌘⇧N)")
+
             Button {
                 appState.beginNewTransaction()
             } label: {
@@ -366,6 +382,25 @@ struct TransactionsView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// Applies a filter handed over by another section (a category or payee row's
+    /// click) — the macOS equivalent of the RN route's `initialSelectedCats` /
+    /// `initialSelectedPayees` params. The request is consumed once, so it cannot
+    /// re-apply on a later visit.
+    private func applyRequestedFilters() async {
+        guard let request = appState.consumeRequestedTransactionFilters() else { return }
+        apply(request)
+        await reload()
+    }
+
+    private func apply(_ request: AppState.TransactionFilterRequest) {
+        if !request.categoryIds.isEmpty {
+            viewModel.setSelected(categoryIds: request.categoryIds)
+        }
+        if !request.payeeIds.isEmpty {
+            viewModel.setSelected(payeeIds: request.payeeIds)
+        }
     }
 
     private func clearAllFilters() {

@@ -67,3 +67,5 @@ Config/Local/
 *.log
 *.swp
 *.swo
+
+.freebuff

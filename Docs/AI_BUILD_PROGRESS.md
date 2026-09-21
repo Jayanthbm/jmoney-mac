@@ -154,7 +154,7 @@ Design notes for the next agent:
 | 9     | Goals                               | COMPLETE    |
 | 10    | Reports                             | COMPLETE    |
 | 11    | Calendar                            | COMPLETE    |
-| 12    | Categories / Payees / Groups        | NOT STARTED |
+| 12    | Categories / Payees / Groups / Quick Transactions | COMPLETE |
 | 13    | Settings                            | NOT STARTED |
 | 14    | Authentication / Sync               | NOT STARTED |
 | 15    | Import / Export                     | NOT STARTED |
@@ -167,41 +167,43 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 12 — Categories / Payees / Groups / Quick Transactions
+**Phase:** 13 — Settings
 
-Phase 11 (Calendar) is complete, built, and tested (344 tests green — see the Progress Log).
+Phase 12 (Categories / Payees / Groups / Quick Transactions) is complete, built, and tested
+(421 tests green — see the Progress Log). It also closed the Phase 7 quick-transaction-preset item.
 
-Goal: the four management screens — categories, payees, transaction groups and quick
-transactions — including their editors, prioritisation, and the **Material→SF Symbol icon mapping**
-that Phases 7/10/11 deliberately left out (every category/report row currently draws a neutral
-glyph instead of the stored `app_icon`).
+Goal: the Settings screen and its scene — theme, daily reminders, Touch ID, manage-data entries,
+manual sync, reset data, account email + sign out. Read `MACOS_FEATURE_MATRIX.md` §10 for the row
+inventory and the specification in `app/(tabs)/settings/index.tsx` plus `src/hooks/useAppSettings.ts`,
+`useBiometrics.ts`, `src/services/notificationService.ts` and `resetAppData` in `src/db/queries.ts`.
 
-1. Read `MACOS_FEATURE_MATRIX.md` §9 for the inventory. The specification per screen is
-   `app/categories.tsx`, `app/payees.tsx`, `app/groups.tsx`, `app/quick-transactions.tsx` plus
-   `src/services/{category,payee,group,quickTransaction}Service.ts` and
-   `src/components/categories/` + `src/components/payees/`. Verify each before porting rather than
-   trusting this list — it is a pointer, not a summary.
-2. `Services/CategoryService.swift`, `PayeeService.swift`, `GroupService.swift`,
-   `QuickTransactionService.swift` — the `BudgetService`/`GoalService` shape: list query, stable
-   sorted comparator, `save`, soft/hard delete as the table requires (groups hard-delete their row
-   only, leaving member transactions with a dangling `group_id`; categories/payees/groups have **no**
-   `deleted` column).
-3. Prioritisation (drag-reorder in RN) needs a design decision: native `onMove` in a `List` is the
-   obvious macOS reading, and `metaQueries.ts`'s `updateCategoryPriorities` shows the write shape.
-   Report what you chose, and keep the `priority ASC, name ASC` ordering every other screen relies
-   on.
-4. The icon mapping is the piece with the most reuse: a single Material→SF Symbol table (the RN app
-   stores Material names in `app_icon`) should back `TransactionRow`, `BudgetRow`, `ReportItemRow`,
-   the living-cost config tiles and the new icon pickers. Do not fork a second table.
-5. Quick transactions carry `identifier`, `priority` and a `sync_status` default of 1 (see
-   `DATA_ARCHITECTURE.md` §7) — preserve both.
+1. `Features/Settings/` currently holds only `SettingsPaneView` (which opens the ⌘, window) and
+   `SettingsSceneView`. Phase 13 owns the real pane and the scene's contents.
+2. Theme: the RN app stores `app_theme` (`light`/`dark`/`system`, defaulting to system). The macOS
+   reading is a native appearance override (`.preferredColorScheme`) persisted in `UserDefaults`.
+3. Reminders: `notificationService.ts` schedules a daily local notification titled "Reminder 💰"
+   for 9:00 / 18:00 / 21:00 / Custom; map it to `UserNotifications` and decide the permission and
+   "not determined" paths — document what you choose.
+4. Biometrics: `useBiometrics.ts` verifies hardware **and** enrolment before enabling; macOS is
+   `LocalAuthentication` (`canEvaluatePolicy` / `evaluatePolicy`). Keep the same gate order.
+5. Manage-data entries (Goals / Categories / Payees / Groups / Quick Transactions) already exist as
+   sidebar sections (`AppSection`), so Settings should link to them rather than duplicate them.
+6. Manual full sync (⌘R / "Sync Now") and **Reset Data** are the two risky ones:
+   * `AppState.requestSync()` currently reports "Sync isn't connected yet." Leave that until
+     Phase 14, or wire it to a stub with an honest status message.
+   * Reset Data must reproduce the source exactly, **including its quirk**: it deletes transactions,
+     budgets, goals, categories, payees and transaction_groups, clears a specific list of sync keys
+     — and does **not** delete `quick_transactions`, nor clear the quick-transaction / group-sync /
+     view-mode keys. `DATA_ARCHITECTURE.md` §4 has the exact key list. Surface the quirk in the
+     confirmation rather than silently "fixing" it, and flag it for a user decision.
+7. Haptics has no Mac hardware: the matrix marks it MACOS EQUIVALENT → omit, and say so in the UI.
 
-Still outstanding from Phase 7 (documented, not silently dropped — pick these up before the Phase 7
-row is treated as fully at parity): location tagging on create plus the location edit sheet;
-quick-transaction presets (the bolt FAB / ⌘⇧N picker — the Phase 12 quick-transaction screen is what
-makes that prefill possible, so it may land here).
+Still outstanding from Phase 7: **location tagging** on create plus the location edit sheet. The
+quick-transaction presets item is now done (Phase 12 built the picker and the editor prefill);
+`TransactionService.prefill` and `AppState.transactionEditor = .template(_)` are the pieces it built.
 
-After 12: 13 (Settings) → remaining phases per the matrix.
+After 13: 14 (Authentication / Sync) — the biggest remaining phase, and the one every
+`InitialSyncGuard` wrapper and `sync_status = 1` write from Phases 7–12 has been prepared for.
 
 ---
 
@@ -775,6 +777,84 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
   into reports. Both are mechanical moves with the full suite re-run; the extracted picker also got
   its own render test, which the two originals never had.
 
+## Phase 12 — Categories / Payees / Groups / Quick Transactions
+
+**Status:** COMPLETE
+
+### What was done
+
+* `Support/CategoryIcon.swift` — the single Material→SF Symbol table (116 entries) plus the
+  source's `formatIconName` normalisation (`Md` prefix strip, camelCase → kebab-case) and its
+  per-context empty defaults. This is now what `TransactionRow`, `ReportItemRow`,
+  `LivingCostConfigView`, the category rows and the editor's icon picker all use; no second table.
+* `Support/EntityOrdering.swift` — the shared search + `name`/`priority` sort for the four screens,
+  with JS `Array.prototype.sort` stability restored, reorder mode forcing ascending priority, and
+  the move/renumber helpers the drag gesture and the arrows both use.
+* `Support/ViewModePreference.swift` — per-screen list/grid (and card/list) persistence in
+  `UserDefaults`, under the source's own keys and with its literals (`grid`/`list`, `Card`/`List`).
+* `Services/CategoryService.swift`, `PayeeService.swift`, `GroupService.swift`,
+  `QuickTransactionService.swift` — the list/filter/sort layer, the `MAX(priority)+1`
+  auto-assignment, the upsert writes, `updatePriorities`, and each table's own delete shape
+  (group hard delete, template soft delete, categories/payees none).
+* `TransactionService.prefill` — the quick-transaction → transaction prefill, with the source's
+  rules and quirks (no product link, no group, no default category, date = now, ids dropped when the
+  referenced row is gone).
+* `Features/Categories/` — `CategoriesView` (Expense/Income tabs, search, sort menu, drag reorder,
+  list/grid), `CategoryRow`, `CategoryEditorView`, `CategoryIconPicker`.
+* `Features/Payees/` — `PayeesView`, `PayeeRow`, `PayeeEditorView`.
+* `Features/Groups/` — `GroupsView`, `GroupRow`, `GroupEditorView` (add/edit/delete with a member
+  count warning).
+* `Features/QuickTransactions/` — `QuickTransactionsView`, `QuickTransactionRow` (card + list),
+  `QuickTransactionEditorView`, and the real `QuickTransactionPickerSheet`.
+* Wiring: `AppState.openTransactions(filters:)` + `transactionFilterRequestID`
+  (`initialSelectedCats` / `initialSelectedPayees`), `AppState.logQuickTransaction(_:)` + the
+  picker's `onDismiss` hand-off, `AppState.transactionEditor = .template(_)`,
+  `TransactionEditorTarget.template` / `TransactionEditorViewModel(template:)`, and a bolt toolbar
+  button on `TransactionsView` (the RN screen's bolt FAB).
+* Tests: `MetaEntityCalculationTests` (44), `MetaEntityServiceTests` (41),
+  `ManagementViewsRenderingTests` (17) — 102 new, 421 total.
+
+### Verification
+
+* `xcodebuild … clean build` → BUILD SUCCEEDED, zero warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → TEST SUCCEEDED, 421 tests / 0 failures.
+* Launch smoke test: the built app ran for 6 s and quit cleanly.
+* RN project untouched; no debug leftovers.
+
+### Issues / deviations
+
+* **Three real bugs were caught by the new tests before the commit:** the category editor's icon
+  preview used `symbolName(for:)` instead of `categorySymbol(_:)`, so an empty icon field previewed
+  the fallback glyph instead of the source's `'category'` default; the `ViewModePreference` keys
+  were derived from the case names (`@categories_view_mode_`) instead of the source's singular ones
+  (`@category_view_mode_`); and `QuickTransactionService` stored an empty description as `''` where
+  the source's `description || null` stores `NULL`. All three are fixed and asserted.
+* **`Category` is ambiguous in the test target** (`XCTest`/Foundation ship a `Category` type), so the
+  tests qualify it as `Jmoney.Category` — the convention the Phase 7 tests already established.
+* **Categories and payees ship add-only.** The RN screens have no edit/delete and neither table has
+  a `deleted` column, so a local delete (or rename) could not be represented to the sync layer and
+  would be undone by the next full-replace pull. This follows the recorded rule in
+  `DATA_ARCHITECTURE.md` §4 rather than inventing a destructive path; the editors say so in a footer
+  so the limitation is visible rather than surprising.
+* **The living-cost toggle stays where the source puts it** — the Living Costs report's config sheet
+  (`LivingCostConfigView`, Phase 10), not the category editor. The Phase 12 brief and the earlier
+  matrix row suggested a category-editor toggle; the source has no such control, so none was added.
+* **Reorder renumbers the visible set only**, exactly as `moveItem` does, so the Expense and Income
+  tabs can hold colliding priority values. Preserved and tested: the two lists are never displayed
+  together, and the `priority ASC, name ASC` order each list relies on is unaffected.
+* **Reorder mode is kept even though drag-and-drop mostly replaces it.** It still changes the order
+  (fixed ascending priority), forces the list layout, and is where the source pushes the reordered
+  priorities — the hook Phase 14's sync engine will use. The source's up/down arrows live in the row
+  context menu beside the native drag gesture.
+* **Group delete gains a warning the source does not have.** The alert names how many transactions
+  keep their dangling `group_id`. The delete itself is unchanged (row removed, members untouched);
+  this is a macOS addition because an invisible destructive consequence reads as a bug.
+* **The quick-transaction picker chains two sheets through `AppState`.** Selecting a template closes
+  the picker and reopens the editor from `onDismiss`; presenting the second sheet from inside the
+  first is unreliable on macOS. The observable flow matches the source's route push.
+* **No sort menu on Quick Transactions** — the source has none, so the order is always
+  `priority ASC`.
+
 ---
 
 # Decision Log
@@ -834,6 +914,17 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-21 | The calendar grid stays Sunday-first, the quick ranges stay Monday-first | `CalendarGrid` uses date-fns' default week start while `DatePreset.thisWeek` forces `weekStartsOn: 1`; both are the source's, so both are preserved and named in tests | Phase 11 |
 | 2026-09-21 | The calendar grid shows day numbers only, no per-day amounts         | Faithful to `CalendarGrid.tsx`; the selected day's total is in the day summary. Adding per-day nets would be a divergence, and the Phase 11 brief that implied otherwise was wrong | Phase 11 |
 | 2026-09-21 | A period pick jumps a too-long day to the 1st; a step clamps to the month end | `getNewDateForPeriod` and date-fns `subMonths` genuinely differ in the source, so each is used where it appears | Phase 11 |
+| 2026-09-21 | One Material→SF Symbol table (`CategoryIcon`) backs every category glyph | `app_icon` is a Material name stored in the DB and free-text typed in the source; macOS has no Material font, so exactly one translation table exists and all renderers share it | Phase 12 |
+| 2026-09-21 | The icon table is curated, with a neutral fallback for unknown names | The source accepts any string, so an exhaustive table is impossible; drawing nothing for an unmapped name would read as a bug | Phase 12 |
+| 2026-09-21 | Category and payee screens stay add-only | The source offers no edit/delete for them and neither table has a `deleted` column, so a local delete or rename could not be pushed and would be resurrected by the next full-replace pull (DATA_ARCHITECTURE.md §4) | Phase 12 |
+| 2026-09-21 | Shared `EntityOrdering` for search + name/priority sort | The three `filterAndSort*` services were identical but for their search field; one implementation keeps the four screens from drifting | Phase 12 |
+| 2026-09-21 | Reorder renumbers the visible set, as `moveItem` does | Faithful to the source, including the consequence that the Expense and Income tabs renumber independently and can collide | Phase 12 |
+| 2026-09-21 | Drag-and-drop reorder, with the source's arrows in the context menu | `onMove` is the native Mac gesture; the arrows are what the source offers and stay keyboard-reachable | Phase 12 |
+| 2026-09-21 | Reorder *mode* is kept alongside drag-and-drop | It changes the order (fixed ascending priority), forces the list layout, and is where the source pushes — the hook Phase 14 will use | Phase 12 |
+| 2026-09-21 | View modes persist in `UserDefaults` under the source's keys | The RN app uses AsyncStorage; keeping the key names and values makes the preference semantics identical, only the store differs | Phase 12 |
+| 2026-09-21 | Group delete warns how many transactions keep their reference | The source's delete is silent about the dangling `group_id`; the delete is unchanged, but the consequence is now visible | Phase 12 |
+| 2026-09-21 | The quick-transaction picker hands its selection over via `AppState` | Presenting the transaction editor from inside the picker sheet is unreliable; the selection rides the picker's `onDismiss`, so the flow stays one click | Phase 12 |
+| 2026-09-21 | A template's `product_link` is not prefilled into a transaction | Faithful to `add-transaction.tsx`, which applies only type/amount/description/category/payee from a `quickTransaction` param | Phase 12 |
 
 ---
 
@@ -846,10 +937,10 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Phases 4–11 are complete and green (344 tests). Start **Phase 12 (Categories / Payees / Groups /
-Quick Transactions)** — full instructions in the "Current Phase" section above, which also lists the
-Phase 7 items still outstanding (location tagging, quick-transaction presets, and the category icon
-mapping that this phase owns).
+Phases 4–12 are complete and green (421 tests). Start **Phase 13 (Settings)** — full instructions in
+the "Current Phase" section above, including the Reset Data quirk that must be reproduced and
+surfaced. The only Phase 7 item still outstanding is **location tagging** (create-time tagging plus
+the location edit sheet); the quick-transaction presets landed in Phase 12.
 
 Existing infrastructure (don't redo):
 
@@ -880,6 +971,15 @@ Existing infrastructure (don't redo):
   transaction list. `ReportDestination` is now the full 11-report catalog.
 * `Validators` (amount/transaction/budget/goal) and `Support/Formatters.swift` cover the shared
   formatting and validation rules; extend rather than duplicate.
+* The four management entities (Phase 12) are done and are the reference for a **list screen with
+  priorities**: `Support/EntityOrdering.swift` (shared search + name/priority sort + reorder
+  renumbering), `Support/ViewModePreference.swift` (per-screen list/grid preference) and
+  `Support/CategoryIcon.swift` (the one Material→SF Symbol table every category glyph goes through —
+  do not fork a second one). `CategoryService`/`PayeeService` are add-only by design; `GroupService`
+  hard-deletes the group row and nothing else; `QuickTransactionService` soft-deletes.
+* `AppState.openTransactions(filters:)` is how another section opens a pre-filtered Transactions
+  list, and `AppState.transactionEditor = .template(_)` opens the editor prefilled from a template
+  (`TransactionService.prefill`).
 * `AppState.dataRevision` / `markDataChanged()` is how a write tells open views to reload;
   `AppState.statusMessage` is the toast surface the RN screens use `showToast` for.
 * `TransactionRow` is shared with the dashboard and the budget drill-down; keep new list renderers
@@ -935,4 +1035,17 @@ the established pattern).
 ### Phase 11 Commit
 
 `ac40987` — 2026-09-21 — "phase: implement calendar" (hash recorded in a follow-up docs commit per
+
+the established pattern).
+
+### Phase 12 Commit
+
+`PENDING` — 2026-09-21 — "phase: implement categories, payees, groups and quick transactions" (hash
+recorded in a follow-up docs commit per
+the established pattern).
+
+<!-- The Phase 11 entry continues below; the Phase 12 entry above is the new one. -->
+
+### Phase 11 Commit (continued)
+
 the established pattern).

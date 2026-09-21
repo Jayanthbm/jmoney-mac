@@ -13,6 +13,11 @@ import SwiftUI
 /// Here every error is shown inline next to its field, which is the native macOS
 /// treatment; the rules and messages are identical.
 ///
+/// A quick-transaction template (`⌘⇧N` / the bolt button) opens this same sheet with
+/// `.template`, which prefills the fields exactly as the source's `quickTransaction`
+/// route param does — including the quirks: no product link, no group, no default
+/// category fallback, and the date left at now.
+///
 /// Location tagging is a remaining Phase 7 item. Existing coordinates are shown
 /// read-only (and preserved on save) rather than being silently dropped.
 struct TransactionEditorView: View {
@@ -29,7 +34,10 @@ struct TransactionEditorView: View {
     init(target: TransactionEditorTarget) {
         self.target = target
         let mode: TransactionEditorViewModel.Mode = target.transaction.map { .edit($0) } ?? .new
-        _viewModel = State(initialValue: TransactionEditorViewModel(mode: mode))
+        _viewModel = State(initialValue: TransactionEditorViewModel(
+            mode: mode,
+            template: target.template
+        ))
     }
 
     var body: some View {

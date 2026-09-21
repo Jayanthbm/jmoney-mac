@@ -418,6 +418,58 @@ enum TransactionService {
         )
     }
 
+    // MARK: - Quick-transaction prefill
+
+    /// What selecting a quick transaction prefills in the transaction editor.
+    ///
+    /// `add-transaction.tsx` receives the template as a `quickTransaction` route
+    /// param and, once the lookups have loaded, applies exactly this much of it:
+    ///
+    /// ```js
+    /// setType(quickTx.type)
+    /// if (quickTx.amount) setAmount(...)
+    /// if (quickTx.description) setDescription(...)
+    /// if (quickTx.category_id) setSelectedCategory(byId)
+    /// if (quickTx.payee_id) setSelectedPayee(byId)
+    /// ```
+    ///
+    /// Three quirks are preserved rather than smoothed over:
+    /// * the template's **`product_link` is not applied** — only an *existing*
+    ///   transaction's link is prefilled, so a template's product link is stored and
+    ///   then never used by this path;
+    /// * **no group** is applied (templates have no `group_id`);
+    /// * the **default category is not applied** — the "general"/"salary" effect is
+    ///   skipped whenever a template is in play, so a template with no category
+    ///   leaves the picker empty;
+    /// * the date is **today**, not anything from the template.
+    struct TemplatePrefill: Equatable {
+        var type: String
+        var amount: Double?
+        var description: String?
+        var categoryId: String?
+        var payeeId: String?
+    }
+
+    /// The prefill a template produces. `categoryId`/`payeeId` are only kept when
+    /// the referenced row still exists, matching the source's `cats.find(...)`
+    /// guard — a template can outlive the entity it points at.
+    static func prefill(
+        from template: QuickTransaction,
+        lookups: Lookups
+    ) -> TemplatePrefill {
+        TemplatePrefill(
+            type: template.type,
+            amount: template.amount,
+            description: template.description.flatMap { $0.isEmpty ? nil : $0 },
+            categoryId: template.categoryId.flatMap { id in
+                lookups.categories.contains { $0.id == id } ? id : nil
+            },
+            payeeId: template.payeeId.flatMap { id in
+                lookups.payees.contains { $0.id == id } ? id : nil
+            }
+        )
+    }
+
     // MARK: - SQL construction
 
     /// Builds the shared WHERE fragment. Every user value is bound; the only

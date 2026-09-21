@@ -1,8 +1,9 @@
 # Jmoney macOS — Data Architecture
 
 > Populated after analyzing the React Native application's database, offline-first behavior,
-> synchronization, and Supabase integration. Last updated: 2026-09-20 (Phase 5 data layer
-> implemented: GRDB v1 migration + DTOs + timestamp rules, unit tested).
+> synchronization, and Supabase integration. Last updated: 2026-09-21 (Phase 12 management
+> entities implemented: categories, payees, groups and quick transactions, with their write paths
+> and prioritisation, unit tested).
 
 ## Status
 
@@ -22,7 +23,12 @@ implemented (Phase 8)**: `Services/BudgetService.swift` carries the month spendi
 `canGoToPreviousMonth`/`canGoToNextMonth`, `isMonthSelectable`, `selectableYears`), the drill-down,
 and the write path. **Goal path implemented (Phase 9)**: `Services/GoalService.swift` carries the
 progress maths, the three sort orders, the fetch, and the write path (`save` upsert + `softDelete`).
-Sync/push-pull logic itself lands in Phase 14.
+**Management-entity path implemented (Phase 12)**: `Services/CategoryService.swift`,
+`PayeeService.swift`, `GroupService.swift` and `QuickTransactionService.swift` carry the four
+lists (with the source's `priority ASC, name ASC` order), their filters/sorts, the `MAX(priority)+1`
+auto-assignment, the upserts, `updatePriorities`, and each table's own delete shape (group hard
+delete, quick-transaction soft delete, categories/payees none). Sync/push-pull logic itself lands in
+Phase 14.
 
 ---
 
@@ -107,7 +113,12 @@ chain instead (documented improvement, not a behavior change).
 | Earliest transaction date | `MIN(date)` over non-deleted transactions, falling back to **today**. Shared by budgets, reports and the calendar as `TransactionBounds.minDate` — the source parses the column value with `new Date('yyyy-MM-dd')`, i.e. **UTC midnight**; the port parses it in the calendar's zone so the earliest month cannot shift by a day in a negative-offset time zone |
 | Search | numbers → exact amount match; otherwise LIKE on description and amount-as-text. The numeric form is `^-?\d+(\.\d+)?$`, and when it matches the LIKE is **not** run at all (so `5` does not match a description containing "5"). Exception: `getMonthlyFilteredStats` never takes the numeric branch — its search is always the LIKE, so there `50` *does* match "500 note electricity" |
 | Sorting | Transactions: date desc then `transaction_timestamp` desc. Entities: `priority ASC, name ASC` default; user-selectable sorts per screen (see matrix) |
-| Defaults | New expense → category "general"; new income → category "salary" (case-insensitive name match) |
+| Defaults | New expense → category "general"; new income → category "salary" (case-insensitive name match). A **quick-transaction prefill is exempt**: the source guards that effect with `!quickTx`, so a template with no category leaves the picker empty |
+| Quick-transaction prefill | Selecting a template prefills type, amount, description, category and payee (each only when the template has it, and only when the referenced category/payee still exists). Three preserved quirks: the template's `product_link` is **never** applied, no group is set, and the date stays "now" |
+| Priority auto-assignment | A new category/payee/group/quick-transaction with `priority = 0` gets `MAX(priority) + 1` over **all** rows of that table for the user (including soft-deleted templates). An existing row keeps its priority on edit. Reordering renumbers the **visible set** from 1, so the Expense and Income tabs renumber independently and can collide — harmless, since the two lists are never shown together |
+| Management list ordering | `priority ASC, name ASC` for categories, payees, groups and quick transactions (quick transactions additionally filter `deleted = 0`). The user-selectable sorts are `name` (locale collation) or `priority`, either direction, with `Array.prototype.sort` stability restored — reorder mode ignores the choice and forces ascending priority. Quick transactions have no sort menu: always `priority ASC` |
+| Management search | Case-insensitive substring over the entity's name — plus the description for **groups only**. The gate is `searchQuery.trim()` but the needle is the *untrimmed* lowercase query, so a trailing space can only match text with a space there; quick transactions are the exception and trim their needle |
+| Category icon | `categories.app_icon` holds a **Material** icon name (free text). macOS maps it through one curated table (`Support/CategoryIcon.swift`); the source's `formatIconName` (strip a leading `Md`, kebab-case camelCase) and its per-context empty defaults (`category` for a category, `receipt` for a transaction/report row, `category_app_icon \|\| app_icon \|\| receipt` for a report row) are reproduced. `''` and an unmapped name both fall back to a neutral glyph |
 | Validation | amount > 0 and ≤ 999,999,999; description ≤ 500 chars; category required; goal name required + current ≥ 0; budget name + ≥1 category + amount valid |
 | Timestamps | `transaction_timestamp` written at save via `date.toISOString()` (**UTC, 'Z' suffix**); `date` column = local calendar `yyyy-MM-dd` derived at save. On push to Supabase the timestamp is converted to the device's **local wall-clock without suffix** (`yyyy-MM-dd'T'HH:mm:ss.SSS`); on pull `date` is re-derived from the raw string prefix (`getTransactionDate` matches `^(\d{4}-\d{2}-\d{2})[T ]`). Net effect: after the first push/pull cycle timestamps are local wall-clock; before that, a pulled row's `date` can differ from the source device's local date near midnight |
 | Currency | `₹`, locale `en-IN`, 0 or 2 fraction digits |
@@ -187,7 +198,14 @@ Entity-specific push details (verified in source):
 - **Group deletion** hard-deletes only the group row; member transactions keep a dangling `group_id`
   (filters/reports tolerate this by joining names).
 - **Category/payee deletion** is not exposed in the RN UI; do not add destructive paths without
-  flagging them as new behavior.
+  flagging them as new behavior. The Phase 12 port therefore ships both screens **add-only**:
+  neither table has a `deleted` column, so a local hard delete would be silently resurrected by the
+  next full-replace pull (§3.3). Renaming has the same problem in reverse — a rename could not be
+  represented as a delete — so neither is offered, exactly as in the source.
+- **Quick-transaction `|| null` idioms**: an empty `description`, an empty `product_link`, an empty
+  `identifier` and a **zero** amount all become SQL `NULL` (`0 || null` is `null`), so a template's
+  amount is "set or flexible", never zero. `identifier` is upper-cased and truncated to two
+  characters before storage.
 - **Group last-sync key mismatch**: `groupService` reads/writes `@last_sync_groups_` while
   `groupSync.ts` writes `@last_sync_transaction_groups_`. The groups screen's "never synced"
   auto-sync check therefore reads a key the sync module never writes. Preserve the observable
@@ -257,6 +275,15 @@ Service ──write (sync_status=1)──▶ SQLite           │
   carries the details; the clamping cases are tested.
 - The reports phase's only write is `is_living_cost` (`ReportService.setLivingCost`). Do not add
   `sync_status = 1` to it: the column never leaves the device, so it must not create a push cycle.
+- Management-list writes: `CategoryService.updatePriorities` / `PayeeService.updatePriorities` /
+  `GroupService.updatePriorities` / `QuickTransactionService.updatePriorities` flag `sync_status = 1`
+  (the source pushes the reorder) but deliberately do **not** touch any other column — in particular
+  `is_living_cost` survives a reorder. `GroupService.hardDelete` is the only hard delete in the app,
+  and it removes the group row alone; `QuickTransactionService.softDelete` follows the standard
+  soft-delete-then-push-delete path (§3.2).
+- The category icon mapping is a **display-only** translation. Never write an SF Symbol name into
+  `categories.app_icon` or `transactions.category_app_icon`: those columns carry Material names that
+  the sync layer exchanges verbatim with Supabase.
 
 ## 8. Verification Record (second agent, 2026-09-20)
 

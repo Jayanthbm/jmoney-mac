@@ -22,6 +22,10 @@ final class TransactionEditorViewModel {
 
     let mode: Mode
 
+    /// The quick-transaction template this draft was seeded from, if any. Applied
+    /// once the lookups arrive — see `load`.
+    let template: QuickTransaction?
+
     var type: String
     var amountText: String
     var descriptionText: String
@@ -36,8 +40,9 @@ final class TransactionEditorViewModel {
     private(set) var isSaving = false
     private(set) var saveErrorMessage: String?
 
-    init(mode: Mode = .new) {
+    init(mode: Mode = .new, template: QuickTransaction? = nil) {
         self.mode = mode
+        self.template = template
         let existing = mode.existing
         type = existing?.type ?? "Expense"
         amountText = existing.map { Self.text(for: $0.amount) } ?? ""
@@ -108,9 +113,14 @@ final class TransactionEditorViewModel {
     func select(groupId: String?) { selectedGroupId = groupId }
 
     /// Switching the type re-applies the default category, mirroring the source.
+    ///
+    /// For a template-prefilled draft the source's default-category effect is
+    /// guarded by `!quickTx`, so the category is left exactly as the template set it,
+    /// even when it does not match the new type. Preserved.
     func changeType(to newType: String) {
         guard typeIsEditable, newType != type else { return }
         type = newType
+        guard template == nil else { return }
         applyDefaultCategory()
     }
 
@@ -141,9 +151,31 @@ final class TransactionEditorViewModel {
             saveErrorMessage = error.localizedDescription
             return
         }
-        if !isEditing {
+        if let template {
+            apply(template)
+        } else if !isEditing {
             applyDefaultCategory()
         }
+    }
+
+    /// The template prefill. The rules (and the quirks) are the source's — see
+    /// `TransactionService.prefill`. Note it does **not** touch the product link or
+    /// the group, and does not fall back to "general"/"salary" when the template has
+    /// no category.
+    private func apply(_ template: QuickTransaction) {
+        let prefill = TransactionService.prefill(from: template, lookups: lookups)
+        type = prefill.type
+        if let amount = prefill.amount {
+            amountText = Self.text(for: amount)
+        }
+        if let description = prefill.description {
+            descriptionText = description
+        }
+        selectedCategoryId = prefill.categoryId
+        selectedPayeeId = prefill.payeeId
+        // The source leaves the date at "now" for a new transaction, template or
+        // not, and clears any validation state.
+        validation.errors[.categoryId] = nil
     }
 
     // MARK: - Saving

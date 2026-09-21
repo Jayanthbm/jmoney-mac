@@ -1,7 +1,7 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-21 (Phase 9 goals implemented on top of the shell, data layer, dashboard, transactions and budgets).
+> Last updated: 2026-09-21 (Phase 12 categories, payees, groups and quick transactions implemented).
 
 ## Status
 
@@ -19,8 +19,11 @@ orders, the editor with its live preview, soft deletion, and the shared first-op
 selectors, the previous-period comparison, search/sort, the group accordion, the living-cost
 configuration sheet, and drill-downs. **Calendar implemented (Phase 11)**: the bounded month grid,
 day selection, the day's net, and the day's transaction list, plus two shared extractions
-(`TransactionBounds`, `MonthYearPicker`) — all unit tested (344 tests green).
-Next: Phase 12 (Categories / Payees / Groups / Quick Transactions).
+(`TransactionBounds`, `MonthYearPicker`). **Management entities implemented (Phase 12)**: the four
+screens (categories, payees, groups, quick transactions) with their search/sort/reorder/view-mode
+controls and editors, the prioritisation writes, the shared Material→SF Symbol icon table, and the
+real quick-transaction picker + editor prefill — all unit tested (421 tests green).
+Next: Phase 13 (Settings).
 
 ---
 
@@ -93,7 +96,13 @@ Jmoney/
 │   │                              #   accordion, drill-down sheet, living-cost config  [Phase 10 ✓]
 │   ├── Calendar/                  # CalendarViewModel, month grid, day summary bar, screen
 │   │                              #   (two-pane: grid left, day right)  [Phase 11 ✓]
-│   ├── Categories/  Payees/  Groups/  QuickTransactions/   # [Phase 12]
+│   ├── Categories/                # List/grid, tabbed, search/sort, drag reorder, add editor,
+│   │                              #   shared icon picker  [Phase 12 ✓]
+│   ├── Payees/                    # List/grid, search/sort, drag reorder, add editor  [Phase 12 ✓]
+│   ├── Groups/                    # List/grid, search/sort, drag reorder, add/edit editor
+│   │                              #   with warning hard delete  [Phase 12 ✓]
+│   ├── QuickTransactions/         # Card/list, search, reorder, add/edit editor, and the real
+│   │                              #   ⌘⇧N picker that prefills the transaction editor  [Phase 12 ✓]
 │   └── Settings/                  # Pane + ⌘, scene views   [Phase 13]
 ├── Services/
 │   ├── DatabaseService.swift      # GRDB WAL pool + v1 migration (exact RN schema)  [Phase 5 ✓]
@@ -115,7 +124,11 @@ Jmoney/
 │   ├── CalendarService.swift      # Month grid build, day net, period day rule + month stepping,
 │   │                              #   navigation bounds, day queries
 │   │                              #   (mirror of calendarService.ts + the screen's period logic)  [Phase 11 ✓]
-│   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
+│   ├── CategoryService.swift      # List/filter/sort, add-only writes, priority renumber  [Phase 12 ✓]
+│   ├── PayeeService.swift         # List/filter/sort, add-only writes, priority renumber  [Phase 12 ✓]
+│   ├── GroupService.swift         # List/filter/sort, upsert, hard delete, priorities  [Phase 12 ✓]
+│   ├── QuickTransactionService.swift  # Templates: list/filter, upsert, soft delete, priorities,
+│   │                              #   identifier rules  [Phase 12 ✓]
 │   ├── NotificationService.swift  # Daily reminders   [Phase 13]
 │   └── LocationService.swift      # GPS tagging   [Phase 7]
 ├── Models/                        # 7 DTOs, column names identical to the RN schema  [Phase 5 ✓]
@@ -129,8 +142,14 @@ Jmoney/
 │   ├── Validators.swift           # validators.ts port (amount + transaction + budget + goal)  [Phase 7–9 ✓]
 │   ├── InitialSyncGuard.swift     # Shared first-open sync predicate (goals + budgets)  [Phase 9 ✓]
 │   ├── TransactionBounds.swift    # Shared `MIN(date)` bound (budgets + reports + calendar)  [Phase 11 ✓]
-│   └── MonthYearPicker.swift      # Shared month/year popover (budgets + reports + calendar)  [Phase 11 ✓]
-JmoneyTests/                       # 344 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+│   ├── MonthYearPicker.swift      # Shared month/year popover (budgets + reports + calendar)  [Phase 11 ✓]
+│   ├── CategoryIcon.swift         # The one Material→SF Symbol table + the source's per-context
+│   │                              #   fallbacks (transaction/report/config/category)  [Phase 12 ✓]
+│   ├── EntityOrdering.swift       # Shared search + name/priority sort + reorder renumbering
+│   │                              #   (categories + payees + groups + quick transactions)  [Phase 12 ✓]
+│   └── ViewModePreference.swift   # Per-screen list/grid + card/list preference, keyed exactly
+│                                  #   like the source's AsyncStorage keys  [Phase 12 ✓]
+JmoneyTests/                       # 421 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
@@ -138,7 +157,11 @@ JmoneyTests/                       # 344 tests: schema/defaults/indexes, record 
                                    #   validation, goal SQL & writes, goal render smoke, report comparison
                                    #   windows/diffs/summaries/sorting/trends, report SQL & all seven
                                    #   drill-downs, report render smoke, calendar grid/day-net/period
-                                   #   rules/bounds, calendar SQL & render smoke  [Phase 5–11 ✓]
+                                   #   rules/bounds, calendar SQL & render smoke, management
+                                   #   search/sort/reorder + icon mapping + view-mode preference,
+                                   #   category/payee/group/template SQL & write paths,
+                                   #   quick-transaction prefill quirks, management render smoke
+                                   #   [Phase 5–12 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -267,3 +290,23 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   budgets and reports — reports used to reach into `BudgetService` for it) and
   `Support/MonthYearPicker.swift` (the month/year popover, replacing `BudgetMonthPicker` and
   `ReportPeriodPicker`). `TransactionRow` is again the shared row renderer.
+- Management-entity notes: `Support/EntityOrdering.swift` is the shared search + name/priority
+  comparator for all four screens (the three `filterAndSort*` services are otherwise identical), with
+  JS `Array.prototype.sort` stability restored explicitly and the source's untrimmed-needle search
+  quirk preserved — except on quick transactions, whose screen *does* trim. `Support/CategoryIcon.swift`
+  is the single Material→SF Symbol table that now backs `TransactionRow`, `ReportItemRow`, the
+  living-cost tiles, the category rows and the editor's icon picker; it is a curated table (the
+  stored `app_icon` is free text in the source), with the source's `Md`-prefix/kebab normalisation and
+  a neutral fallback. `Support/ViewModePreference.swift` stores the per-screen list/grid (and card/list)
+  choice in `UserDefaults` under the source's own keys, so the values round-trip across platforms.
+  Reordering is drag-and-drop (`onMove`) with the source's up/down arrows kept in the context menu;
+  reorder mode still exists because it changes the order, the layout, and where the source pushes.
+  `CategoryService` and `PayeeService` are deliberately **add-only** — the source UI offers no
+  edit/delete and neither table has a `deleted` column, so a local delete would be resurrected by the
+  next full-replace pull. `GroupService.hardDelete` removes the group row and nothing else (member
+  transactions keep a dangling `group_id`), while `QuickTransactionService.softDelete` flags the row
+  for the push that turns it into a real Supabase delete. `AppState.openTransactions(filters:)` +
+  `transactionFilterRequestID` replace the RN route params (`initialSelectedCats` /
+  `initialSelectedPayees`) for the category/payee click-through, and
+  `AppState.transactionEditor = .template(_)` carries a quick transaction into the editor as a prefill
+  (`TransactionService.prefill`), which closes the Phase 7 "quick-transaction presets" item.

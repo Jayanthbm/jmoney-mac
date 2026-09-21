@@ -9,10 +9,10 @@ import SwiftUI
 ///
 /// Two deliberate differences from the RN card, both documented in the feature
 /// matrix:
-/// * The category glyph is an SF Symbol, not the stored Material icon name
-///   (`category_app_icon`) — mapping Material names is part of the Categories
-///   phase, which also builds the icon picker.
-/// * The "not yet uploaded" cloud badge is omitted while the sync engine does not
+/// * the category glyph is the stored Material icon name (`category_app_icon`)
+///   translated through the shared `CategoryIcon` table — the RN card hands the raw
+///   name to `MaterialIcons`;
+/// * the "not yet uploaded" cloud badge is omitted while the sync engine does not
 ///   exist, since every row would be flagged and the state would be meaningless.
 struct TransactionRow: View {
     let transaction: Transaction
@@ -25,7 +25,7 @@ struct TransactionRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "tag")
+            Image(systemName: CategoryIcon.transactionSymbol(transaction.categoryAppIcon))
                 .font(.system(size: 10, weight: .bold))
                 .foregroundStyle(isIncome ? Color.green : Color.accentColor)
                 .frame(width: 24, height: 24)

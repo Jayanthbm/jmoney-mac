@@ -4,9 +4,9 @@ import SwiftUI
 ///
 /// The title, amount, trend subtitle and progress bar are the source's; the
 /// leading glyph differs by report kind, exactly as the source picks between a
-/// payee logo, a payee avatar and a category icon. The stored Material icon name
-/// (`category_app_icon`) is **not** mapped here — that mapping belongs with the
-/// Categories phase (Phase 12), so a neutral glyph stands in meanwhile.
+/// payee logo, a payee avatar and a category icon. The category branch translates
+/// the stored Material name through the shared `CategoryIcon` table, using the
+/// source's `category_app_icon || app_icon || 'receipt'` chain.
 struct ReportItemRow: View {
     let item: ReportService.ReportItem
     let type: String
@@ -104,13 +104,23 @@ struct ReportItemRow: View {
         } else if !(item.payeeName ?? "").isEmpty {
             avatar
         } else {
-            Image(systemName: hasGroup ? "folder" : "tag")
+            Image(systemName: leadingSymbol)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(Color.accentColor)
                 .frame(width: 32, height: 32)
                 .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
                 .accessibilityHidden(true)
         }
+    }
+
+    /// A group keeps its folder; anything else is a category-like row, so the
+    /// stored icon is used.
+    private var leadingSymbol: String {
+        hasGroup
+            ? "folder"
+            : CategoryIcon.reportSymbol(
+                categoryAppIcon: item.categoryAppIcon, appIcon: item.icon
+            )
     }
 
     private var avatar: some View {

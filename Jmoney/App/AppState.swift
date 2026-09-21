@@ -20,6 +20,23 @@ final class AppState {
 
     var showQuickTransactionPicker = false
 
+    /// A template chosen in the picker, waiting for that sheet to close before the
+    /// editor opens. Presenting a second sheet from inside the first is unreliable,
+    /// so the picker's dismissal carries it through (`consumePendingQuickTransaction`).
+    private(set) var pendingQuickTransaction: QuickTransaction?
+
+    /// Called by the picker: close it, and remember what to log.
+    func logQuickTransaction(_ template: QuickTransaction) {
+        pendingQuickTransaction = template
+        showQuickTransactionPicker = false
+    }
+
+    /// Reads and clears the template the picker selected, if any.
+    func consumePendingQuickTransaction() -> QuickTransaction? {
+        defer { pendingQuickTransaction = nil }
+        return pendingQuickTransaction
+    }
+
     /// Bumped whenever local data changes, so any open view can reload. Replaces
     /// the RN app's `DeviceEventEmitter 'module_refreshed'` events.
     private(set) var dataRevision = 0
@@ -34,6 +51,47 @@ final class AppState {
 
     func editTransaction(_ transaction: Transaction) {
         transactionEditor = .edit(transaction)
+    }
+
+    /// Opens the editor on a quick-transaction template, which prefills the fields
+    /// the source's `quickTransaction` route param prefills. This is the ⌘⇧N /
+    /// bolt-button path.
+    func beginTransaction(from template: QuickTransaction) {
+        transactionEditor = .template(template)
+    }
+
+    // MARK: - Cross-section transaction filters
+
+    /// A pre-filtered Transactions screen, requested by another section.
+    ///
+    /// Replaces the RN app's `router.push({ pathname: '/(tabs)/transactions',
+    /// params: { initialSelectedCats }})`: the categories and payees screens hand the
+    /// selected ids over, select the section, and `TransactionsView` consumes them.
+    /// Groups have no such path in the source — a group tap opens its editor.
+    struct TransactionFilterRequest: Equatable {
+        var categoryIds: [String] = []
+        var payeeIds: [String] = []
+
+        var isEmpty: Bool { categoryIds.isEmpty && payeeIds.isEmpty }
+    }
+
+    private(set) var requestedTransactionFilters: TransactionFilterRequest?
+
+    /// Bumped on every request, so a second click on the same category still
+    /// reloads the destination (a value comparison would not).
+    private(set) var transactionFilterRequestID = 0
+
+    func openTransactions(filters: TransactionFilterRequest) {
+        requestedTransactionFilters = filters
+        transactionFilterRequestID += 1
+        selectedSection = .transactions
+    }
+
+    /// Reads and clears the pending filter request, so the Transactions section
+    /// applies each request exactly once.
+    func consumeRequestedTransactionFilters() -> TransactionFilterRequest? {
+        defer { requestedTransactionFilters = nil }
+        return requestedTransactionFilters
     }
 
     /// Report another section asked for (dashboard click-through). The reports

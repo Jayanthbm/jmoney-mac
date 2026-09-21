@@ -79,7 +79,7 @@ struct LivingCostConfigView: View {
             onToggle(category)
         } label: {
             VStack(spacing: 8) {
-                Image(systemName: "tag")
+                Image(systemName: CategoryIcon.configTileSymbol(category.appIcon))
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(isLivingCost ? Color.accentColor : Color.secondary)
                     .frame(width: 44, height: 44)
