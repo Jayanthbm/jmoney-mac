@@ -20,8 +20,8 @@ struct RootView: View {
                 .safeAreaInset(edge: .bottom, spacing: 0) {
                     StatusBarView()
                 }
-                .sheet(isPresented: $appState.showNewTransaction) {
-                    NewTransactionSheet()
+                .sheet(item: $appState.transactionEditor) { target in
+                    TransactionEditorView(target: target)
                 }
                 .sheet(isPresented: $appState.showQuickTransactionPicker) {
                     QuickTransactionPickerSheet()

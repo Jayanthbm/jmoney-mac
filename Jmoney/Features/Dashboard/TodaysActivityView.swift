@@ -5,8 +5,8 @@ import SwiftUI
 ///
 /// Port of `app/daily-limit-detail.tsx`: total spent today (computed from the
 /// rows on screen, exactly as the RN screen reduces them) above the list of
-/// today's transactions. Row rendering is intentionally lightweight until the
-/// Transactions phase builds the real list and editor.
+/// today's transactions. Rows use the shared `TransactionRow` so the drill-down
+/// and the Transactions list render identically.
 struct TodaysActivityView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -32,7 +32,7 @@ struct TodaysActivityView: View {
             Divider()
             footer
         }
-        .frame(minWidth: 480, minHeight: 440)
+        .frame(minWidth: 520, minHeight: 460)
         .task { await load() }
     }
 
@@ -69,33 +69,11 @@ struct TodaysActivityView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            List(transactions, id: \.id) { transaction in
-                row(for: transaction)
+            List(transactions) { transaction in
+                TransactionRow(transaction: transaction)
             }
             .listStyle(.inset)
         }
-    }
-
-    private func row(for transaction: Transaction) -> some View {
-        HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(transaction.description ?? "—")
-                    .font(.body)
-                    .lineLimit(1)
-                Text(transaction.categoryName.flatMap { $0.isEmpty ? nil : $0 } ?? "Uncategorized")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer(minLength: 8)
-
-            Text("\(transaction.type == "Expense" ? "−" : "+")\(AppFormat.currency(transaction.amount))")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(transaction.type == "Expense" ? Color.red : Color.green)
-                .monospacedDigit()
-        }
-        .padding(.vertical, 2)
-        .accessibilityElement(children: .combine)
     }
 
     private var footer: some View {

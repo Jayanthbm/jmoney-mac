@@ -49,6 +49,35 @@ enum TransactionTimestamp {
         return dayString(from: date, timeZone: timeZone)
     }
 
+    // MARK: instant
+
+    /// A sortable instant for a stored `transaction_timestamp`, mirroring the
+    /// JavaScript `new Date(ts).getTime()` that `mapTransactionsToFlashList`
+    /// sorts by. Returns nil when the string cannot be parsed, so callers can
+    /// fall back to a plain string comparison.
+    ///
+    /// Rows written by the sync pull hold a *local* wall-clock string with no
+    /// suffix (see `toSupabaseFormat`); JS parses those as local time, so the
+    /// same fallback is applied here.
+    static func instant(from timestamp: String, timeZone: TimeZone = .current) -> Date? {
+        if let date = parse(timestamp) { return date }
+        let candidate = replacingFirstSpace(withT: timestamp)
+        if let date = localWallClockFormatter(precision: "yyyy-MM-dd'T'HH:mm:ss.SSS", timeZone: timeZone)
+            .date(from: candidate) {
+            return date
+        }
+        return localWallClockFormatter(precision: "yyyy-MM-dd'T'HH:mm:ss", timeZone: timeZone)
+            .date(from: candidate)
+    }
+
+    // MARK: utcISOString
+
+    /// JavaScript `date.toISOString()` — UTC with a `Z` suffix and exactly three
+    /// fraction digits, which is how `transaction_timestamp` is written on save.
+    static func utcISOString(from date: Date) -> String {
+        isoFormatterWithFraction.string(from: date)
+    }
+
     // MARK: - Pattern helpers
 
     private static func hasTimezoneSuffix(_ timestamp: String) -> Bool {
@@ -132,6 +161,14 @@ enum TransactionTimestamp {
         formatter.timeZone = timeZone
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: date)
+    }
+
+    private static func localWallClockFormatter(precision: String, timeZone: TimeZone) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = precision
+        return formatter
     }
 
     private static let isoFormatterWithFraction: ISO8601DateFormatter = {

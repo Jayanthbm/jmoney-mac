@@ -14,8 +14,27 @@ final class AppState {
 
     // MARK: Sheets
 
-    var showNewTransaction = false
+    /// Non-nil while the transaction editor sheet is open — `.new` from ⌘N, or
+    /// `.edit(tx)` when a row asks to be edited.
+    var transactionEditor: TransactionEditorTarget?
+
     var showQuickTransactionPicker = false
+
+    /// Bumped whenever local data changes, so any open view can reload. Replaces
+    /// the RN app's `DeviceEventEmitter 'module_refreshed'` events.
+    private(set) var dataRevision = 0
+
+    func markDataChanged() {
+        dataRevision += 1
+    }
+
+    func beginNewTransaction() {
+        transactionEditor = .new
+    }
+
+    func editTransaction(_ transaction: Transaction) {
+        transactionEditor = .edit(transaction)
+    }
 
     /// Report another section asked for (dashboard click-through). Phase 10's
     /// report pages consume it; the placeholder reports view echoes it today.

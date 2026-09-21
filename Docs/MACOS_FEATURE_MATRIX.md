@@ -2,7 +2,7 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-21 (Phase 6 dashboard implemented — see §3 and §11 for updated rows).
+> Last updated: 2026-09-21 (Phase 7 transactions implemented — see §1, §4 and §12 for updated rows).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -17,13 +17,13 @@
 | Bottom tab navigation | `NativeTabs` with 5 tabs: Dashboard, Transactions, Budgets, Reports, Settings | `NavigationSplitView` sidebar listing all major areas | COMPLETE | Phase 4 shell: Finance / Manage / General sidebar sections host all 11 areas (tabs + stack-screen equivalents) |
 | Root loader / redirect | `app/index.tsx` waits for auth session, redirects to login or dashboard | Window scene waits for DB init + session restore before showing content | IN PROGRESS | Gate exists (mock session); DB-init wait arrives with the Phase 5 data layer |
 | Auth-gated routing | `RootLayoutNav` redirects unauthenticated users to `/(auth)/login` | Same gate at app-scene level; login window/sheet when signed out | IN PROGRESS | Phase 4: `AuthGateView` with mock sign-in; real Supabase + Keychain in Phase 14 |
-| Modal transaction sheet | `add-transaction` transparent modal, slide-from-bottom | Sheet (`⌘N` new transaction) | IN PROGRESS | Phase 4: placeholder sheet presented by ⌘N; editor fields in Phase 7 |
+| Modal transaction sheet | `add-transaction` transparent modal, slide-from-bottom | Sheet (`⌘N` new transaction) | COMPLETE | Phase 7: `TransactionEditorView` — type, date-time, category/payee/group, amount, description, product link, inline validation |
 | Screen titles + last-synced subtitle | Header title with "Synced: Xm ago" | Toolbar title with subtitle; refresh toolbar button | IN PROGRESS | Phase 4: status bar shows "Last synced: …"; real timestamps with data layer/sync |
 | iOS home-screen quick actions | `expo-quick-actions`: "New Transaction", "Quick Transaction" | Menu bar extra / Dock menu equivalents | IN PROGRESS | Phase 4: File > New Transaction (⌘N), File > Quick Transaction (⌘⇧N) |
-| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | IN PROGRESS | ⌘N + empty-state action buttons live; per-view toolbar `+` arrives with each feature |
+| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | IN PROGRESS | Transactions has its toolbar `+` and empty-state action (Phase 7); the other areas add theirs with their phases |
 | Toast notifications | `ToastContext` global toasts (success/error/info) | Native alerts / transient banners / status feedback in toolbar | IN PROGRESS | Phase 4: bottom status bar carries transient messages; error alerts arrive with real flows |
-| Error boundaries | `DataErrorBoundary` wraps transaction list | Graceful error views with retry | NOT STARTED | |
-| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | IN PROGRESS | Phase 4: `ContentUnavailableView` empty state on all 11 areas; loading states arrive with data |
+| Error boundaries | `DataErrorBoundary` wraps transaction list | Graceful error view with a Try Again action | COMPLETE | Transactions (Phase 7); the pattern carries to the remaining lists |
+| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | IN PROGRESS | Dashboard (Phase 6) and Transactions (Phase 7) have real empty/loading/error states; the other areas keep their Phase 4 placeholders |
 
 ## 2. Authentication & Security
 
@@ -56,21 +56,23 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Transaction list | FlashList, grouped by date, sticky date headers with per-day net totals | Table/List with section headers (sticky), lazy loading | NOT STARTED | `mapTransactionsToFlashList` groups + sorts by `transaction_timestamp` |
-| Filtered net total chip | Shows Σ(Income−Expense) of current filter; color-coded positive/negative | Summary strip above list | NOT STARTED | |
-| Search | Description LIKE or amount-as-text LIKE; pure numbers match exact amount | Search field (⌘F) applying same rules | NOT STARTED | `fetchTransactions` |
-| Date range filter | Start/end date with quick presets (Today/This Week/This Month/This Year) | Popover with presets + custom range | NOT STARTED | |
-| Multi-select category/payee/group filters | Multi-select sheets with search | Multi-select popovers | NOT STARTED | |
-| Active filter summary + Clear All | Text summary of active filters | Filter chips / summary row | NOT STARTED | |
-| Stats breakdown modal | 5-month income/expense trend for current filters (`getMonthlyFilteredStats`) | Detail popover or sheet with mini chart | NOT STARTED | |
-| Add transaction | Expense/Income segmented control, date+time picker, category/payee/group selector rows, amount, description, product link | Sheet (⌘N) with same fields | NOT STARTED | Default category: "general" (expense) / "salary" (income) |
-| Edit transaction | Same sheet pre-filled; type not editable on edit | Same | NOT STARTED | |
-| Delete transaction | Soft delete (`deleted=1, sync_status=1`) + confirmation modal + background sync | Context menu / Delete key + confirmation dialog | NOT STARTED | |
-| Quick transaction presets | `quick_transactions` templates prefill the add sheet (one-tap logging) | Toolbar bolt button / ⌘⇧N opens preset picker | NOT STARTED | |
-| Location tagging | Optional GPS capture (progressive accuracy w/ last-known fallback), manual lat/long edit, remove, open Google Maps | CoreLocation capture; map link; manual entry | NOT STARTED | Applies on add; editable on edit via location sheet |
-| Per-card filter shortcuts | Long-press/actions: filter list by this payee/category | Context menu "Filter by Payee/Category" | NOT STARTED | |
-| Sync button + status | Partial transaction sync on demand, "Synced: Xm ago" | ⌘R / toolbar | NOT STARTED | |
-| Amount formatting | `₹` (INR, `en-IN`), 0 or 2 decimals | Same formatting, locale-aware | NOT STARTED | `APP_CONFIG.CURRENCY_SYMBOL` |
+| Transaction list | FlashList, grouped by date, sticky date headers with per-day net totals | Native `List` sections with per-day headers and net totals; native selection + keyboard navigation | COMPLETE | `TransactionService.sections` ports `mapTransactionsToFlashList` (day groups newest-first, rows by timestamp newest-first). The FlashList *pinned* header overlay is not reproduced — native list section headers are used instead |
+| Filtered net total chip | Shows Σ(Income−Expense) of current filter; color-coded positive/negative | Summary bar button above the list, colour-coded | COMPLETE | Same sign quirk preserved: `+` prefix when ≥ 0, no minus when negative (the currency helper drops the sign) |
+| Search | Description LIKE or amount-as-text LIKE; pure numbers match exact amount | Toolbar search field (⌘F focuses it), 300 ms debounce | COMPLETE | Values are bound parameters, not interpolated; the numeric branch still replaces the LIKE entirely |
+| Date range filter | Start/end date with quick presets (Today/This Week/This Month/This Year) | Popover: optional start/end pickers + the same four presets (week starts Monday) | COMPLETE | Either side can be "any date"; moving one bound past the other pushes it, matching the source |
+| Multi-select category/payee/group filters | Multi-select sheets with search | Toolbar popovers with search + checkboxes | COMPLETE | Active counts show on the toolbar buttons |
+| Active filter summary + Clear All | Text summary of active filters | Summary bar with the same text + Clear All | COMPLETE | `21 Sep - 30 Sep • 2 Cats • 1 Payee`, counts not names |
+| Stats breakdown modal | 5-month income/expense trend for current filters (`getMonthlyFilteredStats`) | Popover from the total chip | COMPLETE | Last five calendar months, current first, signed net per month |
+| Add transaction | Expense/Income segmented control, date+time picker, category/payee/group selector rows, amount, description, product link | Sheet (⌘N) with the same fields | COMPLETE | Defaults: "general" (expense) / "salary" (income), matched case-insensitively by name |
+| Edit transaction | Same sheet pre-filled; type not editable on edit | Same sheet; the type control is hidden when editing | COMPLETE | Double-click a row, its context menu, or Return on the selection |
+| Delete transaction | Soft delete (`deleted=1, sync_status=1`) + confirmation modal + background sync | Context menu / ⌫ on the selection + confirmation dialog | COMPLETE | Sync after delete arrives with Phase 14 |
+| Quick transaction presets | `quick_transactions` templates prefill the add sheet (one-tap logging) | ⌘⇧N opens the preset picker | NOT STARTED | **Outstanding Phase 7 item** — the ⌘⇧N placeholder sheet still exists, but the preset→editor prefill is not built |
+| Location tagging | Optional GPS capture (progressive accuracy w/ last-known fallback), manual lat/long edit, remove, open Google Maps | CoreLocation capture; map link; manual entry | NOT STARTED | **Outstanding Phase 7 item.** Edit shows saved coordinates read-only and preserves them on save; the row still opens Google Maps. Capture/editing not built |
+| Per-card filter shortcuts | Long-press/actions: filter list by this payee/category | Context menu "Filter by Payee/Category" | COMPLETE | Disabled when the transaction has no payee |
+| Category icon glyphs | Material icon name from `category_app_icon` | Neutral SF Symbol tinted by type | IN PROGRESS | **Outstanding:** the stored values are Material icon names; the mapping and picker belong with Phase 12. Incomes are green, expenses use the accent colour |
+| Row sync indicator | Cloud badge on rows with `sync_status = 1`, tappable to sync | Omitted | NOT STARTED | Deliberately deferred to Phase 14: with no sync engine every row would be flagged, so the badge would be meaningless |
+| Sync button + status | Partial transaction sync on demand, "Synced: Xm ago" | ⌘R / toolbar with the status bar | NOT STARTED | Phase 14 owns the sync engine; the status bar shows "Last synced" |
+| Amount formatting | `₹` (INR, `en-IN`), 0 or 2 decimals | `AppFormat.currency` | MACOS EQUIVALENT | Indian digit grouping; sign dropped (source parity) — see §12 |
 
 ## 5. Budgets
 
@@ -173,7 +175,7 @@
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Dark/light theme colors | iOS-system palette (see ThemeContext) | System materials + equivalent palette | NOT STARTED | |
-| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | Phase 4: ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired |
+| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired (Phase 4). Phase 7 added ⌫ delete on the transaction selection, Return/double-click to edit, and Return/Escape in the editor sheet |
 | Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | NOT STARTED | |
 | CSV/JSON export | **Not implemented** (README claims it; no code found) | Planned as macOS-only enhancement (Phase 15) | NOT STARTED | Documented to avoid false parity claims |
 | ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |

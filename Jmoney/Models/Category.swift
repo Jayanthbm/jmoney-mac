@@ -3,7 +3,7 @@ import GRDB
 /// Mirrors the `categories` table. `isLivingCost` is a **local-only** flag:
 /// the RN sync layer strips it on push and omits it on pull, so it resets to 0
 /// after every full pull (DATA_ARCHITECTURE.md §4).
-struct Category: Codable, Equatable, FetchableRecord, MutablePersistableRecord {
+struct Category: Codable, Equatable, Identifiable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName = "categories"
 
     var id: String

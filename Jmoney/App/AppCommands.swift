@@ -10,7 +10,7 @@ struct AppCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("New Transaction…") {
-                appState.showNewTransaction = true
+                appState.beginNewTransaction()
             }
             .keyboardShortcut("n", modifiers: .command)
 

@@ -2,7 +2,7 @@ import GRDB
 
 /// Mirrors the `transaction_groups` table. Deleting a group hard-deletes only
 /// the group row; member transactions keep a dangling `group_id`.
-struct TransactionGroup: Codable, Equatable, FetchableRecord, MutablePersistableRecord {
+struct TransactionGroup: Codable, Equatable, Identifiable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName = "transaction_groups"
 
     var id: String

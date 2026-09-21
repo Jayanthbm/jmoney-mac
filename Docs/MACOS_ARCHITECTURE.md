@@ -1,7 +1,7 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-21 (Phase 6 dashboard implemented on top of the Phase 4 shell + Phase 5 data layer).
+> Last updated: 2026-09-21 (Phase 7 transactions implemented on top of the shell, data layer and dashboard).
 
 ## Status
 
@@ -9,8 +9,10 @@ Analysis complete (Phase 1, re-verified — see DATA_ARCHITECTURE.md §8). **App
 (Phase 4)**. **Data layer implemented (Phase 5)**: GRDB WAL pool, v1 migration mirroring the RN
 schema, column-faithful DTOs, and the timestamp-rules port. **Dashboard implemented (Phase 6)**:
 metrics, daily-limit/pay-day calculations, the seven widget cards, the Today's Activity drill-down,
-and the native progress views — all unit tested (63 tests green).
-Next: Phase 7 (Transactions).
+and the native progress views. **Transactions implemented (Phase 7)**: the sectioned list, the
+filter/search/statistics layer, the editor, soft deletion, and the shared transaction row — all unit
+tested (111 tests green).
+Next: Phase 8 (Budgets).
 
 ---
 
@@ -69,7 +71,9 @@ Jmoney/
 │   ├── Dashboard/                 # DashboardViewModel (@Observable) + widgets: daily limit,
 │   │                              #   remaining, pay day, top categories, month/year summaries,
 │   │                              #   net worth, Today's Activity sheet, shared card container  [Phase 6 ✓]
-│   ├── Transactions/              # List (sectioned), filters, search, stats, editor sheet  [Phase 7]
+│   ├── Transactions/              # TransactionsViewModel + editor view model, sectioned list,
+│   │                              #   filter popovers (date/multi-select/stats), shared row,
+│   │                              #   editor sheet, editor-target enum  [Phase 7 ✓]
 │   ├── Budgets/                   # List, month navigation, editor, drill-down   [Phase 8]
 │   ├── Goals/                     # [Phase 9]
 │   ├── Reports/                   # ReportDestination enum [Phase 6 ✓]; index + 11 report pages
@@ -85,7 +89,8 @@ Jmoney/
 │   ├── SupabaseService.swift      # Client config, session persistence   [Phase 14]
 │   ├── DashboardService.swift     # Metrics + daily-limit + payday + date-window calculations
 │   │                              #   (pure, testable) and the dashboard queries   [Phase 6 ✓]
-│   ├── TransactionService.swift   # Fetch/filter/stats (mirror transactionService.ts)   [Phase 7]
+│   ├── TransactionService.swift   # Fetch/filter/sections/stats/lookups + save & soft delete
+│   │                              #   (mirror of transactionService.ts + transactionQueries.ts)  [Phase 7 ✓]
 │   ├── BudgetService.swift  GoalService.swift  ReportService.swift  CalendarService.swift
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
 │   ├── NotificationService.swift  # Daily reminders   [Phase 13]
@@ -94,11 +99,13 @@ Jmoney/
 ├── Stores/
 │   └── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
 ├── Support/
-│   ├── Formatters.swift           # ₹/en-IN currency + English date patterns [Phase 6 ✓]; relative time  [Phase 4 ✓]
+│   ├── Formatters.swift           # ₹/en-IN currency, English date patterns, transaction timestamp display  [Phase 6 ✓, Phase 7 ✓]
 │   ├── ProgressViews.swift        # Native progress ring + bar (replaces the RN circular-progress trick)  [Phase 6 ✓]
-│   └── Timestamps.swift           # transactionTimestamp.ts port, byte-compatible  [Phase 5 ✓]
-JmoneyTests/                       # 63 tests: schema/defaults/indexes, record round-trips, timestamp rules,
-                                   #   dashboard calculations/queries, formatters, widget render smoke  [Phase 5 ✓, Phase 6 ✓]
+│   ├── Timestamps.swift           # transactionTimestamp.ts port + `instant`/`utcISOString`  [Phase 5 ✓, Phase 7 ✓]
+│   └── Validators.swift           # validators.ts port (amount + transaction)  [Phase 7 ✓]
+JmoneyTests/                       # 111 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+                                   #   dashboard calculations/queries, formatters, widget render smoke,
+                                   #   transaction filters/sections/validation, transaction SQL & writes  [Phase 5–7 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -120,6 +127,12 @@ JmoneyTests/                       # 63 tests: schema/defaults/indexes, record r
 | Report grid/list toggle | Toolbar view style toggle |
 | Vertical scroll of dashboard cards | Two-column adaptive `Grid` (net worth spans both columns) |
 | Quarter-segment border "circular progress" | Real stroked progress ring (`Circle().trim`) |
+| Collapsible search + filter panel | `.searchable` toolbar field plus toolbar filter buttons |
+| Filter bottom sheets | Popovers anchored to the toolbar buttons |
+| Icon-tile multi-select grid | Checkbox list with a search field |
+| Swipe-to-edit / swipe-to-delete | Context menu, `⌫` on the selection, double-click to edit |
+| FlashList pinned (sticky) date headers | Native `List` sections with per-day headers and totals |
+| Long-press card actions | Context menu (edit, delete, filter by payee/category) |
 
 Keyboard: ⌘N new transaction, ⌘⇧N quick transaction, ⌘F search, ⌘R sync, ⌘, settings,
 Delete remove selection, Return open selection, Escape dismiss sheets — no conflicts with
@@ -170,5 +183,13 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   against an in-memory `DatabaseQueue` with no app running. The seven metric queries share one
   `pool.read` (one consistent snapshot) instead of the RN app's seven parallel queries. Report
   click-through is recorded on `AppState.requestedReport` and echo-rendered by the Reports
-  placeholder until Phase 10. `TodaysActivityView` uses a lightweight transaction row that Phase 7
-  should replace with the shared list row. ⌘R still reports "not connected" (Phase 14).
+  placeholder until Phase 10. `TodaysActivityView` now uses the shared `TransactionRow`. ⌘R still
+  reports "not connected" (Phase 14).
+- Transactions notes: `AppState.transactionEditor` drives the editor sheet (⌘N sets `.new`, a row
+  sets `.edit(tx)`); `AppState.dataRevision` / `markDataChanged()` replaces the RN
+  `DeviceEventEmitter 'module_refreshed'` events — Dashboard and Transactions both reload on it.
+  Writes go through `TransactionService.save` (GRDB upsert, `sync_status = 1`) and
+  `softDelete`; the editor never drops saved coordinates. Outstanding Phase 7 items: location
+  tagging, quick-transaction presets, and the Material→SF Symbol category icon mapping (Phase 12).
+  `TransactionRow`, `TransactionDayHeader`, `ProgressViews` and `Validators` are the pieces later
+  phases should reuse rather than rebuild.

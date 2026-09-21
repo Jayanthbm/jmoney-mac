@@ -10,9 +10,13 @@ Analysis complete (§8). **Persistence implemented (Phase 5)**: `Services/Databa
 opens a WAL `DatabasePool` and migrates to the exact schema in §1.2–§1.3 (verified by tests:
 tables, columns, defaults, composite index column order, quick-transactions born-dirty quirk).
 DTOs in `Models/` match every column name. `Support/Timestamps.swift` ports `transactionTimestamp.ts`
-byte-compatibly (fixed-timezone tests). **Read path implemented (Phase 6)**: `Services/DashboardService.swift`
-carries the dashboard's parameterized aggregations (`incomeExpenseSummary`, `expensesByCategory`,
-`netWorth`, `spentToday`, `transactions(userId:date:)`) alongside the pure calculations. Sync/push-pull
+byte-compatibly, and adds `instant(from:)` (the JS `new Date(ts).getTime()` used for ordering) and
+`utcISOString(from:)` (JS `toISOString()`, used when saving). **Read path implemented (Phase 6)**:
+`Services/DashboardService.swift` carries the dashboard's parameterized aggregations
+(`incomeExpenseSummary`, `expensesByCategory`, `netWorth`, `spentToday`, `transactions(userId:date:)`)
+alongside the pure calculations. **Transaction path implemented (Phase 7)**:
+`Services/TransactionService.swift` carries the filtered list, the day-section mapping, the
+five-month statistics, the lookups, and the write path (`save` upsert + `softDelete`). Sync/push-pull
 logic itself lands in Phase 14.
 
 ---
@@ -88,7 +92,7 @@ chain instead (documented improvement, not a behavior change).
 | Report comparison | diff% = (current − previous)/previous × 100; previous matched by name/type; MTD-vs-MTD or YTD-vs-YTD for current period, full-vs-full otherwise; new items with no previous show +100% |
 | Filtered total | Σ(income − expense) over the active transaction filter |
 | Calendar day total | Σ(income − expense) for the selected date |
-| Search | numbers → exact amount match; otherwise LIKE on description and amount-as-text |
+| Search | numbers → exact amount match; otherwise LIKE on description and amount-as-text. The numeric form is `^-?\d+(\.\d+)?$`, and when it matches the LIKE is **not** run at all (so `5` does not match a description containing "5"). Exception: `getMonthlyFilteredStats` never takes the numeric branch — its search is always the LIKE, so there `50` *does* match "500 note electricity" |
 | Sorting | Transactions: date desc then `transaction_timestamp` desc. Entities: `priority ASC, name ASC` default; user-selectable sorts per screen (see matrix) |
 | Defaults | New expense → category "general"; new income → category "salary" (case-insensitive name match) |
 | Validation | amount > 0 and ≤ 999,999,999; description ≤ 500 chars; category required; goal name required + current ≥ 0; budget name + ≥1 category + amount valid |

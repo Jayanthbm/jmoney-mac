@@ -1,24 +1,43 @@
+import GRDB
 import SwiftUI
 
-/// Transactions placeholder — Phase 7 adds the date-sectioned list, filter
-/// popovers, stats breakdown, and the editor. The search field is wired now so
-/// ⌘F (Edit > Find) presents and focuses it from anywhere in the app.
+/// Transactions — the native equivalent of the RN transactions tab.
+///
+/// The mobile layout maps onto Mac as: a toolbar search field (⌘F focuses it),
+/// toolbar filter buttons whose sheets become popovers, a context menu per row
+/// (the RN long-press actions), and ⌫ to delete the selection (the RN swipe
+/// action). The filtered net chip opens the last-5-months breakdown.
 struct TransactionsView: View {
     @Environment(AppState.self) private var appState
+    @Environment(SessionStore.self) private var sessionStore
+    @Environment(DatabaseService.self) private var database
 
+    @State private var viewModel = TransactionsViewModel()
     @State private var searchText = ""
     @State private var isSearchPresented = false
+    @State private var selection: Transaction.ID?
+    @State private var activePopover: FilterPopover?
+    @State private var showStatistics = false
+    @State private var pendingDeletion: Transaction?
+
+    private enum FilterPopover: String, Identifiable {
+        case date, category, payee, group
+
+        var id: String { rawValue }
+    }
 
     var body: some View {
-        ContentUnavailableView {
-            Label("No Transactions", systemImage: "tray")
-        } description: {
-            Text("Start tracking your finances by adding your first transaction.")
-        } actions: {
-            Button("New Transaction") {
-                appState.showNewTransaction = true
+        Group {
+            if viewModel.isLoading && viewModel.page.sections.isEmpty {
+                ProgressView("Loading transactions…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let message = viewModel.errorMessage, viewModel.page.sections.isEmpty {
+                errorState(message)
+            } else if viewModel.page.sections.isEmpty {
+                emptyState
+            } else {
+                listContent
             }
-            .buttonStyle(.borderedProminent)
         }
         .navigationTitle("Transactions")
         .searchable(
@@ -26,8 +45,332 @@ struct TransactionsView: View {
             isPresented: $isSearchPresented,
             prompt: "Search transactions"
         )
+        .toolbar { toolbarContent }
         .onChange(of: appState.searchRequestID) { _, _ in
             isSearchPresented = true
         }
+        .onChange(of: appState.dataRevision) { _, _ in
+            Task { await reload() }
+        }
+        .task {
+            await viewModel.loadLookups(pool: database.pool, userId: sessionStore.userId)
+            await reload()
+        }
+        .task(id: searchText) {
+            // The RN hook debounces 300 ms; the guard keeps first appearance from
+            // issuing a second identical query.
+            guard searchText != viewModel.filters.search else { return }
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled, searchText != viewModel.filters.search else { return }
+            viewModel.setSearch(searchText)
+            await reload()
+        }
+        .alert(
+            "Delete Transaction?",
+            isPresented: Binding(
+                get: { pendingDeletion != nil },
+                set: { if !$0 { pendingDeletion = nil } }
+            ),
+            presenting: pendingDeletion
+        ) { transaction in
+            Button("Delete", role: .destructive) { delete(transaction) }
+            Button("Cancel", role: .cancel) {}
+        } message: { transaction in
+            Text("\"\(AppFormat.currency(transaction.amount))\(transaction.description.map { " · \($0)" } ?? "")\" will be removed from your ledger.")
+        }
+    }
+
+    // MARK: - List
+
+    private var listContent: some View {
+        VStack(spacing: 0) {
+            if viewModel.filters.hasEntityOrDateFilter {
+                filterSummaryBar
+                Divider()
+            }
+
+            List(selection: $selection) {
+                ForEach(viewModel.page.sections) { section in
+                    Section {
+                        ForEach(section.transactions) { transaction in
+                            TransactionRow(transaction: transaction)
+                                .tag(transaction.id)
+                                .contentShape(Rectangle())
+                                .onTapGesture(count: 2) {
+                                    appState.editTransaction(transaction)
+                                }
+                                .contextMenu { rowMenu(for: transaction) }
+                        }
+                    } header: {
+                        TransactionDayHeader(section: section)
+                    }
+                }
+            }
+            .listStyle(.inset)
+            .onDeleteCommand { requestDeletion(for: selection) }
+        }
+    }
+
+    private var filterSummaryBar: some View {
+        HStack(spacing: 12) {
+            Text(viewModel.filterSummaryText)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .accessibilityLabel("Active filters: \(viewModel.filterSummaryText)")
+
+            Spacer(minLength: 8)
+
+            if !viewModel.page.sections.isEmpty {
+                Button {
+                    showStatistics = true
+                    Task {
+                        await viewModel.loadStatistics(
+                            pool: database.pool, userId: sessionStore.userId
+                        )
+                    }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("\(viewModel.page.totalFiltered >= 0 ? "+" : "")\(AppFormat.currency(viewModel.page.totalFiltered))")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(viewModel.page.totalFiltered >= 0 ? Color.green : Color.red)
+                            .monospacedDigit()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                }
+                .buttonStyle(.borderless)
+                .help("Show the last 5 months for these filters")
+                .popover(isPresented: $showStatistics, arrowEdge: .bottom) {
+                    FilteredStatsPopover(
+                        statistics: viewModel.statistics,
+                        isLoading: viewModel.isLoadingStatistics
+                    )
+                }
+            }
+
+            Button("Clear All") {
+                clearAllFilters()
+            }
+            .buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.bar)
+    }
+
+    @ViewBuilder
+    private func rowMenu(for transaction: Transaction) -> some View {
+        Button("Edit…") { appState.editTransaction(transaction) }
+
+        Divider()
+
+        Button("Filter by Category") {
+            if let categoryId = transaction.categoryId {
+                viewModel.setSelected(categoryIds: [categoryId])
+                Task { await reload() }
+            }
+        }
+        .disabled(transaction.categoryId == nil)
+
+        Button("Filter by Payee") {
+            if let payeeId = transaction.payeeId {
+                viewModel.setSelected(payeeIds: [payeeId])
+                Task { await reload() }
+            }
+        }
+        .disabled(transaction.payeeId == nil)
+
+        Divider()
+
+        Button("Delete…", role: .destructive) { pendingDeletion = transaction }
+    }
+
+    private func requestDeletion(for id: Transaction.ID?) {
+        guard let id,
+              let transaction = viewModel.transactions.first(where: { $0.id == id })
+        else { return }
+        pendingDeletion = transaction
+    }
+
+    private func delete(_ transaction: Transaction) {
+        Task {
+            let deleted = await viewModel.delete(
+                transaction, pool: database.pool, userId: sessionStore.userId
+            )
+            guard deleted else { return }
+            if selection == transaction.id { selection = nil }
+            appState.markDataChanged()
+            appState.statusMessage = "Transaction deleted."
+        }
+    }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup {
+            filterButton(
+                .date,
+                title: "Date",
+                systemImage: "calendar",
+                count: (viewModel.filters.startDate != nil || viewModel.filters.endDate != nil) ? 1 : 0
+            ) {
+                DateRangeFilterPopover(
+                    startDate: viewModel.filters.startDate,
+                    endDate: viewModel.filters.endDate
+                ) { start, end in
+                    viewModel.setDateRange(start: start, end: end)
+                    Task { await reload() }
+                }
+            }
+
+            filterButton(
+                .category,
+                title: "Category",
+                systemImage: "square.grid.2x2",
+                count: viewModel.filters.categoryIds.count
+            ) {
+                MultiSelectFilterPopover(
+                    title: "Categories",
+                    searchPrompt: "Search categories…",
+                    items: viewModel.lookups.categories.map {
+                        .init(id: $0.id, name: $0.name)
+                    },
+                    selection: viewModel.filters.categoryIds
+                ) { selection in
+                    viewModel.setSelected(categoryIds: selection)
+                    Task { await reload() }
+                }
+            }
+
+            filterButton(
+                .payee,
+                title: "Payee",
+                systemImage: "person",
+                count: viewModel.filters.payeeIds.count
+            ) {
+                MultiSelectFilterPopover(
+                    title: "Payees",
+                    searchPrompt: "Search payees…",
+                    items: viewModel.lookups.payees.map { .init(id: $0.id, name: $0.name) },
+                    selection: viewModel.filters.payeeIds
+                ) { selection in
+                    viewModel.setSelected(payeeIds: selection)
+                    Task { await reload() }
+                }
+            }
+
+            filterButton(
+                .group,
+                title: "Groups",
+                systemImage: "folder",
+                count: viewModel.filters.groupIds.count
+            ) {
+                MultiSelectFilterPopover(
+                    title: "Groups",
+                    searchPrompt: "Search groups…",
+                    items: viewModel.lookups.groups.map { .init(id: $0.id, name: $0.name) },
+                    selection: viewModel.filters.groupIds
+                ) { selection in
+                    viewModel.setSelected(groupIds: selection)
+                    Task { await reload() }
+                }
+            }
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                appState.beginNewTransaction()
+            } label: {
+                Label("New Transaction", systemImage: "plus")
+            }
+            .help("New Transaction (⌘N)")
+        }
+    }
+
+    @ViewBuilder
+    private func filterButton<Content: View>(
+        _ popover: FilterPopover,
+        title: String,
+        systemImage: String,
+        count: Int,
+        @ViewBuilder content: @escaping () -> Content
+    ) -> some View {
+        Button {
+            activePopover = popover
+        } label: {
+            Label(count > 0 ? "\(title) (\(count))" : title, systemImage: systemImage)
+        }
+        .help(count > 0 ? "\(title) filter — \(count) active" : "\(title) filter")
+        .popover(isPresented: popoverBinding(popover), arrowEdge: .bottom) {
+            content()
+        }
+    }
+
+    private func popoverBinding(_ popover: FilterPopover) -> Binding<Bool> {
+        Binding(
+            get: { activePopover == popover },
+            set: { if !$0 { activePopover = nil } }
+        )
+    }
+
+    // MARK: - States
+
+    @ViewBuilder
+    private func errorState(_ message: String) -> some View {
+        ContentUnavailableView {
+            Label("Couldn't load transactions", systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(message)
+        } actions: {
+            Button("Try Again") { Task { await reload() } }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyState: some View {
+        if viewModel.filters.hasSearch {
+            ContentUnavailableView {
+                Label("No Results Found", systemImage: "magnifyingglass")
+            } description: {
+                Text("Try adjusting your filters or search query.")
+            } actions: {
+                Button("Clear Search") {
+                    searchText = ""
+                    viewModel.setSearch("")
+                    Task { await reload() }
+                }
+            }
+        } else if viewModel.filters.hasEntityOrDateFilter {
+            ContentUnavailableView {
+                Label("No Transactions", systemImage: "tray")
+            } description: {
+                Text("No transactions match the active filters.")
+            } actions: {
+                Button("Clear All Filters") { clearAllFilters() }
+            }
+        } else {
+            ContentUnavailableView {
+                Label("No Transactions", systemImage: "tray")
+            } description: {
+                Text("Start tracking your finances by adding your first transaction.")
+            } actions: {
+                Button("Add Transaction") { appState.beginNewTransaction() }
+                    .buttonStyle(.borderedProminent)
+            }
+        }
+    }
+
+    // MARK: - Actions
+
+    private func reload() async {
+        await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    private func clearAllFilters() {
+        viewModel.clearFilters()
+        searchText = ""
+        Task { await reload() }
     }
 }

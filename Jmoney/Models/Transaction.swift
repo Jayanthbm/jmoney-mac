@@ -8,7 +8,7 @@ import GRDB
 /// `group_name`) are denormalized copies kept on the row for fast list
 /// rendering — populated from joins on pull and from the selected entity on
 /// save. They go stale after renames; preserve that behavior.
-struct Transaction: Codable, Equatable, FetchableRecord, MutablePersistableRecord {
+struct Transaction: Codable, Equatable, Identifiable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName = "transactions"
 
     var id: String

@@ -87,6 +87,11 @@ struct DashboardView: View {
         .task(id: sessionStore.userId) {
             await reload()
         }
+        // Saving or deleting a transaction marks the data changed; refresh so the
+        // widgets reflect it without the RN app's module_refreshed events.
+        .onChange(of: appState.dataRevision) { _, _ in
+            Task { await reload() }
+        }
         .alert(
             "Couldn't load the dashboard",
             isPresented: Binding(

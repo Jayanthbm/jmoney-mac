@@ -1,7 +1,7 @@
 import GRDB
 
 /// Mirrors the `payees` table.
-struct Payee: Codable, Equatable, FetchableRecord, MutablePersistableRecord {
+struct Payee: Codable, Equatable, Identifiable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName = "payees"
 
     var id: String
