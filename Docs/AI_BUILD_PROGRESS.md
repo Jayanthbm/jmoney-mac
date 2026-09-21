@@ -591,3 +591,8 @@ established pattern).
 
 `fa37991` — 2026-09-21 — "phase: implement dashboard" (hash recorded in a follow-up docs commit per
 the established pattern).
+
+### Phase 7 Commit
+
+`f8851fb` — 2026-09-21 — "phase: implement transaction list, filters, search, and editor" (hash
+recorded in a follow-up docs commit per the established pattern).
