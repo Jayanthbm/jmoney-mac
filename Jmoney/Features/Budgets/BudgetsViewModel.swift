@@ -237,26 +237,21 @@ final class BudgetsViewModel {
 
     // MARK: - Initial-sync guard
 
-    /// The RN screen's first-open auto-sync condition, kept as a pure predicate so
-    /// Phase 14's sync engine can call it unchanged:
+    /// The budgets screen's first-open auto-sync condition, so Phase 14's sync
+    /// engine can call it unchanged.
     ///
-    /// ```js
-    /// if (budgets.length === 0 || !lastSync || !lastSync.includes('T')) {
-    ///   if (!alreadyChecked || !lastSync || !lastSync.includes('T')) { sync(); }
-    /// }
-    /// ```
-    ///
-    /// `lastSync` is the `@last_sync_budgets_<user>` timestamp — the `'T'` test
-    /// distinguishes a real ISO timestamp from a stale placeholder value.
-    /// `alreadyChecked` is `@initial_budget_sync_checked_<user>`.
+    /// `lastSyncTimestamp` is the `@last_sync_budgets_<user>` value and
+    /// `alreadyChecked` is `@initial_budget_sync_checked_<user>`. The condition
+    /// itself is shared with goals — see `InitialSyncGuard`.
     static func shouldRunInitialSync(
         budgetCount: Int,
         lastSyncTimestamp: String?,
         alreadyChecked: String?
     ) -> Bool {
-        let lastSyncIsInvalid = lastSyncTimestamp == nil || !(lastSyncTimestamp!.contains("T"))
-        let outer = budgetCount == 0 || lastSyncIsInvalid
-        let inner = alreadyChecked == nil || lastSyncIsInvalid
-        return outer && inner
+        InitialSyncGuard.shouldRun(
+            entityCount: budgetCount,
+            lastSyncTimestamp: lastSyncTimestamp,
+            alreadyChecked: alreadyChecked
+        )
     }
 }

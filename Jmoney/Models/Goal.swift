@@ -2,7 +2,7 @@ import GRDB
 
 /// Mirrors the `goals` table. Goals have no `priority` column; the list
 /// default-sorts by name (unlike every other management list).
-struct Goal: Codable, Equatable, FetchableRecord, MutablePersistableRecord {
+struct Goal: Codable, Equatable, Identifiable, FetchableRecord, MutablePersistableRecord {
     static let databaseTableName = "goals"
 
     var id: String

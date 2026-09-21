@@ -20,7 +20,9 @@ five-month statistics, the lookups, and the write path (`save` upsert + `softDel
 implemented (Phase 8)**: `Services/BudgetService.swift` carries the month spending aggregate, the
 `categories` JSON column codec, the four sort orders, the month-range bounds (`minTransactionDate`,
 `canGoToPreviousMonth`/`canGoToNextMonth`, `isMonthSelectable`, `selectableYears`), the drill-down,
-and the write path. Sync/push-pull logic itself lands in Phase 14.
+and the write path. **Goal path implemented (Phase 9)**: `Services/GoalService.swift` carries the
+progress maths, the three sort orders, the fetch, and the write path (`save` upsert + `softDelete`).
+Sync/push-pull logic itself lands in Phase 14.
 
 ---
 
@@ -93,7 +95,7 @@ chain instead (documented improvement, not a behavior change).
 | Budget spending | `SUM(amount)` of expenses in period where `category_id IN (budget's category JSON)`. Implemented as `BudgetService.spending` with bound parameters (the RN code interpolates); an empty category set spends 0 and a NULL sum reads as 0. The drill-down is a *different* query: it is not expense-only and not exclusive of income, so its rows can total more than the card's spent figure |
 | Budget month bounds | Navigation runs from the month of `MIN(date)` over non-deleted transactions (falling back to **today** when there is no history, so a fresh account cannot page back) up to the current month end. `endOfMonth(subMonths(selectedDate,1)) >= startOfMonth(minDate)` gates "previous"; `startOfMonth(addMonths(selectedDate,1)) <= endOfMonth(maxDate)` gates "next" |
 | Budget sort | `name` uses locale collation (`localeCompare`); `amount`, `spent` and `remaining` compare numerically, where remaining is `(a.amount − a.spent) − (b.amount − b.spent)`. `Array.prototype.sort` is stable, so equal keys keep the `ORDER BY name` order — restored explicitly in Swift |
-| Goal progress | `current_amount / goal_amount` |
+| Goal progress | `current_amount / goal_amount` — the sort key uses the unclamped ratio; the card clamps the *percentage* to 100, rounds it for display, and floors `remaining` at 0. `goal_amount = 0` yields 0 rather than dividing. Implemented as `GoalService.cardInfo` / `progressRatio` |
 | Report comparison | diff% = (current − previous)/previous × 100; previous matched by name/type; MTD-vs-MTD or YTD-vs-YTD for current period, full-vs-full otherwise; new items with no previous show +100% |
 | Filtered total | Σ(income − expense) over the active transaction filter |
 | Calendar day total | Σ(income − expense) for the selected date |

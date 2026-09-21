@@ -2,7 +2,7 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-21 (Phase 8 budgets implemented — see §1, §3, §5 and §12 for updated rows).
+> Last updated: 2026-09-21 (Phase 9 goals implemented — see §1, §3, §6 and §12 for updated rows).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -20,10 +20,10 @@
 | Modal transaction sheet | `add-transaction` transparent modal, slide-from-bottom | Sheet (`⌘N` new transaction) | COMPLETE | Phase 7: `TransactionEditorView` — type, date-time, category/payee/group, amount, description, product link, inline validation |
 | Screen titles + last-synced subtitle | Header title with "Synced: Xm ago" | Toolbar title with subtitle; refresh toolbar button | IN PROGRESS | Phase 4: status bar shows "Last synced: …"; real timestamps with data layer/sync |
 | iOS home-screen quick actions | `expo-quick-actions`: "New Transaction", "Quick Transaction" | Menu bar extra / Dock menu equivalents | IN PROGRESS | Phase 4: File > New Transaction (⌘N), File > Quick Transaction (⌘⇧N) |
-| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | IN PROGRESS | Transactions (Phase 7) and Budgets (Phase 8) have their toolbar `+` and empty-state actions; the other areas add theirs with their phases. New Budget has no key equivalent yet — Phase 16 owns the shortcut set |
+| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | IN PROGRESS | Transactions (Phase 7), Budgets (Phase 8) and Goals (Phase 9) have their toolbar `+` and empty-state actions; the other areas add theirs with their phases. New Budget and Add New Goal have no key equivalents yet — Phase 16 owns the shortcut set |
 | Toast notifications | `ToastContext` global toasts (success/error/info) | Native alerts / transient banners / status feedback in toolbar | IN PROGRESS | Phase 4: bottom status bar carries transient messages; error alerts arrive with real flows |
-| Error boundaries | `DataErrorBoundary` wraps transaction list | Graceful error view with a Try Again action | COMPLETE | Transactions (Phase 7) and Budgets (Phase 8); the pattern carries to the remaining lists |
-| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | IN PROGRESS | Dashboard (Phase 6), Transactions (Phase 7) and Budgets (Phase 8) have real empty/loading/error states; the other areas keep their Phase 4 placeholders |
+| Error boundaries | `DataErrorBoundary` wraps transaction list | Graceful error view with a Try Again action | COMPLETE | Transactions (Phase 7), Budgets (Phase 8) and Goals (Phase 9); the pattern carries to the remaining lists |
+| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | IN PROGRESS | Dashboard (Phase 6), Transactions (Phase 7), Budgets (Phase 8) and Goals (Phase 9) have real empty/loading/error states; the other areas keep their Phase 4 placeholders |
 
 ## 2. Authentication & Security
 
@@ -92,11 +92,11 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Goals list | Name, logo, goal vs current amount, progress % | List with progress bars | NOT STARTED | |
-| Sorting | Name / progress / amount, asc/desc | Sort menu | NOT STARTED | |
-| Add/edit goal | Name, logo, goal amount, current amount | Sheet | NOT STARTED | Validation: name required, target > 0, current ≥ 0 |
-| Delete goal | Soft delete + confirmation | Same | NOT STARTED | |
-| Sync | Entity-level push/pull, last-synced display | Same | NOT STARTED | |
+| Goals list | Name, logo, goal vs current amount, progress % | List with progress bars | COMPLETE | `GoalsView` + `GoalRow`: logo (remote image or the 🎯 tile), `Saved`/`Target` columns, progress bar, `% Complete` and `left`. The bar turns green by the **clamped** progress, so only a fully funded goal is green. `GoalService.cardInfo` is the exact port, including `remaining` floored at 0 so an over-funded goal reads "₹0 left" |
+| Sorting | Name / progress / amount, asc/desc | Toolbar sort menu | COMPLETE | Re-selecting the active mode flips the direction; picking a new one always starts ascending (`progress` compares the unclamped ratio, `amount` compares `goal_amount`). Ties keep the `ORDER BY name ASC` order — stability is explicit |
+| Add/edit goal | Name, logo, goal amount, current amount | Sheet | COMPLETE | `GoalEditorView` — image URL (logo), name, target amount, currently saved, plus a live progress preview. Validation: name required, target > 0, current ≥ 0. Note the source's own trap, preserved: an **empty** "Currently Saved" fails with "Current amount cannot be negative" (`parseFloat('')` is `NaN`), so the field needs an explicit `0` |
+| Delete goal | Soft delete + confirmation | Same | COMPLETE | Confirmation uses the RN copy; the delete is a soft delete (`deleted = 1, sync_status = 1`) |
+| Sync | Entity-level push/pull, last-synced display | Same | NOT STARTED | Phase 14 owns the sync engine. The guard is ported already: `GoalsViewModel.shouldRunInitialSync` (delegating to the shared `InitialSyncGuard`) |
 
 ## 7. Reports (11 report types)
 
@@ -176,11 +176,11 @@
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Dark/light theme colors | iOS-system palette (see ThemeContext) | System materials + equivalent palette | NOT STARTED | |
-| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired (Phase 4). Phase 7 added ⌫ delete on the transaction selection, Return/double-click to edit, and Return/Escape in the editor sheet. Phase 8 added ⌫ delete on the budget selection, double-click to drill into a budget, and Return/Escape in the budget editor |
+| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired (Phase 4). Phase 7 added ⌫ delete on the transaction selection, Return/double-click to edit, and Return/Escape in the editor sheet. Phase 8 added ⌫ delete on the budget selection, double-click to drill into a budget, and Return/Escape in the budget editor. Phase 9 added ⌫ delete on the goal selection and Return/Escape in the goal editor |
 | Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | NOT STARTED | |
 | CSV/JSON export | **Not implemented** (README claims it; no code found) | Planned as macOS-only enhancement (Phase 15) | NOT STARTED | Documented to avoid false parity claims |
 | ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |
-| Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | IN PROGRESS | `utils/validators.ts`. Transaction (Phase 7) and budget (Phase 8) validators are ported with the source's message and field order; the goal validator arrives with Phase 9 |
+| Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | COMPLETE | `utils/validators.ts`. Transaction (Phase 7), budget (Phase 8) and goal (Phase 9) validators are all ported with the source's messages and field order (`Support/Validators.swift`) |
 | Date/time handling | date-fns; `transaction_timestamp` ISO local format; `date` = `yyyy-MM-dd` derived; Supabase push strips timezone suffix | Foundation/Date + shared date utils; preserve timestamp semantics | IN PROGRESS | Phase 5: `Support/Timestamps.swift` ports `transactionTimestamp.ts` byte-compatibly (suffix conversion, prefix-day extraction, lowercase-t/z + no-colon offsets, UTC date-only quirk) — 11 fixed-timezone tests green |
 | Currency | ₹ / en-IN | `AppFormat.currency` | MACOS EQUIVALENT | Indian digit grouping, 0 fraction digits for whole amounts and 2 otherwise, sign dropped — all verified by tests |
 

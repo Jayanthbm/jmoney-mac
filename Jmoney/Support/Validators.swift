@@ -1,7 +1,7 @@
 import Foundation
 
 /// Ports of `src/utils/validators.ts`. Same rules and same messages
-/// (DATA_ARCHITECTURE.md §2). The goal validator arrives with its phase.
+/// (DATA_ARCHITECTURE.md §2).
 enum Validators {
     /// Fields a transaction draft can fail on. The order is the source's
     /// insertion order, which decides which message the RN screen surfaces first.
@@ -87,6 +87,62 @@ enum Validators {
         if categories.isEmpty { errors[.categories] = "At least one category is required" }
         if let message = amountError(amount) { errors[.amount] = message }
         return BudgetResult(errors: errors)
+    }
+
+    /// Fields a goal draft can fail on, in the source's insertion order
+    /// (`name`, then `targetAmount`, then `currentAmount`).
+    enum GoalField: CaseIterable {
+        case name
+        case targetAmount
+        case currentAmount
+    }
+
+    struct GoalResult: Equatable {
+        var errors: [GoalField: String] = [:]
+
+        var isValid: Bool { errors.isEmpty }
+
+        /// The first error in the source's field order (`Object.keys(errors)[0]`).
+        var firstError: String? {
+            for field in GoalField.allCases {
+                if let message = errors[field] { return message }
+            }
+            return nil
+        }
+    }
+
+    /// `validateGoal`: name required, target amount valid, current amount ≥ 0.
+    static func validateGoal(
+        name: String,
+        targetAmount: String,
+        currentAmount: String
+    ) -> GoalResult {
+        var errors: [GoalField: String] = [:]
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.name] = "Goal name is required"
+        }
+        // The target uses the shared amount rules (`validateAmount`).
+        if let message = amountError(targetAmount) { errors[.targetAmount] = message }
+        if let message = currentAmountError(currentAmount) { errors[.currentAmount] = message }
+        return GoalResult(errors: errors)
+    }
+
+    /// The "Currently Saved" rules.
+    ///
+    /// The source feeds the raw text to `parseFloat`, so an **empty** field is
+    /// `NaN`, `NaN < 0` is false and the `isNaN` branch fires: an empty current
+    /// amount is reported as "Current amount cannot be negative" and the form
+    /// cannot be saved until something is typed (0 is fine). Preserved verbatim.
+    ///
+    /// As with `amountError`, a non-numeric string is rejected rather than
+    /// `parseFloat`-truncated (`parseFloat('1,234')` is 1 in JS).
+    static func currentAmountError(_ amount: String) -> String? {
+        let trimmed = amount.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Double(trimmed), !value.isNaN else {
+            return "Current amount cannot be negative"
+        }
+        if value < 0 { return "Current amount cannot be negative" }
+        return nil
     }
 
     /// `validateTransaction`: amount, description length, category presence.

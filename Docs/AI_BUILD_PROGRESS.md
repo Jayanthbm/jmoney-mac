@@ -151,7 +151,7 @@ Design notes for the next agent:
 | 6     | Dashboard                           | COMPLETE    |
 | 7     | Transactions                        | COMPLETE    |
 | 8     | Budgets                             | COMPLETE    |
-| 9     | Goals                               | NOT STARTED |
+| 9     | Goals                               | COMPLETE    |
 | 10    | Reports                             | NOT STARTED |
 | 11    | Calendar                            | NOT STARTED |
 | 12    | Categories / Payees / Groups        | NOT STARTED |
@@ -167,43 +167,47 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 9 — Goals
+**Phase:** 10 — Reports
 
-Phase 8 (Budgets) is complete, built, and tested (165 tests green — see the Progress Log).
+Phase 9 (Goals) is complete, built, and tested (200 tests green — see the Progress Log).
 
-Goal: the goals list with progress, sorting, add/edit/delete, and the same soft-delete and
-status-bar conventions the other list phases use.
+Goal: the Reports area — the report index plus the 11 report types and their drill-downs, all
+reusing the shared row renderers and the read-path service pattern.
 
-1. Read `MACOS_FEATURE_MATRIX.md` §6 for the row list and `DATA_ARCHITECTURE.md` §2 for the goal
-   progress formula (`current_amount / goal_amount`).
-2. `Services/GoalService.swift` — port `goalService.ts`: `fetchGoals`
-   (`SELECT * FROM goals WHERE user_id = ? AND deleted = 0 ORDER BY name ASC`) and `sortGoals`
-   (name via locale collation; `progress` = `goal_amount ? current / goal : 0`; `amount` =
-   `goal_amount`; asc/desc). The RN goals screen lives in `app/goals.tsx` (not a tab folder), with
-   `src/components/goals/GoalCard.tsx`, `GoalAddEditModal.tsx`, `GoalSortModal.tsx` and
-   `GoalDeleteModal.tsx`.
-3. `Features/Goals/`: replace the Phase 4 placeholder with the list (name, goal vs current amount,
-   progress bar and percentage), a sort menu, the add/edit sheet, delete with confirmation, and the
-   same empty/loading/error states the other lists have.
-4. Validation: name required, target amount valid (> 0), current amount ≥ 0 with the message
-   "Current amount cannot be negative" — `validateGoal` in `utils/validators.ts`, field order
-   `name` → `targetAmount` → `currentAmount`. Add it next to `validateTransaction` /
-   `validateBudget` in `Support/Validators.swift`, reusing the existing amount rules.
-5. Writes set `sync_status = 1`; deletes are soft. Keep the `BudgetService` shape (pure
-   calculations + parameterized GRDB queries that take a `Database`, so they are testable against an
-   in-memory `DatabaseQueue`), and mirror the budget phase's test files.
-6. Leave the sync engine to Phase 14; expose the first-open auto-sync guard
-   (`@initial_goals_sync_checked_`) as a pure predicate on the view model, the way
-   `BudgetsViewModel.shouldRunInitialSync` does.
-7. Reuse, don't rebuild: `ProgressBarView`, `AppFormat.currency`, `Validators`, `AppState.statusMessage`
-   for toasts and `AppState.dataRevision` for cross-section reloads.
+1. Read `MACOS_FEATURE_MATRIX.md` §7 for the full report inventory (11 report types plus the type
+   toggle, period selectors, comparison column, drill-down, search/sort) and `DATA_ARCHITECTURE.md`
+   §2 for the comparison formula (diff% = (current − previous) / previous × 100, previous matched by
+   name/type, MTD-vs-MTD or YTD-vs-YTD for the current period and full-vs-full otherwise, new items
+   with no previous showing +100%).
+2. This is the largest read-only phase: `src/services/reportService.ts` (267 lines) plus
+   `src/db/reportQueries.ts` (395) are the specification. The screens are the `app/reports/` folder
+   (`monthly-summary`, `yearly-summary`, `category-summary`, `payee-summary`, `group-summary`,
+   `yearly-category`, `yearly-payee`, `living-costs`, `subscription-bills`, `payee-overview`,
+   `category-overview`) with the shared pieces in `src/components/reports/` (`ReportListItem`,
+   `ReportSummary`, `ReportSelectors`, `ReportSortPicker`, `ReportDrillDownModal`,
+   `ReportEmptyState`, `ReportConfigModal`).
+3. `Services/ReportService.swift` — port the pure calculations (`reportTypes` config,
+   `processSummary`, the comparison maths, the "Subscription"/"Bills" name match, the
+   `is_living_cost` filter, the group-priority sort overrides) separately from the parameterized
+   queries, so the whole phase is testable against an in-memory `DatabaseQueue`.
+4. `Features/Reports/`: the index (11 cards, view-mode toggle persisted like
+   `reports_view_mode` — decide whether to keep that preference in `UserDefaults` and say so), then
+   the report pages sharing one row renderer, a type segmented control, period selectors
+   (`YearMonthSelector` → the budget `BudgetMonthPicker` is a good starting point), a sort menu, a
+   toolbar search field, and the drill-down sheet reusing `TransactionRow`.
+5. `AppState.requestedReport` + `ReportDestination` (Phase 6) already records the dashboard
+   click-through; Phase 10 must consume it so the dashboard cards land on the right report.
+6. Only `transactions`, `categories`, `payees` and `transaction_groups` are read here — no writes,
+   so there is nothing to flag for sync.
+7. Reuse, don't rebuild: `TransactionRow`, `ProgressBarView`, `AppFormat.currency`,
+   `AppState.statusMessage`, and the stable-sort pattern the budgets/goals phases established.
 
 Still outstanding from Phase 7 (documented, not silently dropped — pick these up before the Phase 7
 row is treated as fully at parity): location tagging on create plus the location edit sheet;
 quick-transaction presets (the bolt FAB / ⌘⇧N picker); Material→SF Symbol category icon mapping
 (belongs with Phase 12).
 
-After 9: 10 (Reports) → remaining phases per the matrix.
+After 10: 11 (Calendar) → remaining phases per the matrix.
 
 ---
 
@@ -555,6 +559,68 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 ---
 
+## Phase 9 — Goals
+
+**Status:** COMPLETE (2026-09-21)
+
+### What was done
+
+* `Services/GoalService.swift` — ports `goalService.ts` plus `insertGoal`/
+  `deleteGoalAsync` from `metaQueries.ts` and the progress maths in `GoalCard.tsx`:
+  `CardInfo` (`rawProgress`, clamped `progress`, rounded `percentage`, `remaining`
+  floored at 0, `isComplete` by the clamped value), `progressRatio`, the stable
+  `sorted` comparator for the three modes, and the queries (`goals`, `list`,
+  `save`, `softDelete`). User and `deleted = 0` scoping preserved; the list orders
+  by name before sorting.
+* `Support/InitialSyncGuard.swift` — **new shared predicate**. The goals and budgets
+  screens carry byte-identical first-open sync logic apart from their storage keys,
+  so the condition now lives in one place instead of being copied.
+  `BudgetsViewModel.shouldRunInitialSync` and `GoalsViewModel.shouldRunInitialSync`
+  are thin named wrappers over it (the budget one keeps its Phase 8 name so that
+  phase's docs and tests stay valid).
+* `Support/Validators.swift` — added `validateGoal` with the source's `name` →
+  `targetAmount` → `currentAmount` field order and its exact messages.
+* `Models/Goal.swift` — `Identifiable` conformance for SwiftUI lists.
+* `Features/Goals/`: `GoalsViewModel`, `GoalEditorViewModel`, `GoalEditorTarget`,
+  `GoalRow`, `GoalsView`, `GoalEditorView`. The Phase 4 `GoalsView` placeholder was
+  replaced.
+* Tests, 35 new (200 total): `GoalCalculationTests` (21 — card progress/rounding/
+  clamping/over-funding, the unclamped ratio, all three sorts plus stability, the
+  sort-toggle and caption behaviour, the sync guard including a direct comparison
+  against `InitialSyncGuard`, and `validateGoal` including the empty-current-amount
+  quirk) and `GoalServiceTests` (7 — scoping, ordering, the sorted list, insert and
+  in-place upsert, soft delete and its user scoping) plus `GoalsViewRenderingTests`
+  (7 — render smoke for the list, both editor modes and both row logo states, plus
+  the view model/editor defaults).
+
+### Verification
+
+* `xcodebuild … build` → `BUILD SUCCEEDED`, no warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (200 tests, 0 failures).
+* Launch smoke test: the built app ran for 5 s and quit cleanly.
+* The green suite includes the earlier phases, so the `InitialSyncGuard` extraction
+  and the `Goal` model change did not regress Phases 5–8.
+
+### Issues / deviations
+
+* The RN screen's header title ("Savings Goals") becomes the window title and its
+  sort caption moves to a bar above the list; the sort sheet becomes a toolbar menu.
+* The save button stays enabled so the name error is reachable inline. In the RN
+  modal the button is disabled while the name is empty, which makes its own
+  "Goal name is required" message unreachable.
+* The empty "Currently Saved" field really is an error, not a missing-required-field
+  oversight in this port: `parseFloat('')` is `NaN` in JS, whose `isNaN` branch
+  carries the "Current amount cannot be negative" message. Preserved verbatim, so a
+  new goal needs an explicit `0`.
+* A non-numeric amount is rejected rather than `parseFloat`-truncated, the same
+  documented deviation as `amountError`.
+* `GoalCard`'s remote logo (`logo.startsWith('http')`) is fetched with `AsyncImage`;
+  anything else falls back to the 🎯 placeholder tile.
+* The RN header's manual sync button is not reproduced, and Add New Goal has no key
+  equivalent yet (Phase 16).
+
+---
+
 # Decision Log
 
 | Date       | Decision                                                   | Reason                                    | Agent         |
@@ -595,6 +661,11 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-21 | A no-longer-expense category stays in an edited budget's selection  | The RN modal cannot render it as a chip but does write it back; dropping it would silently lose data | Phase 8 |
 | 2026-09-21 | The first-open budget sync guard is a pure predicate                | No sync engine until Phase 14; the predicate encodes the source's `!lastSync.includes('T')` test so the engine can call it unchanged | Phase 8 |
 | 2026-09-21 | New Budget ships without a key equivalent                          | ⌘N/⌘⇧N belong to transactions; Phase 16 owns the shortcut set | Phase 8 |
+| 2026-09-21 | The first-open sync condition is shared (`InitialSyncGuard`)       | Goals and budgets carry byte-identical logic; one implementation beats two copies, and each phase keeps its own thin named wrapper | Phase 9 |
+| 2026-09-21 | Goal sort captions the raw value ("Amount") but the menu says "Target Amount" | Preserves the source's own discrepancy between its caption and its sort sheet | Phase 9 |
+| 2026-09-21 | An empty "Currently Saved" is an error, not a missing required field | `parseFloat('')` is `NaN` in the source, whose message is "Current amount cannot be negative" — preserved so the rules stay identical | Phase 9 |
+| 2026-09-21 | The goal save button stays enabled                              | The RN modal disables it while the name is empty, which makes its own name error unreachable; inline errors need the button pressable | Phase 9 |
+| 2026-09-21 | Goal logos use `AsyncImage` for `http` URLs, else the 🎯 tile   | Mirrors `logo.startsWith('http')`; anything else (including '') gets the placeholder | Phase 9 |
 
 ---
 
@@ -607,7 +678,7 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Phases 4–8 are complete and green (165 tests). Start **Phase 9 (Goals)** — full instructions in
+Phases 4–9 are complete and green (200 tests). Start **Phase 10 (Reports)** — full instructions in
 the "Current Phase" section above, which also lists the Phase 7 items still outstanding (location
 tagging, quick-transaction presets, category icon mapping).
 
@@ -629,17 +700,19 @@ Existing infrastructure (don't redo):
   with a `Draft` → row factory for writes. Its tests show the in-memory `DatabaseQueue` fixture
   pattern — seed with a shared helper through `dbQueue.write`, then assert inside `dbQueue.read`
   (seeding inside a read transaction fails with SQLite error 8).
-* `BudgetService` is the closest reference for the remaining entity phases (Goals, then meta
-  entities): a list query, a per-row enrichment aggregate, a stable sorted comparator, a JSON column
-  codec, and `save`/`softDelete`. `BudgetsViewModel` also shows the observed-month/sort reload
-  pattern and how a sync guard is parked as a pure predicate until Phase 14.
-* `Validators` (amount/transaction/budget) and `Support/Formatters.swift` cover the shared
+* `BudgetService` / `GoalService` are the closest references for the remaining entity phases (the
+  meta entities): a list query, a per-row enrichment aggregate where needed, a stable sorted
+  comparator, and `save`/`softDelete`. Their view models show the observed-sort reload pattern, and
+  `InitialSyncGuard` is where any further first-open sync predicate belongs (Phase 14).
+* Reports (Phase 10) is read-only: follow the same service shape but skip the write path. Its RN
+  specification is `reportService.ts` + `reportQueries.ts` + the `app/reports/` screens.
+* `Validators` (amount/transaction/budget/goal) and `Support/Formatters.swift` cover the shared
   formatting and validation rules; extend rather than duplicate.
 * `AppState.dataRevision` / `markDataChanged()` is how a write tells open views to reload;
   `AppState.statusMessage` is the toast surface the RN screens use `showToast` for.
 * `TransactionRow` is shared with the dashboard and the budget drill-down; keep new list renderers
   consistent with it.
-* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (165 passing).
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (200 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit

@@ -1,7 +1,7 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-21 (Phase 8 budgets implemented on top of the shell, data layer, dashboard and transactions).
+> Last updated: 2026-09-21 (Phase 9 goals implemented on top of the shell, data layer, dashboard, transactions and budgets).
 
 ## Status
 
@@ -13,8 +13,10 @@ and the native progress views. **Transactions implemented (Phase 7)**: the secti
 filter/search/statistics layer, the editor, soft deletion, and the shared transaction row.
 **Budgets implemented (Phase 8)**: month spending over the transaction ledger, the pace-bar list,
 month navigation with the same data-range bounds as the source, sorting, the editor, soft deletion,
-and the per-budget drill-down — all unit tested (165 tests green).
-Next: Phase 9 (Goals).
+and the per-budget drill-down. **Goals implemented (Phase 9)**: the progress list, the three sort
+orders, the editor with its live preview, soft deletion, and the shared first-open sync predicate —
+all unit tested (200 tests green).
+Next: Phase 10 (Reports).
 
 ---
 
@@ -79,7 +81,8 @@ Jmoney/
 │   ├── Budgets/                   # BudgetsViewModel + editor view model, list with pace bar,
 │   │                              #   month stepper + period popover + sort menu, editor sheet,
 │   │                              #   drill-down sheet, editor-target enum  [Phase 8 ✓]
-│   ├── Goals/                     # [Phase 9]
+│   ├── Goals/                     # GoalsViewModel + editor view model, progress list, sort menu,
+│   │                              #   editor sheet, editor-target enum  [Phase 9 ✓]
 │   ├── Reports/                   # ReportDestination enum [Phase 6 ✓]; index + 11 report pages
 │   │                              #   + drill-down [Phase 10]
 │   ├── Calendar/                  # [Phase 11]
@@ -97,7 +100,9 @@ Jmoney/
 │   │                              #   (mirror of transactionService.ts + transactionQueries.ts)  [Phase 7 ✓]
 │   ├── BudgetService.swift        # Month spending, sorting, month-range bounds, category JSON
 │   │                              #   (mirror of budgetService.ts + budgetQueries.ts)  [Phase 8 ✓]
-│   ├── GoalService.swift  ReportService.swift  CalendarService.swift
+│   ├── GoalService.swift          # Progress maths, sorting, fetch + save & soft delete
+│   │                              #   (mirror of goalService.ts + metaQueries.ts)  [Phase 9 ✓]
+│   ├── ReportService.swift  CalendarService.swift
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
 │   ├── NotificationService.swift  # Daily reminders   [Phase 13]
 │   └── LocationService.swift      # GPS tagging   [Phase 7]
@@ -109,12 +114,14 @@ Jmoney/
 │   │                              #   display, budget period labels  [Phase 6 ✓, Phase 7 ✓, Phase 8 ✓]
 │   ├── ProgressViews.swift        # Native progress ring + bar (replaces the RN circular-progress trick)  [Phase 6 ✓]
 │   ├── Timestamps.swift           # transactionTimestamp.ts port + `instant`/`utcISOString`  [Phase 5 ✓, Phase 7 ✓]
-│   └── Validators.swift           # validators.ts port (amount + transaction + budget)  [Phase 7 ✓, Phase 8 ✓]
-JmoneyTests/                       # 165 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+│   ├── Validators.swift           # validators.ts port (amount + transaction + budget + goal)  [Phase 7–9 ✓]
+│   └── InitialSyncGuard.swift     # Shared first-open sync predicate (goals + budgets)  [Phase 9 ✓]
+JmoneyTests/                       # 200 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
-                                   #   drill-down & writes, budget render smoke  [Phase 5–8 ✓]
+                                   #   drill-down & writes, budget render smoke, goal card maths/sorting/
+                                   #   validation, goal SQL & writes, goal render smoke  [Phase 5–9 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -212,5 +219,13 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   `TransactionRow`. The first-open sync guard is already ported as a pure predicate
   (`BudgetsViewModel.shouldRunInitialSync`) for Phase 14 to call; there is no sync engine yet, so the
   RN header's manual sync button is not reproduced.
-- Goals (Phase 9) can follow Budgets closely: same list-with-progress shape, same soft delete and
-  sort-menu conventions, and `Validators` already carries the amount rules `validateGoal` needs.
+- Goals notes: `Services/GoalService.swift` is deliberately the smallest service — a list query, a
+  pure `cardInfo`, a stable three-key comparator, and the write pair. Two source quirks are preserved
+  and tested rather than smoothed over: an empty "Currently Saved" is an error (JS `parseFloat('')` is
+  `NaN`, reported as "Current amount cannot be negative"), and the header caption capitalizes the raw
+  sort value ("Amount") while the sort sheet labels the same mode "Target Amount". The first-open
+  sync condition now lives in `Support/InitialSyncGuard.swift` and is shared with budgets, each with
+  its own thin named wrapper.
+- Reports (Phase 10) is read-only and the largest remaining surface: 11 report types over the same
+  four tables, with period comparisons and drill-downs. Follow the service pattern but skip the write
+  path, and consume `AppState.requestedReport` for the dashboard click-through.
