@@ -50,6 +50,24 @@ enum AppFormat {
         format(date, "yyyy", calendar: calendar)
     }
 
+    /// Abbreviated month and day (`MMM d`) — the budget card's date-range labels,
+    /// e.g. "Sep 1" … "Sep 30".
+    static func monthAbbrevDay(_ date: Date, calendar: Calendar = .current) -> String {
+        format(date, "MMM d", calendar: calendar)
+    }
+
+    /// Abbreviated month and year (`MMM yyyy`) — the budget period label, e.g.
+    /// "Sep 2026".
+    static func monthAbbrevYear(_ date: Date, calendar: Calendar = .current) -> String {
+        format(date, "MMM yyyy", calendar: calendar)
+    }
+
+    /// Full month and year (`MMMM yyyy`) — the budget drill-down subtitle, e.g.
+    /// "September 2026".
+    static func monthYear(_ date: Date, calendar: Calendar = .current) -> String {
+        format(date, "MMMM yyyy", calendar: calendar)
+    }
+
     /// RN `formatDate(date, 'MMM dd, yyyy')` → "Sep 21, 2026" (transaction day headers).
     static func monthDayYear(_ dateString: String, calendar: Calendar = .current) -> String {
         formattedDay(dateString, pattern: "MMM dd, yyyy", calendar: calendar)

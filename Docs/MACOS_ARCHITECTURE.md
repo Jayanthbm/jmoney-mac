@@ -1,7 +1,7 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-21 (Phase 7 transactions implemented on top of the shell, data layer and dashboard).
+> Last updated: 2026-09-21 (Phase 8 budgets implemented on top of the shell, data layer, dashboard and transactions).
 
 ## Status
 
@@ -10,9 +10,11 @@ Analysis complete (Phase 1, re-verified — see DATA_ARCHITECTURE.md §8). **App
 schema, column-faithful DTOs, and the timestamp-rules port. **Dashboard implemented (Phase 6)**:
 metrics, daily-limit/pay-day calculations, the seven widget cards, the Today's Activity drill-down,
 and the native progress views. **Transactions implemented (Phase 7)**: the sectioned list, the
-filter/search/statistics layer, the editor, soft deletion, and the shared transaction row — all unit
-tested (111 tests green).
-Next: Phase 8 (Budgets).
+filter/search/statistics layer, the editor, soft deletion, and the shared transaction row.
+**Budgets implemented (Phase 8)**: month spending over the transaction ledger, the pace-bar list,
+month navigation with the same data-range bounds as the source, sorting, the editor, soft deletion,
+and the per-budget drill-down — all unit tested (165 tests green).
+Next: Phase 9 (Goals).
 
 ---
 
@@ -74,7 +76,9 @@ Jmoney/
 │   ├── Transactions/              # TransactionsViewModel + editor view model, sectioned list,
 │   │                              #   filter popovers (date/multi-select/stats), shared row,
 │   │                              #   editor sheet, editor-target enum  [Phase 7 ✓]
-│   ├── Budgets/                   # List, month navigation, editor, drill-down   [Phase 8]
+│   ├── Budgets/                   # BudgetsViewModel + editor view model, list with pace bar,
+│   │                              #   month stepper + period popover + sort menu, editor sheet,
+│   │                              #   drill-down sheet, editor-target enum  [Phase 8 ✓]
 │   ├── Goals/                     # [Phase 9]
 │   ├── Reports/                   # ReportDestination enum [Phase 6 ✓]; index + 11 report pages
 │   │                              #   + drill-down [Phase 10]
@@ -91,7 +95,9 @@ Jmoney/
 │   │                              #   (pure, testable) and the dashboard queries   [Phase 6 ✓]
 │   ├── TransactionService.swift   # Fetch/filter/sections/stats/lookups + save & soft delete
 │   │                              #   (mirror of transactionService.ts + transactionQueries.ts)  [Phase 7 ✓]
-│   ├── BudgetService.swift  GoalService.swift  ReportService.swift  CalendarService.swift
+│   ├── BudgetService.swift        # Month spending, sorting, month-range bounds, category JSON
+│   │                              #   (mirror of budgetService.ts + budgetQueries.ts)  [Phase 8 ✓]
+│   ├── GoalService.swift  ReportService.swift  CalendarService.swift
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
 │   ├── NotificationService.swift  # Daily reminders   [Phase 13]
 │   └── LocationService.swift      # GPS tagging   [Phase 7]
@@ -99,13 +105,16 @@ Jmoney/
 ├── Stores/
 │   └── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
 ├── Support/
-│   ├── Formatters.swift           # ₹/en-IN currency, English date patterns, transaction timestamp display  [Phase 6 ✓, Phase 7 ✓]
+│   ├── Formatters.swift           # ₹/en-IN currency, English date patterns, transaction timestamp
+│   │                              #   display, budget period labels  [Phase 6 ✓, Phase 7 ✓, Phase 8 ✓]
 │   ├── ProgressViews.swift        # Native progress ring + bar (replaces the RN circular-progress trick)  [Phase 6 ✓]
 │   ├── Timestamps.swift           # transactionTimestamp.ts port + `instant`/`utcISOString`  [Phase 5 ✓, Phase 7 ✓]
-│   └── Validators.swift           # validators.ts port (amount + transaction)  [Phase 7 ✓]
-JmoneyTests/                       # 111 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+│   └── Validators.swift           # validators.ts port (amount + transaction + budget)  [Phase 7 ✓, Phase 8 ✓]
+JmoneyTests/                       # 165 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
-                                   #   transaction filters/sections/validation, transaction SQL & writes  [Phase 5–7 ✓]
+                                   #   transaction filters/sections/validation, transaction SQL & writes,
+                                   #   budget card maths/sorting/month bounds/validation, budget SQL,
+                                   #   drill-down & writes, budget render smoke  [Phase 5–8 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -193,3 +202,15 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   tagging, quick-transaction presets, and the Material→SF Symbol category icon mapping (Phase 12).
   `TransactionRow`, `TransactionDayHeader`, `ProgressViews` and `Validators` are the pieces later
   phases should reuse rather than rebuild.
+- Budgets notes: `Services/BudgetService.swift` follows the dashboard/transaction service shape
+  (pure statics + parameterized queries over a `Database`). `BudgetsViewModel` reads the earliest
+  transaction date and the expense categories in one snapshot with the list. Month and sort changes
+  are *observed* (`onChange` on `selectedMonth` / `sortKey` / `ascending`) rather than driven
+  imperatively, so the stepper, the period popover, "Back to Today" and the sort menu all reload
+  through the same path. `selectedMonth` is normalized to the first of the month, which also removes
+  the JS `setMonth` overflow quirk (Jan 31 → "February" rolls to Mar 3 in RN). The drill-down reuses
+  `TransactionRow`. The first-open sync guard is already ported as a pure predicate
+  (`BudgetsViewModel.shouldRunInitialSync`) for Phase 14 to call; there is no sync engine yet, so the
+  RN header's manual sync button is not reproduced.
+- Goals (Phase 9) can follow Budgets closely: same list-with-progress shape, same soft delete and
+  sort-menu conventions, and `Validators` already carries the amount rules `validateGoal` needs.

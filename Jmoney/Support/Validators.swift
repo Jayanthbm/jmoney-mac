@@ -1,8 +1,7 @@
 import Foundation
 
 /// Ports of `src/utils/validators.ts`. Same rules and same messages
-/// (DATA_ARCHITECTURE.md §2). Goal and budget validators are added with their
-/// phases — only the transaction rules are needed so far.
+/// (DATA_ARCHITECTURE.md §2). The goal validator arrives with its phase.
 enum Validators {
     /// Fields a transaction draft can fail on. The order is the source's
     /// insertion order, which decides which message the RN screen surfaces first.
@@ -45,6 +44,49 @@ enum Validators {
         if amount.isNaN || amount <= 0 { return "Amount must be greater than 0" }
         if amount > 999_999_999 { return "Amount is too large" }
         return nil
+    }
+
+    /// Fields a budget draft can fail on, in the source's insertion order
+    /// (`name`, then `categories`, then `amount`) — which decides the message the
+    /// RN sheet surfaces first.
+    enum BudgetField: CaseIterable {
+        case name
+        case categories
+        case amount
+    }
+
+    struct BudgetResult: Equatable {
+        var errors: [BudgetField: String] = [:]
+
+        var isValid: Bool { errors.isEmpty }
+
+        /// The first error in the source's field order (`Object.keys(errors)[0]`).
+        var firstError: String? {
+            for field in BudgetField.allCases {
+                if let message = errors[field] { return message }
+            }
+            return nil
+        }
+    }
+
+    /// `validateBudget`: name required, at least one category, valid amount.
+    ///
+    /// The empty-category rule is not cosmetic — the RN sync layer silently skips
+    /// budgets whose category array is empty, so such a row would never reach the
+    /// server (DATA_ARCHITECTURE.md §3.2). Rejecting it here is the only thing
+    /// that keeps a created budget pushable.
+    static func validateBudget(
+        name: String,
+        categories: [String],
+        amount: String
+    ) -> BudgetResult {
+        var errors: [BudgetField: String] = [:]
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errors[.name] = "Budget name is required"
+        }
+        if categories.isEmpty { errors[.categories] = "At least one category is required" }
+        if let message = amountError(amount) { errors[.amount] = message }
+        return BudgetResult(errors: errors)
     }
 
     /// `validateTransaction`: amount, description length, category presence.

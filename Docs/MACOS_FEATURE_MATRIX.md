@@ -2,7 +2,7 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-21 (Phase 7 transactions implemented — see §1, §4 and §12 for updated rows).
+> Last updated: 2026-09-21 (Phase 8 budgets implemented — see §1, §3, §5 and §12 for updated rows).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -20,10 +20,10 @@
 | Modal transaction sheet | `add-transaction` transparent modal, slide-from-bottom | Sheet (`⌘N` new transaction) | COMPLETE | Phase 7: `TransactionEditorView` — type, date-time, category/payee/group, amount, description, product link, inline validation |
 | Screen titles + last-synced subtitle | Header title with "Synced: Xm ago" | Toolbar title with subtitle; refresh toolbar button | IN PROGRESS | Phase 4: status bar shows "Last synced: …"; real timestamps with data layer/sync |
 | iOS home-screen quick actions | `expo-quick-actions`: "New Transaction", "Quick Transaction" | Menu bar extra / Dock menu equivalents | IN PROGRESS | Phase 4: File > New Transaction (⌘N), File > Quick Transaction (⌘⇧N) |
-| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | IN PROGRESS | Transactions has its toolbar `+` and empty-state action (Phase 7); the other areas add theirs with their phases |
+| FAB (add) | Floating action buttons on Transactions/Budgets/Goals/etc. | Toolbar `+` button and ⌘N shortcuts | IN PROGRESS | Transactions (Phase 7) and Budgets (Phase 8) have their toolbar `+` and empty-state actions; the other areas add theirs with their phases. New Budget has no key equivalent yet — Phase 16 owns the shortcut set |
 | Toast notifications | `ToastContext` global toasts (success/error/info) | Native alerts / transient banners / status feedback in toolbar | IN PROGRESS | Phase 4: bottom status bar carries transient messages; error alerts arrive with real flows |
-| Error boundaries | `DataErrorBoundary` wraps transaction list | Graceful error view with a Try Again action | COMPLETE | Transactions (Phase 7); the pattern carries to the remaining lists |
-| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | IN PROGRESS | Dashboard (Phase 6) and Transactions (Phase 7) have real empty/loading/error states; the other areas keep their Phase 4 placeholders |
+| Error boundaries | `DataErrorBoundary` wraps transaction list | Graceful error view with a Try Again action | COMPLETE | Transactions (Phase 7) and Budgets (Phase 8); the pattern carries to the remaining lists |
+| Empty / loading states | Every list has empty placeholder + native loaders | Same, using native progress views | IN PROGRESS | Dashboard (Phase 6), Transactions (Phase 7) and Budgets (Phase 8) have real empty/loading/error states; the other areas keep their Phase 4 placeholders |
 
 ## 2. Authentication & Security
 
@@ -78,14 +78,15 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Budget list | Budgets with amount, spent, progress bar per selected month | List/table with progress columns | NOT STARTED | |
-| Month navigation | Prev/next month + year/month picker, "Back to Today" | Toolbar month picker + stepper | NOT STARTED | Bounded by min transaction date → current month end |
-| Budget spending calc | Σ expenses in month for the budget's category set (`getBudgetSpending`) | Same SQL aggregate | NOT STARTED | `budget.categories` is a JSON array of category IDs. Sync quirks verified: push normalizes interval `Monthly`→`Month`; budgets with empty category arrays are silently skipped on push (stay dirty) |
-| Sorting | Name / amount / spent / remaining, asc/desc | Sort menu | NOT STARTED | |
-| Add/edit budget | Name, logo, amount, interval, start date, category multi-select (expense categories only) | Sheet with same fields | NOT STARTED | Validation: name required, ≥1 category, valid amount |
-| Delete budget | Soft delete + confirmation | Same | NOT STARTED | |
-| Drill-down | Budget → transaction list for its categories in month | Selection opens detail view | NOT STARTED | |
-| Initial/auto sync | Syncs when list empty or never synced (`@initial_budget_sync_checked_`) | Same on first appearance | NOT STARTED | |
+| Budget list | Budgets with amount, spent, progress bar per selected month | List of rows with a progress bar | COMPLETE | `BudgetsView` + `BudgetRow` |
+| Budget card detail | `spent` of `amount`, percentage badge, period dates, overspend/save advice, per-day pace | Same figures, desktop row layout | COMPLETE | `BudgetService.cardInfo` is the exact port (including 0-amount → 0%). The RN bar's per-day tick marks **and** the "today" marker are preserved, drawn in one `Canvas` pass — they are the card's point: spend vs. month pace |
+| Month navigation | Prev/next month + year/month picker, "Back to Today" | Toolbar month stepper + period popover + "Back to Today" | COMPLETE | Bounded by min transaction date → current month end. The year column lists current year → earliest transaction year; out-of-range months are disabled, exactly like the source |
+| Budget spending calc | Σ expenses in month for the budget's category set (`getBudgetSpending`) | Same SQL aggregate | COMPLETE | `BudgetService.spending` — parameterized (the RN code interpolates the user id). `budget.categories` is a JSON array of category IDs, decoded defensively. Sync quirks verified: push normalizes interval `Monthly`→`Month`; budgets with empty category arrays are silently skipped on push (stay dirty) |
+| Sorting | Name / amount / spent / remaining, asc/desc | Toolbar sort menu | COMPLETE | Re-selecting the active mode flips the direction (the RN sheet's behaviour); choosing a new mode uses its default (ascending only for name). Ties keep the `ORDER BY name` order — JS `Array.prototype.sort` is stable and Swift's is not, so stability is explicit |
+| Add/edit budget | Name, logo, amount, interval, start date, category multi-select (expense categories only) | Sheet with same fields | COMPLETE | `BudgetEditorView` — name, monthly amount, expense-category multi-select. Validation: name required, ≥1 category, valid amount. Logo/interval/start-date have no UI in the RN modal either; they keep the same defaults (`account-balance-wallet`, `Month`, today on create) and `start_date` is preserved on edit |
+| Delete budget | Soft delete + confirmation | Same | COMPLETE | Confirmation uses the RN copy; the delete is a soft delete (`deleted = 1, sync_status = 1`) |
+| Drill-down | Budget → transaction list for its categories in month | Double-click opens a detail sheet | COMPLETE | `BudgetDrillDownView`. Two source behaviours kept: the list is **not** expense-only (so it can differ from the card's spent figure), and it is flat and timestamp-ordered with no day headers |
+| Initial/auto sync | Syncs when list empty or never synced (`@initial_budget_sync_checked_`) | Same on first appearance | NOT STARTED | Phase 14 owns the sync engine. The guard itself is already ported as the pure predicate `BudgetsViewModel.shouldRunInitialSync(budgetCount:lastSyncTimestamp:alreadyChecked:)` (covering the source's `!lastSync.includes('T')` test) so the engine can call it unchanged |
 
 ## 6. Goals
 
@@ -175,11 +176,11 @@
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Dark/light theme colors | iOS-system palette (see ThemeContext) | System materials + equivalent palette | NOT STARTED | |
-| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired (Phase 4). Phase 7 added ⌫ delete on the transaction selection, Return/double-click to edit, and Return/Escape in the editor sheet |
+| Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired (Phase 4). Phase 7 added ⌫ delete on the transaction selection, Return/double-click to edit, and Return/Escape in the editor sheet. Phase 8 added ⌫ delete on the budget selection, double-click to drill into a budget, and Return/Escape in the budget editor |
 | Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | NOT STARTED | |
 | CSV/JSON export | **Not implemented** (README claims it; no code found) | Planned as macOS-only enhancement (Phase 15) | NOT STARTED | Documented to avoid false parity claims |
 | ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |
-| Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | NOT STARTED | `utils/validators.ts` |
+| Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | IN PROGRESS | `utils/validators.ts`. Transaction (Phase 7) and budget (Phase 8) validators are ported with the source's message and field order; the goal validator arrives with Phase 9 |
 | Date/time handling | date-fns; `transaction_timestamp` ISO local format; `date` = `yyyy-MM-dd` derived; Supabase push strips timezone suffix | Foundation/Date + shared date utils; preserve timestamp semantics | IN PROGRESS | Phase 5: `Support/Timestamps.swift` ports `transactionTimestamp.ts` byte-compatibly (suffix conversion, prefix-day extraction, lowercase-t/z + no-colon offsets, UTC date-only quirk) — 11 fixed-timezone tests green |
 | Currency | ₹ / en-IN | `AppFormat.currency` | MACOS EQUIVALENT | Indian digit grouping, 0 fraction digits for whole amounts and 2 otherwise, sign dropped — all verified by tests |
 

@@ -150,7 +150,7 @@ Design notes for the next agent:
 | 5     | Data layer                          | COMPLETE    |
 | 6     | Dashboard                           | COMPLETE    |
 | 7     | Transactions                        | COMPLETE    |
-| 8     | Budgets                             | NOT STARTED |
+| 8     | Budgets                             | COMPLETE    |
 | 9     | Goals                               | NOT STARTED |
 | 10    | Reports                             | NOT STARTED |
 | 11    | Calendar                            | NOT STARTED |
@@ -167,40 +167,43 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 8 — Budgets
+**Phase:** 9 — Goals
 
-Phase 7 (Transactions) is complete, built, and tested (111 tests green — see the Progress Log).
+Phase 8 (Budgets) is complete, built, and tested (165 tests green — see the Progress Log).
 
-Goal: the budget list with month navigation, spending computed from the transaction ledger,
-sorting, add/edit/delete, and the drill-down into a budget's transactions.
+Goal: the goals list with progress, sorting, add/edit/delete, and the same soft-delete and
+status-bar conventions the other list phases use.
 
-1. Read `MACOS_FEATURE_MATRIX.md` §5 for the row list. `DATA_ARCHITECTURE.md` §2 has the spending
-   formula (`SUM(amount)` of expenses in the period where `category_id IN (the budget's category
-   JSON)`) and §3.2 has the sync quirks to design around: the interval is normalized
-   `Monthly`→`Month` on push, and budgets with an **empty category array are silently skipped** on
-   push — so never create one.
-2. `Services/BudgetService.swift` — port `budgetService.ts` + `budgetQueries.ts`: fetch, month
-   spending, sorting (name / amount / spent / remaining, asc/desc), interval handling, and the
-   month-range bounds (min transaction date → end of the current month; `getMinTransactionDate`).
-   `budget.categories` is a JSON array of category IDs stored as TEXT — decode it defensively.
-3. `Features/Budgets/`: list with a progress column per budget, a toolbar month stepper + month/year
-   picker with "Back to Today", a sort menu, an add/edit sheet (name, logo, amount, interval, start
-   date, expense-category multi-select), delete with confirmation, and selection → a drill-down
-   list of that budget's transactions for the month.
-4. Validation: name required, at least one category, valid amount. `Support/Validators.swift`
-   already has the amount rules — add `validateBudget` next to them.
-5. Writes set `sync_status = 1`; deletes are soft. Follow the `TransactionService` shape (pure
-   calculations + parameterized GRDB queries that take a `Database`, so they are testable against
-   an in-memory `DatabaseQueue`).
-6. Leave the sync engine to Phase 14; keep the first-open auto-sync guard
-   (`@initial_budget_sync_checked_`) on the list for then.
+1. Read `MACOS_FEATURE_MATRIX.md` §6 for the row list and `DATA_ARCHITECTURE.md` §2 for the goal
+   progress formula (`current_amount / goal_amount`).
+2. `Services/GoalService.swift` — port `goalService.ts`: `fetchGoals`
+   (`SELECT * FROM goals WHERE user_id = ? AND deleted = 0 ORDER BY name ASC`) and `sortGoals`
+   (name via locale collation; `progress` = `goal_amount ? current / goal : 0`; `amount` =
+   `goal_amount`; asc/desc). The RN goals screen lives in `app/goals.tsx` (not a tab folder), with
+   `src/components/goals/GoalCard.tsx`, `GoalAddEditModal.tsx`, `GoalSortModal.tsx` and
+   `GoalDeleteModal.tsx`.
+3. `Features/Goals/`: replace the Phase 4 placeholder with the list (name, goal vs current amount,
+   progress bar and percentage), a sort menu, the add/edit sheet, delete with confirmation, and the
+   same empty/loading/error states the other lists have.
+4. Validation: name required, target amount valid (> 0), current amount ≥ 0 with the message
+   "Current amount cannot be negative" — `validateGoal` in `utils/validators.ts`, field order
+   `name` → `targetAmount` → `currentAmount`. Add it next to `validateTransaction` /
+   `validateBudget` in `Support/Validators.swift`, reusing the existing amount rules.
+5. Writes set `sync_status = 1`; deletes are soft. Keep the `BudgetService` shape (pure
+   calculations + parameterized GRDB queries that take a `Database`, so they are testable against an
+   in-memory `DatabaseQueue`), and mirror the budget phase's test files.
+6. Leave the sync engine to Phase 14; expose the first-open auto-sync guard
+   (`@initial_goals_sync_checked_`) as a pure predicate on the view model, the way
+   `BudgetsViewModel.shouldRunInitialSync` does.
+7. Reuse, don't rebuild: `ProgressBarView`, `AppFormat.currency`, `Validators`, `AppState.statusMessage`
+   for toasts and `AppState.dataRevision` for cross-section reloads.
 
-Also outstanding from Phase 7 (documented, not silently dropped — pick these up before the Phase 7
+Still outstanding from Phase 7 (documented, not silently dropped — pick these up before the Phase 7
 row is treated as fully at parity): location tagging on create plus the location edit sheet;
 quick-transaction presets (the bolt FAB / ⌘⇧N picker); Material→SF Symbol category icon mapping
 (belongs with Phase 12).
 
-After 8: 9 (Goals) → remaining phases per the matrix.
+After 9: 10 (Reports) → remaining phases per the matrix.
 
 ---
 
@@ -494,6 +497,64 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 ---
 
+## Phase 8 — Budgets
+
+**Status:** COMPLETE (2026-09-21)
+
+### What was done
+
+* `Services/BudgetService.swift` — ports `budgetService.ts` + `budgetQueries.ts`:
+  `EnrichedBudget`, `SortKey`, `MonthRange`, `CardInfo`, the pure calculations
+  (`cardInfo` + advice text, `daysRemaining`, `todayProgress`, `daysInMonth`, `monthRange`,
+  `isCurrentMonth`, `canGoToPreviousMonth`/`canGoToNextMonth`, `isMonthSelectable`,
+  `selectableYears`), the `categories` JSON codec, the stable `sorted` comparator, and the queries
+  (`budgets`, `spending`, `budgetsWithSpending`, `transactions`, `drillDown`, `minTransactionDate`,
+  `expenseCategories`, `save`, `softDelete`). Every query is parameterized (the RN code interpolates
+  the user id); per-user and `deleted = 0` scoping is preserved.
+* `Support/Validators.swift` — added `validateBudget` with the source's `name` → `categories` →
+  `amount` field order (which decides the first error) and its exact messages.
+* `Support/Formatters.swift` — added `monthAbbrevDay` (`MMM d`), `monthAbbrevYear` (`MMM yyyy`) and
+  `monthYear` (`MMMM yyyy`) for the budget period labels.
+* `Features/Budgets/`: `BudgetsViewModel`, `BudgetEditorViewModel`, `BudgetEditorTarget`,
+  `BudgetRow` (+ the pace bar), `BudgetsView`, `BudgetEditorView`, `BudgetMonthPicker`,
+  `BudgetDrillDownView`. The Phase 4 `BudgetsView` placeholder was replaced.
+* `BudgetsViewModel.shouldRunInitialSync` keeps the RN screen's first-open auto-sync condition as a
+  pure predicate (including the `!lastSync.includes('T')` test) for Phase 14 to call.
+* Tests, 54 new (165 total): `BudgetCalculationTests` (29 — card percentage/overspend/advice edge
+  cases, per-day flooring, the source's own "1 more days" wording, days-remaining and today-progress
+  maths, leap February, month-range navigation bounds, the year list, the initial-sync predicate,
+  and `validateBudget` including first-error order) and `BudgetServiceTests` (20 — scoping,
+  the spending aggregate's type/range/deleted rules, enrichment, all four sorts plus stability,
+  defensive category-JSON decoding, the drill-down's type behaviour, `minTransactionDate` and its
+  no-history fallback, expense-category lookup, insert/upsert/soft-delete write paths) plus
+  `BudgetsViewRenderingTests` (5 — render smoke for the list, both editor modes and the drill-down).
+
+### Verification
+
+* `xcodebuild … build` → `BUILD SUCCEEDED`, no warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (165 tests, 0 failures).
+* Launch smoke test: the built app ran for 5 s and quit cleanly.
+* Two test-harness bugs were caught and fixed while writing the suite: the fixture seeded inside a
+  read transaction (SQLite error 8, "attempt to write a readonly database"), which is exactly the
+  kind of mistake a shared read-only fixture helper now prevents.
+
+### Issues / deviations
+
+* Budget list rows are native `List` rows rather than a phone card column; the card's figures,
+  advice line, percentage badge, per-day ticks and today marker are all preserved.
+* The RN category chip row became a checkbox list in the editor (the Phase 7 precedent for the same
+  multi-select), and the RN bottom sheets became a sheet (editor) and a popover (period picker).
+* `selectedMonth` is normalized to the first instant of the month. This removes an RN quirk rather
+  than reproducing it: JS `setMonth` overflow-rolls, so picking "February" from Jan 31 lands on
+  Mar 3. Every other use of the RN `selectedDate` was already month-boundary based.
+* Dropping a *no-longer-expense* category from an edited budget is **not** done: the source keeps it
+  in `form.categories` and writes it back, so the selection is saved as-is (the picker simply cannot
+  render it as a chip).
+* The RN header's manual sync button is not reproduced — there is no sync engine until Phase 14.
+  New Budget has no key equivalent yet; Phase 16 owns the shortcut set.
+
+---
+
 # Decision Log
 
 | Date       | Decision                                                   | Reason                                    | Agent         |
@@ -527,6 +588,13 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-21 | Native `List` sections instead of FlashList pinned headers         | Brings native selection, keyboard navigation and ⌫ for free; per-day headers and totals are kept | Phase 7 |
 | 2026-09-21 | `AppState.dataRevision` replaces `DeviceEventEmitter module_refreshed` | One observable counter reloads every open view after a write | Phase 7 |
 | 2026-09-21 | The editor preserves `latitude`/`longitude` on edit                 | Location tagging is not built yet; dropping saved coordinates would lose data | Phase 7 |
+| 2026-09-21 | `selectedMonth` is normalized to the first of the month             | Removes the JS `setMonth` overflow quirk (Jan 31 → "February" landed on Mar 3); every other RN use of `selectedDate` was already month-boundary based | Phase 8 |
+| 2026-09-21 | Budget sorting is explicitly stable                                | JS `Array.prototype.sort` is stable and Swift's `sorted(by:)` is not, so ties are restored to the `ORDER BY name` order | Phase 8 |
+| 2026-09-21 | Budget name sort uses locale collation (`localizedCompare`)          | Matches the intent of JS `localeCompare`; exact ordering of case-differing names can still differ between ICU and JSCollator | Phase 8 |
+| 2026-09-21 | The pace bar keeps its day ticks and today marker                  | They are the card's information (spend vs. month pace), not decoration; drawn in one `Canvas` pass instead of ~31 overlaid views | Phase 8 |
+| 2026-09-21 | A no-longer-expense category stays in an edited budget's selection  | The RN modal cannot render it as a chip but does write it back; dropping it would silently lose data | Phase 8 |
+| 2026-09-21 | The first-open budget sync guard is a pure predicate                | No sync engine until Phase 14; the predicate encodes the source's `!lastSync.includes('T')` test so the engine can call it unchanged | Phase 8 |
+| 2026-09-21 | New Budget ships without a key equivalent                          | ⌘N/⌘⇧N belong to transactions; Phase 16 owns the shortcut set | Phase 8 |
 
 ---
 
@@ -539,7 +607,7 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Phases 4–7 are complete and green (111 tests). Start **Phase 8 (Budgets)** — full instructions in
+Phases 4–8 are complete and green (165 tests). Start **Phase 9 (Goals)** — full instructions in
 the "Current Phase" section above, which also lists the Phase 7 items still outstanding (location
 tagging, quick-transaction presets, category icon mapping).
 
@@ -559,12 +627,19 @@ Existing infrastructure (don't redo):
   + `ReportDestination` handle cross-section links.
 * `TransactionService` is the reference for entity work: `Filters` in, parameterized queries out,
   with a `Draft` → row factory for writes. Its tests show the in-memory `DatabaseQueue` fixture
-  pattern (seed once, then assert) — reuse it.
-* `Validators` (amount/transaction) and `Support/Formatters.swift` cover the shared formatting and
-  validation rules; extend rather than duplicate.
-* `AppState.dataRevision` / `markDataChanged()` is how a write tells open views to reload.
-* `TransactionRow` is shared with the dashboard; keep new list renderers consistent with it.
-* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (111 passing).
+  pattern — seed with a shared helper through `dbQueue.write`, then assert inside `dbQueue.read`
+  (seeding inside a read transaction fails with SQLite error 8).
+* `BudgetService` is the closest reference for the remaining entity phases (Goals, then meta
+  entities): a list query, a per-row enrichment aggregate, a stable sorted comparator, a JSON column
+  codec, and `save`/`softDelete`. `BudgetsViewModel` also shows the observed-month/sort reload
+  pattern and how a sync guard is parked as a pure predicate until Phase 14.
+* `Validators` (amount/transaction/budget) and `Support/Formatters.swift` cover the shared
+  formatting and validation rules; extend rather than duplicate.
+* `AppState.dataRevision` / `markDataChanged()` is how a write tells open views to reload;
+  `AppState.statusMessage` is the toast surface the RN screens use `showToast` for.
+* `TransactionRow` is shared with the dashboard and the budget drill-down; keep new list renderers
+  consistent with it.
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (165 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit

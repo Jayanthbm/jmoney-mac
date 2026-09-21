@@ -16,8 +16,11 @@ byte-compatibly, and adds `instant(from:)` (the JS `new Date(ts).getTime()` used
 (`incomeExpenseSummary`, `expensesByCategory`, `netWorth`, `spentToday`, `transactions(userId:date:)`)
 alongside the pure calculations. **Transaction path implemented (Phase 7)**:
 `Services/TransactionService.swift` carries the filtered list, the day-section mapping, the
-five-month statistics, the lookups, and the write path (`save` upsert + `softDelete`). Sync/push-pull
-logic itself lands in Phase 14.
+five-month statistics, the lookups, and the write path (`save` upsert + `softDelete`). **Budget path
+implemented (Phase 8)**: `Services/BudgetService.swift` carries the month spending aggregate, the
+`categories` JSON column codec, the four sort orders, the month-range bounds (`minTransactionDate`,
+`canGoToPreviousMonth`/`canGoToNextMonth`, `isMonthSelectable`, `selectableYears`), the drill-down,
+and the write path. Sync/push-pull logic itself lands in Phase 14.
 
 ---
 
@@ -87,7 +90,9 @@ chain instead (documented improvement, not a behavior change).
 | Pay day | `daysInMonth − currentDay + 1` days remaining; next payday label `MMM 01` |
 | Dashboard comparisons | Month MTD vs same-day previous month; year YTD vs same-day previous year. `DashboardService.dateWindows` derives: month MTD `[monthStart, today]`, month totals `[monthStart, monthEnd]` (used only for top categories), previous month `[prevMonthStart, prevMonthSameDay]`, previous year `[prevYearStart, prevYearSameDay]`. Every window is an inclusive `yyyy-MM-dd` string comparison (`date >= ? AND date <= ?`) |
 | Previous-period day clamping | `subMonths`/`subYears` clamp an overflowing day onto the target month's last day (Mar 31 − 1 month = Feb 28; Feb 29 − 1 year = Feb 28). Foundation's date arithmetic does **not**, so `DashboardService.subtracting` implements the clamp explicitly |
-| Budget spending | `SUM(amount)` of expenses in period where `category_id IN (budget's category JSON)` |
+| Budget spending | `SUM(amount)` of expenses in period where `category_id IN (budget's category JSON)`. Implemented as `BudgetService.spending` with bound parameters (the RN code interpolates); an empty category set spends 0 and a NULL sum reads as 0. The drill-down is a *different* query: it is not expense-only and not exclusive of income, so its rows can total more than the card's spent figure |
+| Budget month bounds | Navigation runs from the month of `MIN(date)` over non-deleted transactions (falling back to **today** when there is no history, so a fresh account cannot page back) up to the current month end. `endOfMonth(subMonths(selectedDate,1)) >= startOfMonth(minDate)` gates "previous"; `startOfMonth(addMonths(selectedDate,1)) <= endOfMonth(maxDate)` gates "next" |
+| Budget sort | `name` uses locale collation (`localeCompare`); `amount`, `spent` and `remaining` compare numerically, where remaining is `(a.amount − a.spent) − (b.amount − b.spent)`. `Array.prototype.sort` is stable, so equal keys keep the `ORDER BY name` order — restored explicitly in Swift |
 | Goal progress | `current_amount / goal_amount` |
 | Report comparison | diff% = (current − previous)/previous × 100; previous matched by name/type; MTD-vs-MTD or YTD-vs-YTD for current period, full-vs-full otherwise; new items with no previous show +100% |
 | Filtered total | Σ(income − expense) over the active transaction filter |
