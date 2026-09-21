@@ -17,6 +17,15 @@ final class AppState {
     var showNewTransaction = false
     var showQuickTransactionPicker = false
 
+    /// Report another section asked for (dashboard click-through). Phase 10's
+    /// report pages consume it; the placeholder reports view echoes it today.
+    private(set) var requestedReport: ReportDestination?
+
+    func openReport(_ destination: ReportDestination) {
+        requestedReport = destination
+        selectedSection = .reports
+    }
+
     // MARK: Search
 
     /// Incremented to ask the frontmost searchable view (currently Transactions)

@@ -2,7 +2,7 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-20 (Phase 5 data layer implemented — see §11 for updated rows).
+> Last updated: 2026-09-21 (Phase 6 dashboard implemented — see §3 and §11 for updated rows).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -40,16 +40,17 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Daily spending limit card | `calculateDailyLimit`: (month income − expenses through yesterday) ÷ remaining days incl. today; progress bar of remaining % | Same formula in shared calc service; widget card | NOT STARTED | Formula documented in `dashboardService.ts` |
-| Today's activity drill-down | `daily-limit-detail` ("Today's Activity"): total spent today + today's transaction list | Dashboard link → detail view/table | NOT STARTED | |
-| Month remaining card | Income − expense for current month | Widget | NOT STARTED | |
-| Pay day countdown | Days remaining in month, "Next: MMM 01" label | Widget | NOT STARTED | `calculatePayDayInfo` |
-| Top categories | Top 3 expense categories for current month with amounts | Widget with bars | NOT STARTED | |
-| This Month summary card | MTD income/expense vs same-day previous month | Widget, click-through to Monthly Summary report | NOT STARTED | |
-| This Year summary card | YTD income/expense vs same-day previous year | Widget, click-through to Yearly Summary report | NOT STARTED | |
-| Net worth card | Σ(Income − Expense) over all non-deleted transactions | Widget | NOT STARTED | `getNetWorth` |
-| Sync status + manual refresh | Header refresh button, partial transaction sync, sync modal on first launch | Toolbar refresh (⌘R), sync progress modal | NOT STARTED | `useDashboardSync`: full sync if never synced, else incremental `tid` check |
-| Cross-module refresh events | `DeviceEventEmitter 'module_refreshed'` for Dashboard/Transactions/Budgets | Observable store invalidation | NOT STARTED | Replaced by Swift observation, not by notifications |
+| Daily spending limit card | `calculateDailyLimit`: (month income − expenses through yesterday) ÷ remaining days incl. today; progress bar of remaining % | Same formula in `DashboardService.calculateDailyLimit`; `DailyLimitCard` | COMPLETE | Formula normative in `DATA_ARCHITECTURE.md` §2; edge cases unit-tested (zero income, exhausted, overspend, last day) |
+| Today's activity drill-down | `daily-limit-detail` ("Today's Activity"): total spent today + today's transaction list | Sheet: total spent today + today's transactions | COMPLETE | `TodaysActivityView`; total reduced from the on-screen rows exactly like RN. Row rendering is lightweight until Phase 7 builds the shared transaction row |
+| Month remaining card | Income − expense for current month | `RemainingCard` with "% Spent" bar | COMPLETE | Title switches to "EXTRA SPENT" when negative; amount is `abs()` and the percent label is unclamped, both preserved from RN |
+| Pay day countdown | Days remaining in month, "Next: MMM 01" label | `PayDayCard` with dot grid + ring | COMPLETE | `calculatePayDayInfo`; `MMM 01` label verified across month/year boundaries |
+| Top categories | Top 3 expense categories for current month with amounts | `TopCategoriesCard` with bars | COMPLETE | Top-3 truncation and amount-descending order verified against SQL |
+| This Month summary card | MTD income/expense vs same-day previous month | `SummaryCard`, click-through to the Monthly Summary report | COMPLETE | Trend `↑/↓n%` hidden when the previous period is 0; MTD-vs-MTD window (day clamped, Mar 31 → Feb 28) |
+| This Year summary card | YTD income/expense vs same-day previous year | `SummaryCard`, click-through to the Yearly Summary report | COMPLETE | YTD-vs-YTD window |
+| Net worth card | Σ(Income − Expense) over all non-deleted transactions | `NetWorthCard` | COMPLETE | `getNetWorth` port; sign dropped by the formatter, direction shown by colour (RN parity) |
+| Sync status + manual refresh | Header refresh button, partial transaction sync, sync modal on first launch | Toolbar Refresh reloads metrics; ⌘R + sync progress modal | IN PROGRESS | Phase 6 added a real toolbar Refresh (reloads metrics from the local DB). Network sync and the first-launch modal remain Phase 14 |
+| Cross-module refresh events | `DeviceEventEmitter 'module_refreshed'` for Dashboard/Transactions/Budgets | MACOS EQUIVALENT: metrics reload when the section appears + toolbar Refresh | COMPLETE | SwiftUI recreates the section on navigation, so no event bus is needed |
+| Dashboard date-window derivation | date-fns `startOfMonth`/`endOfMonth`/`startOfYear`/`subMonths`/`subYears` | `DashboardService.dateWindows` + `subtracting` | COMPLETE | date-fns clamping replicated explicitly (Foundation would roll Mar 31 − 1 month into March, not February); 6 tests |
 
 ## 4. Transactions
 
@@ -178,7 +179,7 @@
 | ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |
 | Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | NOT STARTED | `utils/validators.ts` |
 | Date/time handling | date-fns; `transaction_timestamp` ISO local format; `date` = `yyyy-MM-dd` derived; Supabase push strips timezone suffix | Foundation/Date + shared date utils; preserve timestamp semantics | IN PROGRESS | Phase 5: `Support/Timestamps.swift` ports `transactionTimestamp.ts` byte-compatibly (suffix conversion, prefix-day extraction, lowercase-t/z + no-colon offsets, UTC date-only quirk) — 11 fixed-timezone tests green |
-| Currency | ₹ / en-IN | Same default; store currency in config | NOT STARTED | |
+| Currency | ₹ / en-IN | `AppFormat.currency` | MACOS EQUIVALENT | Indian digit grouping, 0 fraction digits for whole amounts and 2 otherwise, sign dropped — all verified by tests |
 
 ---
 

@@ -148,7 +148,7 @@ Design notes for the next agent:
 | 3     | macOS architecture                  | COMPLETE    |
 | 4     | Native app shell                    | COMPLETE    |
 | 5     | Data layer                          | COMPLETE    |
-| 6     | Dashboard                           | NOT STARTED |
+| 6     | Dashboard                           | COMPLETE    |
 | 7     | Transactions                        | NOT STARTED |
 | 8     | Budgets                             | NOT STARTED |
 | 9     | Goals                               | NOT STARTED |
@@ -167,28 +167,31 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 6 — Dashboard
+**Phase:** 7 — Transactions
 
-Implement the dashboard over the Phase 5 data layer, reproducing the RN calculations exactly
-(`DATA_ARCHITECTURE.md` §2 — formulas are normative):
+Phase 6 (Dashboard) is complete, built, and tested (63 tests green — see the Progress Log).
 
-1. `Services/DashboardService.swift`: pure, testable ports of `dashboardService.ts` —
-   `processSummary`, `calculateDailyLimit` ((income − (expense − spentToday)) ÷ remaining days incl.
-   today, floor 0, remaining = max(0, limit − spent), remaining% = remaining/(remaining+spent)×100),
-   `calculatePayDayInfo` (daysInMonth − currentDay + 1, next payday `MMM 01`).
-2. `DashboardViewModel` (`@Observable`): `fetchDashboardMetrics` — month MTD, prev-month MTD
-   comparison (same day-of-month), year YTD + prev-year YTD (same day), net worth, spent today,
-   top-3 expense categories — mirroring the parallel fetch in `dashboardService.ts`.
-3. Widgets in `Features/Dashboard/`: daily limit card (+ drill-down to "Today's Activity" — the
-   RN `daily-limit-detail` screen: spent today + today's transaction list), month-remaining card,
-   pay-day card, top categories, This Month / This Year summary cards (click-through to the
-   Monthly/Yearly Summary report views), net-worth card.
-4. Unit tests first for the pure calculations (daily limit edge cases: zero income, overspend,
-   spent = 0 → 100%; pay day; processSummary type mapping).
-5. Widgets render zero-values with the local (empty) DB; the first-launch sync modal stays a
-   Phase 14 item.
+Goal: the date-sectioned transaction list, filters, search, stats breakdown, editor/delete, quick
+transaction presets, and location tagging, over the Phase 5 data layer.
 
-After 6: 7 (Transactions — list/filters/editor on GRDB) → remaining phases per the matrix.
+1. Read `MACOS_FEATURE_MATRIX.md` §4 and `DATA_ARCHITECTURE.md` §2 for the exact semantics: list
+   grouped by date with per-day net totals; search matches an exact amount for pure numbers,
+   otherwise LIKE on description and amount-as-text; filters are date range + presets plus
+   multi-select category/payee/group; the filtered net total is Σ(income − expense).
+2. `Services/TransactionService.swift` — port `transactionService.ts` + `transactionQueries.ts`
+   (fetch/filter, section mapping, `getMonthlyFilteredStats`, `getMinTransactionDate/Year` for the
+   filter bounds). Parameterize every query.
+3. Replace the lightweight row in `Features/Dashboard/TodaysActivityView.swift` with the real
+   transaction row once it exists, so the drill-down and the list share one renderer.
+4. Writes must set `sync_status = 1`; deletes are soft (`deleted = 1, sync_status = 1`) exactly
+   like RN. Defaults: expense → category "general", income → category "salary" (case-insensitive
+   name match). Keep the denormalized `category_*`/`payee_*`/`group_*` columns populated on save.
+5. ⌘N already opens the placeholder `NewTransactionSheet` — fill it in. ⌘F is already wired to
+   `AppState.requestSearchFocus()` on the Transactions search field. Add ⌘⌫ delete with a
+   confirmation dialog and Return/double-click to edit.
+6. Do not build the sync engine here — Phase 14 owns push/pull and the first-launch sync modal.
+
+After 7: 8 (Budgets) → remaining phases per the matrix.
 
 ---
 
@@ -368,6 +371,55 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
   offsets; lowercase `t` separator) — fixed; tests are doing their job.
 * GRDB adds a `grdb_migrations` table absent in RN — internal bookkeeping, not a parity concern.
 
+## Phase 6 — Dashboard
+
+**Status:** COMPLETE (2026-09-21)
+
+### What was done
+
+* `Services/DashboardService.swift` — pure ports of `dashboardService.ts` (`processSummary`,
+  `calculateDailyLimit`, `calculatePayDayInfo`, `subtracting`, `dateWindows`) plus the four SQL
+  helpers from `reportQueries.ts`/`transactionQueries.ts` (`incomeExpenseSummary`,
+  `expensesByCategory`, `netWorth`, `spentToday`), `transactions(userId:date:)` for the drill-down,
+  and `fetchMetrics`. Every query is parameterized and preserves the per-user + `deleted = 0` scoping.
+* `Features/Dashboard/DashboardViewModel.swift` — `@Observable`; loads all seven metrics in a single
+  `pool.read` and stores the `referenceDate` the calculations were made against.
+* Widgets in `Features/Dashboard/`: `DashboardCard` (shared container), `DailyLimitCard`,
+  `RemainingCard`, `PayDayCard`, `TopCategoriesCard`, `SummaryCard` (This Month / This Year),
+  `NetWorthCard`, plus `TodaysActivityView` (the `daily-limit-detail` drill-down as a sheet). The RN
+  vertical card scroll becomes a two-column `Grid` with net worth spanning both columns.
+* Click-through: Daily Limit → Today's Activity; Pay Day → Calendar section; Top Categories →
+  Transactions By Category; This Month/This Year → the matching summary report. Reports are still a
+  placeholder, so the destination is carried on `AppState.requestedReport` via the new
+  `ReportDestination` enum and echoed by `ReportsView` until Phase 10 builds the pages.
+* `Support/ProgressViews.swift` — `CircularProgressView` + `ProgressBarView` (native; see the
+  Decision Log for the ring change).
+* `Support/Formatters.swift` — added `AppFormat.currency` (₹, `en-IN` grouping, 0 or 2 fraction
+  digits, sign dropped) and the English date-pattern helpers the dashboard needs.
+* `Stores/SessionStore.swift` — added `userId` (mock placeholder id) so the per-user queries are
+  exercised; plus `AppState.openReport(_:)`.
+* Tests, 21 new (63 total): `DashboardCalculationTests` (23), `DashboardQueryTests` (7),
+  `FormatterTests` (9), `DashboardViewRenderingTests` (3 — renders the widget grid and the
+  drill-down in their zero-value/empty states through `ImageRenderer`).
+
+### Verification
+
+* `xcodebuild … build` → `BUILD SUCCEEDED`, no warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (63 tests, 0 failures).
+* Launch smoke test: the built app ran for 5 s and quit cleanly.
+* The tests caught a real bug before commit: `DashboardService.subtracting` *added* instead of
+  subtracting months/years, which shifted every previous-period window by two months (or a year).
+  Fixed; the clamping tests (Mar 31 → Feb 28, Feb 29 → Feb 28) now pass.
+
+### Issues / deviations
+
+* One test expectation was wrong rather than the code: year-to-date legitimately includes the
+  August rows — the Aug 25 row is only excluded from the *MTD comparison* window.
+* `AppFormat.currency` deliberately reproduces the source's sign-dropping (negative amounts render
+  as their magnitude; colour conveys direction).
+* The RN drill-down renders `TransactionCard`; the macOS sheet uses a lightweight row until Phase 7
+  builds the real transaction list (Phase 7 should replace it with the shared row).
+
 ---
 
 # Decision Log
@@ -389,6 +441,13 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 | 2026-09-20 | GRDB.swift 7.x via SPM; explicit `Jmoney` scheme with tests | Current stable line; reproducible builds; `xcodebuild test` works | Phase 5 |
 | 2026-09-20 | v1 migration builds the final schema directly               | Fresh installs skip the RN app's incremental ALTER history; net-identical, testable | Phase 5 |
 | 2026-09-20 | `timeZone` parameter on timestamp ports (default `.current`)| Same behavior as JS device-local time, but deterministically testable | Phase 5 |
+| 2026-09-21 | Daily-limit `remainingDays` = `daysInMonth − currentDay + 1`       | Identical to RN's `differenceInDays(endOfMonth(today), today) + 1`, but calendar-exact and testable | Phase 6 |
+| 2026-09-21 | date-fns month/year clamping implemented explicitly (`DashboardService.subtracting`) | Foundation's date arithmetic rolls overflow into the next month; date-fns clamps (Mar 31 − 1 month = Feb 28) | Phase 6 |
+| 2026-09-21 | All seven dashboard queries share one `pool.read`                  | Same values from a single consistent snapshot instead of seven independent ones | Phase 6 |
+| 2026-09-21 | Native arc progress ring replaces the RN four-segment border ring  | macOS has real path stroking; percentage/value/label inputs are unchanged (MACOS EQUIVALENT) | Phase 6 |
+| 2026-09-21 | Dashboard uses a two-column `Grid` (net worth spans both)          | Uses the desktop window width; widgets stay comparable at a glance | Phase 6 |
+| 2026-09-21 | Report click-through recorded on `AppState.requestedReport`        | Dashboard can link to reports before Phase 10 builds the pages | Phase 6 |
+| 2026-09-21 | `AppFormat.currency` keeps the source's sign-dropping behavior     | Parity with `formatCurrency`; the alternative would silently change every displayed amount | Phase 6 |
 
 ---
 
@@ -401,18 +460,11 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 # Next Agent Instructions
 
-Phases 4 (shell) and 5 (data layer) are complete and green. Start **Phase 6 (Dashboard)** — full
-instructions in the "Current Phase" section above. Summary:
-
-1. Port the pure calculations first (`Services/DashboardService.swift` from `dashboardService.ts`)
-   with unit tests before touching UI — formulas are normative in `DATA_ARCHITECTURE.md` §2.
-2. `DashboardViewModel` (`@Observable`) runs the metric queries against `DatabaseService.pool` on a
-   read connection; use GRDB `ValueObservation` where it simplifies refreshes.
-3. Replace `DashboardView`'s placeholder with the widget stack (daily limit + Today's Activity
-   drill-down, remaining, pay day, top categories, This Month/This Year with click-through to the
-   report views, net worth). Keep the empty-DB zero state readable.
-4. Keep the sync modal out (Phase 14); ⌘R still reports "not connected".
-5. `xcodegen generate` after any file addition; build + test green before committing.
+Phases 4 (shell), 5 (data layer) and 6 (dashboard) are complete and green (63 tests). Start
+**Phase 7 (Transactions)** — full instructions in the "Current Phase" section above. Summary: port
+`TransactionService`, build the sectioned list + filter popovers + search, and fill in the ⌘N
+editor. Writes mark `sync_status = 1`, deletes are soft, and the denormalized name columns must stay
+populated on save.
 
 Existing infrastructure (don't redo):
 
@@ -421,7 +473,14 @@ Existing infrastructure (don't redo):
 * DTOs in `Models/` map columns 1:1; `Transaction` carries the denormalized name columns.
 * `TransactionTimestamp` (`Support/Timestamps.swift`) for all timestamp derivations — do not
   re-implement with different semantics.
-* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (21 passing).
+* `DashboardService` is the reference service pattern: pure static calculations plus parameterized
+  GRDB queries that take a `Database`, so everything is testable against an in-memory
+  `DatabaseQueue`. Follow it for `TransactionService` and the rest.
+* `AppFormat` (`Support/Formatters.swift`) for currency (₹/en-IN) and English date patterns.
+* `ProgressBarView` / `CircularProgressView` (`Support/ProgressViews.swift`) are reusable.
+* `SessionStore.userId` is the mock user id to scope per-user queries by; `AppState.openReport(_:)`
+  + `ReportDestination` handle cross-section links.
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (63 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit

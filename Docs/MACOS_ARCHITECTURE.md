@@ -1,14 +1,16 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-20 (Phase 5 data layer implemented on top of the Phase 4 shell).
+> Last updated: 2026-09-21 (Phase 6 dashboard implemented on top of the Phase 4 shell + Phase 5 data layer).
 
 ## Status
 
 Analysis complete (Phase 1, re-verified — see DATA_ARCHITECTURE.md §8). **App shell implemented
 (Phase 4)**. **Data layer implemented (Phase 5)**: GRDB WAL pool, v1 migration mirroring the RN
-schema, column-faithful DTOs, and the timestamp-rules port — all unit tested (21 tests green).
-Next: Phase 6 (Dashboard).
+schema, column-faithful DTOs, and the timestamp-rules port. **Dashboard implemented (Phase 6)**:
+metrics, daily-limit/pay-day calculations, the seven widget cards, the Today's Activity drill-down,
+and the native progress views — all unit tested (63 tests green).
+Next: Phase 7 (Transactions).
 
 ---
 
@@ -64,12 +66,14 @@ Jmoney/
 │   └── StatusBarView.swift        # Bottom status bar (sync status, messages)  [Phase 4 ✓]
 ├── Features/
 │   ├── Auth/                      # AuthGateView placeholder (mock session)  [Phase 4 ✓; real auth Phase 14]
-│   ├── Dashboard/                 # Widgets: daily limit, remaining, pay day, top categories,
-│   │                              #   month/year summaries, net worth, today's activity   [Phase 6]
+│   ├── Dashboard/                 # DashboardViewModel (@Observable) + widgets: daily limit,
+│   │                              #   remaining, pay day, top categories, month/year summaries,
+│   │                              #   net worth, Today's Activity sheet, shared card container  [Phase 6 ✓]
 │   ├── Transactions/              # List (sectioned), filters, search, stats, editor sheet  [Phase 7]
 │   ├── Budgets/                   # List, month navigation, editor, drill-down   [Phase 8]
 │   ├── Goals/                     # [Phase 9]
-│   ├── Reports/                   # Index + 11 report pages + drill-down   [Phase 10]
+│   ├── Reports/                   # ReportDestination enum [Phase 6 ✓]; index + 11 report pages
+│   │                              #   + drill-down [Phase 10]
 │   ├── Calendar/                  # [Phase 11]
 │   ├── Categories/  Payees/  Groups/  QuickTransactions/   # [Phase 12]
 │   └── Settings/                  # Pane + ⌘, scene views   [Phase 13]
@@ -79,7 +83,8 @@ Jmoney/
 │   ├── Sync/                      # Per-entity push/pull (transactions, budgets, goals,
 │   │                              #   categories, payees, quick transactions, groups)   [Phase 14]
 │   ├── SupabaseService.swift      # Client config, session persistence   [Phase 14]
-│   ├── DashboardService.swift     # Metrics + daily-limit + payday calculations (pure, testable)   [Phase 6]
+│   ├── DashboardService.swift     # Metrics + daily-limit + payday + date-window calculations
+│   │                              #   (pure, testable) and the dashboard queries   [Phase 6 ✓]
 │   ├── TransactionService.swift   # Fetch/filter/stats (mirror transactionService.ts)   [Phase 7]
 │   ├── BudgetService.swift  GoalService.swift  ReportService.swift  CalendarService.swift
 │   ├── CategoryService.swift  PayeeService.swift  GroupService.swift  QuickTransactionService.swift
@@ -89,9 +94,11 @@ Jmoney/
 ├── Stores/
 │   └── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
 ├── Support/
-│   ├── Formatters.swift           # Relative time now; ₹/en-IN + date utils with data layer  [Phase 4 ✓]
+│   ├── Formatters.swift           # ₹/en-IN currency + English date patterns [Phase 6 ✓]; relative time  [Phase 4 ✓]
+│   ├── ProgressViews.swift        # Native progress ring + bar (replaces the RN circular-progress trick)  [Phase 6 ✓]
 │   └── Timestamps.swift           # transactionTimestamp.ts port, byte-compatible  [Phase 5 ✓]
-JmoneyTests/                       # 21 tests: schema/defaults/indexes, record round-trips, timestamp rules  [Phase 5 ✓]
+JmoneyTests/                       # 63 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+                                   #   dashboard calculations/queries, formatters, widget render smoke  [Phase 5 ✓, Phase 6 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -111,6 +118,8 @@ JmoneyTests/                       # 21 tests: schema/defaults/indexes, record r
 | Reorder arrows | Drag-and-drop reordering |
 | Biometric lock overlay | Secure field + LAContext on window activation |
 | Report grid/list toggle | Toolbar view style toggle |
+| Vertical scroll of dashboard cards | Two-column adaptive `Grid` (net worth spans both columns) |
+| Quarter-segment border "circular progress" | Real stroked progress ring (`Circle().trim`) |
 
 Keyboard: ⌘N new transaction, ⌘⇧N quick transaction, ⌘F search, ⌘R sync, ⌘, settings,
 Delete remove selection, Return open selection, Escape dismiss sheets — no conflicts with
@@ -156,3 +165,10 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   opens + migrates in `prepare()` (idempotent) called from `RootView.task`, mirroring the RN boot
   order (`initDB()` before navigation). Status bar reports "Local database ready."/failure. Tests
   run via the explicit `Jmoney` scheme (`xcodebuild … test -destination 'platform=macOS'`).
+- Dashboard notes: `Services/DashboardService.swift` is the reference service shape — pure static
+  calculations plus parameterized GRDB queries that take a `Database`, so every rule is testable
+  against an in-memory `DatabaseQueue` with no app running. The seven metric queries share one
+  `pool.read` (one consistent snapshot) instead of the RN app's seven parallel queries. Report
+  click-through is recorded on `AppState.requestedReport` and echo-rendered by the Reports
+  placeholder until Phase 10. `TodaysActivityView` uses a lightweight transaction row that Phase 7
+  should replace with the shared list row. ⌘R still reports "not connected" (Phase 14).

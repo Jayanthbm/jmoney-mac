@@ -10,7 +10,10 @@ Analysis complete (§8). **Persistence implemented (Phase 5)**: `Services/Databa
 opens a WAL `DatabasePool` and migrates to the exact schema in §1.2–§1.3 (verified by tests:
 tables, columns, defaults, composite index column order, quick-transactions born-dirty quirk).
 DTOs in `Models/` match every column name. `Support/Timestamps.swift` ports `transactionTimestamp.ts`
-byte-compatibly (fixed-timezone tests). Sync/push-pull logic itself lands in Phase 14.
+byte-compatibly (fixed-timezone tests). **Read path implemented (Phase 6)**: `Services/DashboardService.swift`
+carries the dashboard's parameterized aggregations (`incomeExpenseSummary`, `expensesByCategory`,
+`netWorth`, `spentToday`, `transactions(userId:date:)`) alongside the pure calculations. Sync/push-pull
+logic itself lands in Phase 14.
 
 ---
 
@@ -75,9 +78,11 @@ chain instead (documented improvement, not a behavior change).
 | --- | --- |
 | Net worth | `SUM(CASE type WHEN 'Income' THEN amount ELSE -amount END)` over all non-deleted transactions |
 | Spent today | `SUM(amount)` where type='Expense' and date = today |
-| Daily limit | `(month.income − (month.expense − spentToday)) ÷ remainingDaysInMonth` (incl. today); floor 0; `remaining = max(0, limit − spentToday)`; `remaining% = remaining/(remaining+spent)×100` |
+| Daily limit | `(month.income − (month.expense − spentToday)) ÷ remainingDaysInMonth` (incl. today); floor 0; `remaining = max(0, limit − spentToday)`; `remaining% = remaining/(remaining+spent)×100`; both-zero ⇒ 100%; clamped 0…100 |
+| Daily-limit remaining days | `remainingDaysInMonth` = `daysInMonth − currentDay + 1` — equal to the source's `differenceInDays(endOfMonth(today), today) + 1`, but calendar-exact. Implemented as `DashboardService.calculateDailyLimit` |
 | Pay day | `daysInMonth − currentDay + 1` days remaining; next payday label `MMM 01` |
-| Dashboard comparisons | Month MTD vs same-day previous month; year YTD vs same-day previous year |
+| Dashboard comparisons | Month MTD vs same-day previous month; year YTD vs same-day previous year. `DashboardService.dateWindows` derives: month MTD `[monthStart, today]`, month totals `[monthStart, monthEnd]` (used only for top categories), previous month `[prevMonthStart, prevMonthSameDay]`, previous year `[prevYearStart, prevYearSameDay]`. Every window is an inclusive `yyyy-MM-dd` string comparison (`date >= ? AND date <= ?`) |
+| Previous-period day clamping | `subMonths`/`subYears` clamp an overflowing day onto the target month's last day (Mar 31 − 1 month = Feb 28; Feb 29 − 1 year = Feb 28). Foundation's date arithmetic does **not**, so `DashboardService.subtracting` implements the clamp explicitly |
 | Budget spending | `SUM(amount)` of expenses in period where `category_id IN (budget's category JSON)` |
 | Goal progress | `current_amount / goal_amount` |
 | Report comparison | diff% = (current − previous)/previous × 100; previous matched by name/type; MTD-vs-MTD or YTD-vs-YTD for current period, full-vs-full otherwise; new items with no previous show +100% |
