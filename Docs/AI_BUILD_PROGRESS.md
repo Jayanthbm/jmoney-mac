@@ -749,3 +749,8 @@ recorded in a follow-up docs commit per the established pattern).
 
 `c7ff6c8` — 2026-09-21 — "phase: implement budgets" (hash recorded in a follow-up docs commit per
 the established pattern).
+
+### Phase 9 Commit
+
+`8c0ab15` — 2026-09-21 — "phase: implement goals" (hash recorded in a follow-up docs commit per
+the established pattern).
