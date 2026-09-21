@@ -2,7 +2,8 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-21 (Phase 9 goals implemented — see §1, §3, §6 and §12 for updated rows).
+> Last updated: 2026-09-21 (Phase 12 categories, payees, groups and quick transactions
+> implemented — see §1, §4, §9 and §12 for the updated rows).
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked

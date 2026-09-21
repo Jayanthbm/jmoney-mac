@@ -857,6 +857,37 @@ The initial native macOS project was created and verified (`BUILD SUCCEEDED`).
 
 ---
 
+## Phase 12 Verification Pass (third agent, 2026-09-21)
+
+A third agent, prompted with the Phase 1 first-task instructions, found the project already at
+Phase 12 with the entire implementation **uncommitted** in the working tree. Following the
+second agent's precedent, the session became a verification pass over the uncommitted Phase 12
+code, against the actual RN source rather than the docs:
+
+* Read in full: all four RN entity services (`categoryService`, `payeeService`, `groupService`,
+  `quickTransactionService.ts`), all four query modules (`metaQueries`, `groupQueries`,
+  `quickTransactionQueries`, plus `add-quick-transaction.tsx`, `categories.tsx`, and the
+  `quickTx` prefill branch in `add-transaction.tsx`.
+* Read in full on the macOS side: `EntityOrdering.swift`, `ViewModePreference.swift`,
+  `CategoryIcon.swift`, all four new services, `TransactionService.prefill`, and the
+  quick-transaction editor view model's default-category handling.
+* **Verdict: the Phase 12 implementation matches the source.** Search gate vs needle trimming,
+  groups' description search, quick transactions' trimmed needle + name-only search + priority-only
+  order, visible-set renumbering, the `MAX(priority)+1` shapes (including quick transactions'
+  filtering `deleted = 0`), the `|| null` idiom and zero-amount rule, the identifier rules, the
+  `'category'` icon default vs the payees' deliberate no-default, group hard delete, template soft
+  delete, and every prefill quirk were all confirmed line-by-line. No code changes were required.
+* Two documentation points noted: the template editor's type-switch default category (general/salary)
+  was implemented in Phase 12 but not called out in the progress log (now recorded above), and
+  the RN behavior it matches was re-confirmed in `add-quick-transaction.tsx`.
+* **RN project confirmed untouched** (`git status` clean in `jayledger`). `.freebuff` added to
+  `.gitignore` as part of the session's housekeeping; no tooling directories are committed.
+
+The uncommitted work was then finalized as the Phase 12 commit: `BUILD SUCCEEDED` (Debug,
+no warnings) and `TEST SUCCEEDED` (421 tests, 0 failures) immediately before committing.
+
+---
+
 # Decision Log
 
 | Date       | Decision                                                   | Reason                                    | Agent         |
@@ -1040,12 +1071,5 @@ the established pattern).
 
 ### Phase 12 Commit
 
-`PENDING` — 2026-09-21 — "phase: implement categories, payees, groups and quick transactions" (hash
-recorded in a follow-up docs commit per
-the established pattern).
-
-<!-- The Phase 11 entry continues below; the Phase 12 entry above is the new one. -->
-
-### Phase 11 Commit (continued)
-
-the established pattern).
+`850d0cc` — 2026-09-21 — "phase: implement categories, payees, groups and quick transactions" (hash
+recorded in a follow-up docs commit per the established pattern).
