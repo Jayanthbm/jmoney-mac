@@ -934,5 +934,5 @@ the established pattern).
 
 ### Phase 11 Commit
 
-`PENDING` — 2026-09-21 — "phase: implement calendar" (hash recorded in a follow-up docs commit per
+`ac40987` — 2026-09-21 — "phase: implement calendar" (hash recorded in a follow-up docs commit per
 the established pattern).
