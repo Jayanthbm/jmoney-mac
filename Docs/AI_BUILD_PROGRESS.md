@@ -502,3 +502,8 @@ the established pattern).
 
 `296a5de` — 2026-09-20 — "phase: add data layer" (hash recorded in a follow-up docs commit per the
 established pattern).
+
+### Phase 6 Commit
+
+`fa37991` — 2026-09-21 — "phase: implement dashboard" (hash recorded in a follow-up docs commit per
+the established pattern).
