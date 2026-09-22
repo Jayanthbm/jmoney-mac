@@ -9,6 +9,9 @@ struct JmoneyApp: App {
     /// Local SQLite store (WAL) + migrations. Cheap to construct; the pool
     /// opens and migrates on first `prepare()`.
     @State private var database = DatabaseService()
+    /// Appearance override (the RN app's `app_theme`). Shared with the Settings
+    /// scene so ⌘, and the sidebar agree.
+    @State private var appearance = AppearanceStore()
 
     var body: some Scene {
         WindowGroup("Jmoney") {
@@ -16,6 +19,7 @@ struct JmoneyApp: App {
                 .environment(appState)
                 .environment(sessionStore)
                 .environment(database)
+                .environment(appearance)
                 .frame(minWidth: 1000, minHeight: 640)
         }
         .commands {
@@ -26,6 +30,8 @@ struct JmoneyApp: App {
             SettingsSceneView()
                 .environment(appState)
                 .environment(sessionStore)
+                .environment(database)
+                .environment(appearance)
         }
     }
 }

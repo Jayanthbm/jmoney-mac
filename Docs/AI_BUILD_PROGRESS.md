@@ -155,7 +155,7 @@ Design notes for the next agent:
 | 10    | Reports                             | COMPLETE    |
 | 11    | Calendar                            | COMPLETE    |
 | 12    | Categories / Payees / Groups / Quick Transactions | COMPLETE |
-| 13    | Settings                            | NOT STARTED |
+| 13    | Settings                            | COMPLETE    |
 | 14    | Authentication / Sync               | NOT STARTED |
 | 15    | Import / Export                     | NOT STARTED |
 | 16    | macOS commands / keyboard shortcuts | NOT STARTED |
@@ -167,43 +167,53 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 13 — Settings
+**Phase:** 14 — Authentication / Sync
 
-Phase 12 (Categories / Payees / Groups / Quick Transactions) is complete, built, and tested
-(421 tests green — see the Progress Log). It also closed the Phase 7 quick-transaction-preset item.
+Phases 0–13 are complete, built, and tested (483 tests green — see the Progress Log).
 
-Goal: the Settings screen and its scene — theme, daily reminders, Touch ID, manage-data entries,
-manual sync, reset data, account email + sign out. Read `MACOS_FEATURE_MATRIX.md` §10 for the row
-inventory and the specification in `app/(tabs)/settings/index.tsx` plus `src/hooks/useAppSettings.ts`,
-`useBiometrics.ts`, `src/services/notificationService.ts` and `resetAppData` in `src/db/queries.ts`.
+## Phase 14 brief — Authentication / Sync
 
-1. `Features/Settings/` currently holds only `SettingsPaneView` (which opens the ⌘, window) and
-   `SettingsSceneView`. Phase 13 owns the real pane and the scene's contents.
-2. Theme: the RN app stores `app_theme` (`light`/`dark`/`system`, defaulting to system). The macOS
-   reading is a native appearance override (`.preferredColorScheme`) persisted in `UserDefaults`.
-3. Reminders: `notificationService.ts` schedules a daily local notification titled "Reminder 💰"
-   for 9:00 / 18:00 / 21:00 / Custom; map it to `UserNotifications` and decide the permission and
-   "not determined" paths — document what you choose.
-4. Biometrics: `useBiometrics.ts` verifies hardware **and** enrolment before enabling; macOS is
-   `LocalAuthentication` (`canEvaluatePolicy` / `evaluatePolicy`). Keep the same gate order.
-5. Manage-data entries (Goals / Categories / Payees / Groups / Quick Transactions) already exist as
-   sidebar sections (`AppSection`), so Settings should link to them rather than duplicate them.
-6. Manual full sync (⌘R / "Sync Now") and **Reset Data** are the two risky ones:
-   * `AppState.requestSync()` currently reports "Sync isn't connected yet." Leave that until
-     Phase 14, or wire it to a stub with an honest status message.
-   * Reset Data must reproduce the source exactly, **including its quirk**: it deletes transactions,
-     budgets, goals, categories, payees and transaction_groups, clears a specific list of sync keys
-     — and does **not** delete `quick_transactions`, nor clear the quick-transaction / group-sync /
-     view-mode keys. `DATA_ARCHITECTURE.md` §4 has the exact key list. Surface the quirk in the
-     confirmation rather than silently "fixing" it, and flag it for a user decision.
-7. Haptics has no Mac hardware: the matrix marks it MACOS EQUIVALENT → omit, and say so in the UI.
+This is the biggest remaining phase. It replaces two mocks and activates every piece the earlier
+phases deliberately left dormant:
 
-Still outstanding from Phase 7: **location tagging** on create plus the location edit sheet. The
-quick-transaction presets item is now done (Phase 12 built the picker and the editor prefill);
-`TransactionService.prefill` and `AppState.transactionEditor = .template(_)` are the pieces it built.
+1. **Real auth.** `Stores/SessionStore.swift` is a mock (`signInPlaceholder` +
+   `placeholderUserId`). Replace its internals with `supabase-swift` and Keychain-backed session
+   storage, **keeping its public surface** (`isAuthenticated` / `userEmail` / `userId` / `signOut`) so
+   the shell and every per-user query keep working. `Features/Auth/AuthGateView.swift` is the login
+   UI to wire up. Source: `src/store/AuthContext.tsx` — note the 7 s session timeout that forces
+   `loading = false`, and that sign-out keeps local data.
+2. **Credentials.** The RN app hardcodes the URL and anon key in `src/services/supabase.ts`. Do
+   **not** copy them into source (master prompt §15): inject them from build configuration
+   (`.xcconfig` + Info.plist) as `DATA_ARCHITECTURE.md` §3.5 requires.
+3. **The sync engine.** `Services/SyncService.swift` + `Services/Sync/` do not exist yet. Port
+   `src/services/syncService.ts` (`runFullSync`) and the seven per-entity modules in
+   `src/services/sync/`. The protocol is specified exactly in `DATA_ARCHITECTURE.md` §3 — push
+   `sync_status = 1` (upsert by id; deleted rows push a remote delete then hard-delete locally),
+   full-replace pulls for the six meta entities, `tid`-cursor incremental pulls for transactions in
+   1000-row chunks, force-resync, per-entity last-sync timestamps, and a re-entrancy guard.
+   Preserve the four documented sync quirks (budget interval normalization + empty-category skip,
+   `is_living_cost` stripped on push and omitted on pull, the quick-transactions pull filtering
+   `deleted = 0`, the group last-sync key mismatch).
+4. **The pieces waiting for it.** Every `InitialSyncGuard` wrapper
+   (`BudgetsViewModel.shouldRunInitialSync`, `GoalsViewModel.shouldRunInitialSync`) calls its pure
+   predicate; every write since Phase 7 has been setting `sync_status = 1`; `SyncPreference` already
+   reads and writes `@last_sync_master_<userId>`; `AppState.requestSync()` is the honest
+   "Sync isn't connected yet." stub to replace; and `AppState.lastSyncDate` / the status bar light up
+   as soon as a sync completes.
+5. **Deferred UI to restore once the engine exists.** The transaction row's "not yet uploaded"
+   cloud badge (Phase 7), the manual sync buttons in the budgets/goals headers (Phases 8–9), the
+   first-launch sync modal (`DashboardSyncModal`), and the dashboard's `needsTransactionSync`
+   (local max `tid` < remote max `tid`) focus check.
+6. **Also in scope:** the biometric app-lock *overlay* (`src/components/BiometricLock.tsx`) —
+   Phase 13 built the preference, the gate and the enable prompt, but nothing locks the window yet.
+   `BiometricPreference.isEnabled(in:)` is the flag to gate on; `BiometricService.authenticate` is
+   the prompt.
+7. **Connectivity** is `NWPathMonitor`, replacing NetInfo
+   (`isConnected && isInternetReachable`).
 
-After 13: 14 (Authentication / Sync) — the biggest remaining phase, and the one every
-`InitialSyncGuard` wrapper and `sync_status = 1` write from Phases 7–12 has been prepared for.
+Still outstanding from Phase 7 (independent of Phase 14): **location tagging** on create plus the
+location edit sheet, and `Services/LocationService.swift` does not exist yet. The editor currently
+shows saved coordinates read-only and preserves them on save.
 
 ---
 
@@ -886,6 +896,115 @@ code, against the actual RN source rather than the docs:
 The uncommitted work was then finalized as the Phase 12 commit: `BUILD SUCCEEDED` (Debug,
 no warnings) and `TEST SUCCEEDED` (421 tests, 0 failures) immediately before committing.
 
+## Phase 13 — Settings
+
+**Status:** COMPLETE (2026-09-22)
+
+### What was done
+
+* `Support/AppearancePreference.swift` + `Stores/AppearanceStore.swift` — the `app_theme` port.
+  Three choices (System/Light/Dark) driving `.preferredColorScheme` at the scene root; `System` is
+  stored as an **absent key**, which is exactly the source's "follow the system" state. The store is
+  shared by both scenes so the sidebar and ⌘, cannot disagree.
+* `Support/ReminderPreference.swift` — the `notification_pref` port: the four named choices plus a
+  custom `HH:mm`, the row display strings (`Off`, `Morning (9:00 AM)`, `Custom (6:30 PM)`), the
+  selection rule (`isCustomChoice` = "contains a colon"), and the trigger times. `None` **removes**
+  the key, as the source's `removeItem` does.
+* `Services/NotificationService.swift` — `UserNotifications` scheduling of the daily reminder, in the
+  source's order (permission → cancel → clear or schedule) with its copy preserved
+  (`Reminder 💰` / "Don't forget to add your expenses for today!").
+* `Support/BiometricPreference.swift` + `Services/BiometricService.swift` — the `use_biometrics` key
+  (the source's `"true"`/`"false"` **strings**) plus `BiometricGate`, the pure decision table for the
+  enable/disable flow. `BiometricService` is the thin `LAContext` wrapper that maps
+  `canEvaluatePolicy`/`biometryType` onto the source's `hasHardware` + `isEnrolled` pair.
+* `Services/SettingsService.swift` — `resetAppData` (the six-table wipe, and deliberately **not**
+  `quick_transactions`) and the exact 12-key preference teardown.
+* `Support/SyncPreference.swift` — reads/writes `@last_sync_master_<userId>`, so the settings row and
+  the status bar report a real timestamp instead of a placeholder.
+* `Features/Settings/` — `SettingsView` (the real form, hosted by *both* `SettingsPaneView` and
+  `SettingsSceneView`), `SettingsViewModel`, `ReminderChooserSheet`, and the shared `SettingsRow` /
+  `SettingsRowLabel`. The Phase 4 placeholders are gone.
+* Wiring: `AppearanceStore` injected into both scenes (and, after a build-time crash, the main
+  `WindowGroup` too); `AppState.refreshLastSync(userId:)`; the appearance override applied in
+  `RootView`.
+* Tests, 62 new (483 total): `SettingsPreferenceTests` (31 — appearance storage/fallback, reminder
+  parse/save/display/format/selection/schedule rules, the biometric gate table, the sync key), plus
+  `SettingsServiceTests` (8 — wipe scope, the template survival, per-user scoping, the exact key
+  list and its survivors, transactional rollback) and `SettingsViewModelTests` (14 — the toggle flows
+  and the reset path with the capability calls injected) and `SettingsViewRenderingTests` (9).
+
+### Verification
+
+* `xcodebuild … clean build` → `BUILD SUCCEEDED`, zero warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (483 tests, 0 failures).
+  The green suite still includes Phases 5–12, so the `AppState`/`RootView` wiring did not regress them.
+* Launch smoke test: the built app ran for 6 s and quit cleanly.
+* Three real bugs were caught before commit and are worth knowing about:
+  1. `SettingsService.resetLocalData` originally opened its own `db.inTransaction`, which GRDB
+     rejects inside `DatabasePool.write` ("cannot start a transaction within a transaction"). It
+     would have failed the reset in the app, not just in tests. The caller's write is now the
+     transaction, which is what the source's explicit `BEGIN`/`COMMIT` amounts to.
+  2. The reminder preference was persisted inside `NotificationService`, which made the flow
+     untestable and was the wrong layer besides — the source's `handleNotificationChange` hook is
+     what writes `notification_pref`. Persistence moved to `SettingsViewModel.selectReminder`.
+  3. `AppearanceStore` was injected into the Settings scene but not the main `WindowGroup`, so
+     `RootView` crashed on launch with "No Observable object of type AppearanceStore found".
+
+### Analysis re-verification (third pass, 2026-09-22)
+
+This session began with the master prompt's first-agent instructions ("analyze the source, produce
+the three docs"), but the project was already at Phase 12 → 13 with Phases 1–3 complete and twice
+verified. Per the master prompt §20 ("continue from the current state rather than starting over") and
+§22 (whose first-task rules are explicitly conditional on being the *first* agent), the analysis was
+re-verified rather than rewritten, and Phase 13 was implemented.
+
+Re-read from source: `app/(tabs)/settings/index.tsx`, `src/hooks/useAppSettings.ts`,
+`src/hooks/useBiometrics.ts`, `src/services/notificationService.ts`, `resetAppData` in
+`src/db/queries.ts`, `ThemeContext.tsx`, `AuthContext.tsx`, plus spot-checks of every
+`CREATE TABLE`/`ALTER TABLE`/`CREATE INDEX` in `src/db/database.ts` and the sync claims in §3.2–§3.4.
+
+**Verdict: the analysis is accurate.** The reset key list, the six-table wipe and its omission of
+`quick_transactions`, the `is_living_cost` push strip, the budget `Monthly`→`Month` normalization,
+both last-sync key spellings, the quick-transactions born-dirty `DEFAULT 1`, and all 11 indexes with
+their composite column order match the code exactly. No corrections to the matrix or the architecture
+were required.
+
+**One wording correction**, in this file's own Phase 13 brief (now superseded): it described the theme
+as storing `light`/`dark`/`system`. The source only ever **stores** `"light"` or `"dark"`; `system` is
+the behavior of an **absent** key. `MACOS_FEATURE_MATRIX.md` §10 already stated this correctly, and
+`DATA_ARCHITECTURE.md` §8 now records the correction.
+
+### Issues / deviations
+
+* **Three-way appearance picker.** The source's screen offers only Light and Dark, so a user can never
+  return to following the system even though that is the initial state. macOS exposes `System` as an
+  explicit choice mapped onto the absent key. Stored data and the default are unchanged.
+* **A refused notification permission is reported.** The source stores the preference, then logs and
+  swallows the refusal, leaving the row claiming a reminder that will never fire. The choice is still
+  stored here (parity), but the refusal now surfaces in the status bar.
+* **Reset also cancels the pending OS reminder.** The source clears `notification_pref` without
+  cancelling the scheduled notification, so a reset app would keep notifying while the row reads
+  "Off". This is the phase's one deliberate addition to the reset path.
+* **Reset is not transactional on its own.** `resetLocalData` relies on the caller's
+  `DatabasePool.write`; calling it outside a write transaction would leave the wipe non-atomic.
+  Documented on the method.
+* **The reset confirmation states the quirk** instead of hiding it: the source is silent about
+  templates surviving, and the master prompt forbids silently omitting functionality. Flagged here as
+  a decision item: if the user wants Reset Data to also clear templates, that is a one-line change to
+  `SettingsService.tablesClearedByReset` **and** a deliberate divergence from the source.
+* **The biometric message is the source's single sentence** for both failure modes ("does not support
+  biometrics or no fingerprints/faces enrolled"). `BiometricGate.Availability` still distinguishes
+  `noHardware` from `notEnrolled`, so the copy can be split later without touching the rules.
+* **The haptics row is shown disabled, not removed**, with the reason in its subtitle. The matrix
+  records this as MACOS EQUIVALENT.
+* **⌘R / Cloud Sync still reports "Sync isn't connected yet."** The row now shows the real
+  `@last_sync_master_` value ("Never synced" until Phase 14 writes one); the engine itself is
+  Phase 14's.
+* **The settings window and the sidebar pane share one form** rather than the source's single tab.
+  A Mac app conventionally has a ⌘, window, so both exist and render the same view.
+* **`app_theme` and `use_biometrics` survive a reset**, because the source's key sweep does not name
+  them. Preserved and asserted in tests; `AppearanceStore` is re-read after a reset for that reason.
+
 ---
 
 # Decision Log
@@ -956,6 +1075,19 @@ no warnings) and `TEST SUCCEEDED` (421 tests, 0 failures) immediately before com
 | 2026-09-21 | Group delete warns how many transactions keep their reference | The source's delete is silent about the dangling `group_id`; the delete is unchanged, but the consequence is now visible | Phase 12 |
 | 2026-09-21 | The quick-transaction picker hands its selection over via `AppState` | Presenting the transaction editor from inside the picker sheet is unreliable; the selection rides the picker's `onDismiss`, so the flow stays one click | Phase 12 |
 | 2026-09-21 | A template's `product_link` is not prefilled into a transaction | Faithful to `add-transaction.tsx`, which applies only type/amount/description/category/payee from a `quickTransaction` param | Phase 12 |
+| 2026-09-22 | Appearance offers System/Light/Dark, with `System` stored as an **absent** key | The source only stores `light`/`dark` and treats a missing key as "follow the system", but its screen offers no way back to it. Absent-key storage keeps the data and default identical while making the fallback reachable | Phase 13 |
+| 2026-09-22 | `app_theme` (not a new key) carries the appearance override; `AppearanceStore` sits above both scenes | Reuses the source's key; a root-level store is what lets `.preferredColorScheme` cover the main window *and* the ⌘, window | Phase 13 |
+| 2026-09-22 | One `SettingsView` hosts both the sidebar pane and the ⌘, scene | A Mac app conventionally has a settings window while the source has a tab; rendering one view in both places stops them drifting apart | Phase 13 |
+| 2026-09-22 | `use_biometrics` keeps the source's `"true"`/`"false"` **string** values | `useBiometrics.ts` compares against the literal `'true'`; storing a boolean would silently change the read rule | Phase 13 |
+| 2026-09-22 | The biometric gate is a pure decision table (`BiometricGate`) with a thin `LAContext` wrapper | The source's order (hardware → enrolment → authenticate → only then persist) is the behavior worth testing, and it cannot be tested against real Touch ID hardware | Phase 13 |
+| 2026-09-22 | Biometrics-only policy (`.deviceOwnerAuthenticationWithBiometrics`) | Matches `expo-local-authentication`'s `authenticateAsync`, which never offers the account password as a fallback | Phase 13 |
+| 2026-09-22 | Capability calls are injected into `SettingsViewModel` | Makes the whole toggle flow — including which paths persist and which stay silent — unit-testable without Touch ID or a notification centre | Phase 13 |
+| 2026-09-22 | The reminder preference is written by the view model, not by `NotificationService` | `handleNotificationChange` is what writes `notification_pref` in the source; keeping the write in the service made the flow untestable and the layering wrong | Phase 13 |
+| 2026-09-22 | A refused notification permission still records the choice, but is reported in the status bar | The source stores the preference then only logs the refusal, so its row claims a reminder that will never arrive. Parity of the stored data, plus an honest UI | Phase 13 |
+| 2026-09-22 | `SettingsService.resetLocalData` relies on the caller's write transaction | GRDB refuses to nest `inTransaction` inside `DatabasePool.write`; the caller's write is the equivalent of the source's explicit `BEGIN`/`COMMIT` and keeps the wipe atomic | Phase 13 |
+| 2026-09-22 | Reset additionally cancels the pending OS reminder | The source clears `notification_pref` without cancelling the scheduled notification, leaving an app that reads "Off" while still notifying. The phase's one deliberate addition to the reset path | Phase 13 |
+| 2026-09-22 | The reset confirmation states that templates survive | The source is silent about the `quick_transactions` omission; the master prompt forbids hiding functionality, so the consequence is made visible rather than "fixed" silently | Phase 13 |
+| 2026-09-22 | The haptics row is disabled with an explanation rather than removed | Records the MACOS EQUIVALENT decision in the UI itself, instead of leaving users to wonder where the setting went | Phase 13 |
 
 ---
 
@@ -963,15 +1095,21 @@ no warnings) and `TEST SUCCEEDED` (421 tests, 0 failures) immediately before com
 
 * None in the macOS project. (RN-side observations that constrain the port are listed in
   `DATA_ARCHITECTURE.md` §7 — they are parity constraints, not defects to fix silently.)
+* **Decision item raised by Phase 13:** Reset Data keeps `quick_transactions` templates, exactly as
+  the source does. The confirmation now says so, but if the desired behavior is to wipe templates
+  too, that is a deliberate divergence from the source — see the Phase 13 "Issues / deviations".
+* **Known limitation:** the biometric app lock can be *enabled* but nothing locks yet. The overlay is
+  Phase 14's; until then `BiometricPreference` only records the user's intent.
 
 ---
 
 # Next Agent Instructions
 
-Phases 4–12 are complete and green (421 tests). Start **Phase 13 (Settings)** — full instructions in
-the "Current Phase" section above, including the Reset Data quirk that must be reproduced and
-surfaced. The only Phase 7 item still outstanding is **location tagging** (create-time tagging plus
-the location edit sheet); the quick-transaction presets landed in Phase 12.
+Phases 0–13 are complete and green (483 tests). Start **Phase 14 (Authentication / Sync)** — the
+full brief is in the "Current Phase" section above. It is the largest remaining phase: real
+Supabase auth + Keychain, the sync engine (`Services/SyncService.swift` + `Services/Sync/`), and the
+dormant UI that depends on it. The only Phase 7 item still outstanding is **location tagging**
+(create-time tagging plus the location edit sheet); the quick-transaction presets landed in Phase 12.
 
 Existing infrastructure (don't redo):
 
@@ -1013,9 +1151,25 @@ Existing infrastructure (don't redo):
   (`TransactionService.prefill`).
 * `AppState.dataRevision` / `markDataChanged()` is how a write tells open views to reload;
   `AppState.statusMessage` is the toast surface the RN screens use `showToast` for.
+* Settings (Phase 13) is complete and is the reference for **device preferences and capability
+  checks**: `Support/AppearancePreference.swift`, `ReminderPreference.swift`,
+  `BiometricPreference.swift` and `SyncPreference.swift` hold the pure rules and the keys (the
+  source's own AsyncStorage names); `BiometricGate` is the pure decision table and
+  `Services/BiometricService.swift` / `NotificationService.swift` are the thin framework wrappers.
+  `Services/SettingsService.swift` owns the six-table wipe and the exact 12-key teardown — if you
+  touch reset behavior, `SettingsServiceTests` asserts both the list and the keys it must *not*
+  clear. `SettingsViewModel` injects its capability calls, so follow that pattern when a flow needs
+  hardware.
+* **Phase 14 hook-ups already in place:** `SyncPreference.lastFullSync(userId:)` /
+  `saveLastFullSync(_:userId:)` are the `@last_sync_master_<userId>` accessors;
+  `AppState.refreshLastSync(userId:)` re-reads them (call it after a sync completes);
+  `InitialSyncGuard` + the two `shouldRunInitialSync` wrappers are waiting to be called;
+  `SyncPreference`/`ReminderPreference` both use `UserDefaults` as the AsyncStorage stand-in;
+  and `BiometricPreference.isEnabled(in:)` is the flag for the app-lock overlay that Phase 13 built
+  the enable path for but did not wire up.
 * `TransactionRow` is shared with the dashboard and the budget drill-down; keep new list renderers
   consistent with it.
-* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (344 passing).
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (483 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit
@@ -1073,3 +1227,9 @@ the established pattern).
 
 `850d0cc` — 2026-09-21 — "phase: implement categories, payees, groups and quick transactions" (hash
 recorded in a follow-up docs commit per the established pattern).
+
+### Phase 13 Commit
+
+`PENDING` — 2026-09-22 — "phase: implement settings" (hash recorded in a follow-up docs commit per
+the established pattern). This phase also carried the third analysis re-verification pass — see the
+Phase 13 section above.

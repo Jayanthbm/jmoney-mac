@@ -2,8 +2,8 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-21 (Phase 12 categories, payees, groups and quick transactions
-> implemented — see §1, §4, §9 and §12 for the updated rows).
+> Last updated: 2026-09-22 (Phase 13 settings implemented — see §10 and §12 for the updated rows).
+> Also re-verified against the source in this session (Phase 13); no other rows changed.
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
 > The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
@@ -16,7 +16,7 @@
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Bottom tab navigation | `NativeTabs` with 5 tabs: Dashboard, Transactions, Budgets, Reports, Settings | `NavigationSplitView` sidebar listing all major areas | COMPLETE | Phase 4 shell: Finance / Manage / General sidebar sections host all 11 areas (tabs + stack-screen equivalents) |
-| Root loader / redirect | `app/index.tsx` waits for auth session, redirects to login or dashboard | Window scene waits for DB init + session restore before showing content | IN PROGRESS | Gate exists (mock session); DB-init wait arrives with the Phase 5 data layer |
+| Root loader / redirect | `app/index.tsx` waits for auth session, redirects to login or dashboard | Window scene waits for DB init + session restore before showing content | IN PROGRESS | Phase 5 completed the DB-init half (`RootView.task` runs `DatabaseService.prepare()` before reporting readiness). The session half is still the mock gate — real restore is Phase 14 |
 | Auth-gated routing | `RootLayoutNav` redirects unauthenticated users to `/(auth)/login` | Same gate at app-scene level; login window/sheet when signed out | IN PROGRESS | Phase 4: `AuthGateView` with mock sign-in; real Supabase + Keychain in Phase 14 |
 | Modal transaction sheet | `add-transaction` transparent modal, slide-from-bottom | Sheet (`⌘N` new transaction) | COMPLETE | Phase 7: `TransactionEditorView` — type, date-time, category/payee/group, amount, description, product link, inline validation |
 | Screen titles + last-synced subtitle | Header title with "Synced: Xm ago" | Toolbar title with subtitle; refresh toolbar button | IN PROGRESS | Phase 4: status bar shows "Last synced: …"; real timestamps with data layer/sync |
@@ -151,14 +151,14 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Theme selection | Light/Dark manual toggle, persisted `app_theme`, defaults to system | Native appearance following system + override; persisted | NOT STARTED | |
-| Daily reminders | None / Morning 9AM / Evening 6PM / Night 9PM / Custom time; schedules daily local notification "Reminder 💰" | UserNotifications daily schedule; permission handling | NOT STARTED | |
-| Biometrics toggle | Enable after verifying biometric; hardware/enrollment check | Touch ID toggle | NOT STARTED | |
-| Haptics toggle | Persisted haptics setting gating `expo-haptics` triggers | Not meaningful on macOS → **MACOS EQUIVALENT: omit**; document | NOT STARTED | No haptic hardware on Macs |
-| Manage data entries | Navigation to Goals, Categories, Payees, Groups, Quick Transactions | Sidebar items + Settings links | NOT STARTED | |
-| Manual full sync | `runFullSync` all entities; shows "Last synced Xm ago" | Sync Now button + status (⌘R) | NOT STARTED | |
-| Reset local data | `resetAppData`: transactional delete of transactions, budgets, goals, categories, payees, groups for user + clears prefs; confirmation; note: does **not** delete `quick_transactions` | Same behavior + confirmation dialog | NOT STARTED | Replicate exact behavior incl. quick-transactions quirk; flag for user decision later |
-| Account email + sign out | Shows email; sign out w/ confirmation | Same | NOT STARTED | |
+| Theme selection | Light/Dark manual toggle, persisted `app_theme`, defaults to system | Three-way System/Light/Dark picker driving `.preferredColorScheme`; persisted under the same key | COMPLETE | `AppearancePreference` + `AppearanceStore`. The source only stores `"light"`/`"dark"` and treats an *absent* key as "follow the system", but offers no way back to it; `System` here is exactly that absent state, so the data and the default behavior are unchanged |
+| Daily reminders | None / Morning 9AM / Evening 6PM / Night 9PM / Custom time; schedules daily local notification "Reminder 💰" | `UNCalendarNotificationTrigger` daily schedule; the same five rows in a sheet | COMPLETE | `ReminderPreference` + `NotificationService` + `ReminderChooserSheet`. Source copy preserved (`Reminder 💰` / "Don't forget to add your expenses for today!"). `None` *removes* the stored key, as the source's `removeItem` does. Two kept quirks: only Evening/Night/a `HH:mm` value set the hour, so anything else lands on the 9:00 default; and a refused permission still records the choice. One addition: the refusal is reported in the status bar instead of only logged |
+| Biometrics toggle | Enable after verifying biometric; hardware/enrollment check | Touch ID toggle via `LAContext` | COMPLETE | `BiometricGate` (pure) + `BiometricService` (LAContext) + `BiometricPreference`. Gate order preserved: hardware → enrolment → authentication, and the preference is only persisted **after** a successful prompt. `use_biometrics` keeps the source's `"true"`/`"false"` *string* values. Biometrics-only (`deviceOwnerAuthenticationWithBiometrics`), as in the source — no password fallback |
+| Haptics toggle | Persisted haptics setting gating `expo-haptics` triggers | Not meaningful on macOS → **MACOS EQUIVALENT: omit**; document | MACOS EQUIVALENT | No haptics hardware on Macs. The row is still shown, disabled, and says why, rather than silently vanishing |
+| Manage data entries | Navigation to Goals, Categories, Payees, Groups, Quick Transactions | Sidebar items + Settings links | COMPLETE | The five rows select the matching `AppSection` instead of pushing a duplicate screen — the macOS reading of `router.push('/goals')`. Settings hosts no second copy of those screens |
+| Manual full sync | `runFullSync` all entities; shows "Last synced Xm ago" | Sync Now button + status (⌘R) | IN PROGRESS | Phase 13 builds the row: it reports the real `@last_sync_master_<user>` timestamp (`SyncPreference`, so "Never synced" until Phase 14 writes one) and the status bar refreshes on load. The button still runs the honest "Sync isn't connected yet." stub — the engine itself is Phase 14 |
+| Reset local data | `resetAppData`: transactional delete of transactions, budgets, goals, categories, payees, groups for user + clears prefs; confirmation; note: does **not** delete `quick_transactions` | Same behavior + confirmation dialog | COMPLETE | `SettingsService.resetLocalData` + the exact 12-key teardown. Both quirks preserved and made visible rather than hidden: templates survive, and the un-cleared keys stay un-cleared. The confirmation states the template behavior; the source's silence about it is not reproduced |
+| Account email + sign out | Shows email; sign out w/ confirmation | Same | COMPLETE | Email row (`Guest` when signed out) + a destructive confirmation dialog. Sign-out keeps local data, as in the source. Real Supabase sign-out arrives with Phase 14 |
 
 ## 11. Sync, Offline & Data
 
@@ -178,9 +178,9 @@
 
 | Feature | Existing App | macOS | Status | Notes |
 | --- | --- | --- | --- | --- |
-| Dark/light theme colors | iOS-system palette (see ThemeContext) | System materials + equivalent palette | NOT STARTED | |
+| Dark/light theme colors | iOS-system palette (see ThemeContext) | System materials + equivalent palette | COMPLETE | The semantic palette is gone in favour of native system colours and materials, and the user's override is applied at the scene root via `.preferredColorScheme` (Phase 13). Both windows follow it |
 | Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | IN PROGRESS | ⌘N, ⌘⇧N, ⌘F (Edit > Find…), ⌘R (Data > Sync Now), ⌘, wired (Phase 4). Phase 7 added ⌫ delete on the transaction selection, Return/double-click to edit, and Return/Escape in the editor sheet. Phase 8 added ⌫ delete on the budget selection, double-click to drill into a budget, and Return/Escape in the budget editor. Phase 9 added ⌫ delete on the goal selection and Return/Escape in the goal editor |
-| Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | NOT STARTED | |
+| Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | NOT STARTED | Still unimplemented rather than consciously dropped: macOS does not need it for a desktop window |
 | CSV/JSON export | **Not implemented** (README claims it; no code found) | Planned as macOS-only enhancement (Phase 15) | NOT STARTED | Documented to avoid false parity claims |
 | ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |
 | Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | COMPLETE | `utils/validators.ts`. Transaction (Phase 7), budget (Phase 8) and goal (Phase 9) validators are all ported with the source's messages and field order (`Support/Validators.swift`) |

@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
+    @Environment(AppearanceStore.self) private var appearance
 
     var body: some View {
         @Bindable var appState = appState
@@ -33,8 +34,12 @@ struct RootView: View {
                 AuthGateView()
             }
         }
+        // The RN app's `app_theme` override, applied at the scene root so every
+        // window (and the status bar) follows it. `nil` = follow the system.
+        .preferredColorScheme(appearance.preference.colorScheme)
         .task {
             prepareDatabase()
+            appState.refreshLastSync(userId: sessionStore.userId)
         }
     }
 

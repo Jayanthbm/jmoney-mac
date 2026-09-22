@@ -1,9 +1,9 @@
 # Jmoney macOS — Data Architecture
 
 > Populated after analyzing the React Native application's database, offline-first behavior,
-> synchronization, and Supabase integration. Last updated: 2026-09-21 (Phase 12 management
-> entities implemented: categories, payees, groups and quick transactions, with their write paths
-> and prioritisation, unit tested).
+> synchronization, and Supabase integration. Last updated: 2026-09-22 (Phase 13 settings: the
+> `resetAppData` port and the settings preference keys; the analysis was also re-verified against
+> the source in this session — see §8).
 
 ## Status
 
@@ -189,7 +189,21 @@ Entity-specific push details (verified in source):
   `@initial_payees_sync_checked_`, `reports_view_mode`. It does **not** clear
   `@last_sync_quick_transactions_`, `@last_sync_transaction_groups_`, `@last_sync_groups_`, or any
   per-user view-mode keys (`@category_view_mode_`, `@payee_view_mode_`, `@group_view_mode_`,
-  `@quick_transaction_view_mode_`).
+  `@quick_transaction_view_mode_`). `SettingsService.resetStorageKeys` is that exact list, and
+  `SettingsServiceTests` asserts both the list and the survivors so neither drift silently.
+  Two behaviour notes for the port: the key sweep is the *only* thing reset does to settings, so
+  `app_theme` and `use_biometrics` survive a reset (as in the source) — the appearance store is
+  re-read afterwards for that reason; and the source clears `notification_pref` **without**
+  cancelling the scheduled OS reminder, so a reset app would still deliver reminders while the row
+  reads "Off". macOS cancels the pending reminder here — the one deliberate addition to the reset
+  path (`SettingsViewModel.resetData`).
+- **Settings preference keys** (`app_theme`, `use_biometrics`, `notification_pref`) are device
+  preferences, not synced data: no sync module reads or writes them, and Supabase has no
+  counterpart. `notification_pref` is the one with a subtlety — the source *removes* the key when
+  the choice is `None` (`scheduleReminder` calls `removeItem`), so "no reminder" and "never
+  configured" share a single stored state. `ReminderPreference` reproduces that, and also the
+  scheduler's default branch: only `Evening`, `Night` and an `HH:mm` value set the hour, so an
+  unrecognized value silently lands on 9:00.
 - **`is_living_cost` is local-only**: the category push strips it and the pull insert omits it, so
   the flag **resets to `0` after every full pull** — the Living Costs report silently loses its
   selection after sync. Replicate for parity, but flag to the user as a candidate fix.
@@ -285,7 +299,7 @@ Service ──write (sync_status=1)──▶ SQLite           │
   `categories.app_icon` or `transactions.category_app_icon`: those columns carry Material names that
   the sync layer exchanges verbatim with Supabase.
 
-## 8. Verification Record (second agent, 2026-09-20)
+## 8. Verification Record (second agent, 2026-09-20; re-verified 2026-09-22)
 
 The Phase 1 analysis was independently re-verified by reading the actual RN source (not the docs):
 all 7 sync modules, all 8 query modules, `database.ts`, `dashboardService`, `transactionService`,
@@ -304,3 +318,22 @@ Additions found during re-verification are folded into §2–§4 above: the UTC-
 pipeline, budget push normalization/skip rules, quick-transaction pull deviation, `is_living_cost`
 being local-only (resets on pull), priority auto-assignment, the group last-sync key mismatch, and
 the exact reset-data key list.
+
+### Third pass (2026-09-22, the Phase 13 agent)
+
+Re-read directly from source: `app/(tabs)/settings/index.tsx`, `src/hooks/useAppSettings.ts`,
+`src/hooks/useBiometrics.ts`, `src/services/notificationService.ts`, `src/db/queries.ts`
+(`resetAppData`), `src/store/ThemeContext.tsx`, `src/store/AuthContext.tsx`, plus spot-checks of
+`src/db/database.ts` (every `CREATE TABLE`, `ALTER TABLE` and `CREATE INDEX`) and the sync claims
+in §3.2–§3.4. **Verdict: the documentation is accurate.** The reset key list, the six-table wipe
+and its omission of `quick_transactions`, the `is_living_cost` strip, the `Monthly`→`Month` budget
+normalization, the `@last_sync_groups_` vs `@last_sync_transaction_groups_` mismatch, the
+quick-transactions born-dirty `DEFAULT 1`, and all 11 indexes (including the composite column order)
+match the code exactly.
+
+One wording correction was made. `AI_BUILD_PROGRESS.md`'s Phase 13 brief described the theme as
+storing `light`/`dark`/`system`; the source only ever **stores** `"light"` or `"dark"`. `system` is
+the behavior of an **absent** key (`ThemeContext` falls back to `Appearance.getColorScheme()`), and
+the settings screen offers no way back to it. `MACOS_FEATURE_MATRIX.md` §10 already said this
+correctly; the brief was corrected to match, and `AppearancePreference` models `System` as the
+absent state.

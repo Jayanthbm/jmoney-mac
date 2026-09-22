@@ -1,26 +1,15 @@
 import SwiftUI
 
-/// The ⌘, Settings window. Phase 13 fills in appearance, reminders, app lock,
-/// data management, sync, and account rows.
+/// The ⌘, Settings window.
+///
+/// macOS convention is a dedicated settings window; the source app only has a tab,
+/// so both exist here and show the same `SettingsView`.
 struct SettingsSceneView: View {
-    @Environment(SessionStore.self) private var sessionStore
+    @Environment(AppearanceStore.self) private var appearance
 
     var body: some View {
-        Form {
-            Section("Account") {
-                LabeledContent(
-                    "Signed in as",
-                    value: sessionStore.userEmail ?? "Signed out"
-                )
-            }
-            Section("General") {
-                LabeledContent("Version", value: "0.1.0")
-                Text("Full settings arrive with the data and sync layers.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .formStyle(.grouped)
-        .frame(width: 440)
+        SettingsView()
+            .frame(width: 480, height: 620)
+            .preferredColorScheme(appearance.preference.colorScheme)
     }
 }

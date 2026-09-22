@@ -133,6 +133,13 @@ final class AppState {
         AppFormat.relativeTime(lastSyncDate)
     }
 
+    /// Re-reads the persisted full-sync timestamp (`@last_sync_master_<userId>`, the
+    /// key the source writes at the end of `runFullSync`). Phase 14's sync engine
+    /// writes it; until then the status bar stays honest and reports "Never".
+    func refreshLastSync(userId: String?) {
+        lastSyncDate = SyncPreference.lastFullSync(userId: userId)
+    }
+
     func requestSync() {
         // The sync engine (GRDB + Supabase) arrives with the data layer.
         statusMessage = "Sync isn't connected yet."

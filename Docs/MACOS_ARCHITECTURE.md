@@ -1,7 +1,7 @@
 # Jmoney macOS — Architecture
 
 > Populated after analyzing the React Native application's architecture and business behavior.
-> Last updated: 2026-09-21 (Phase 12 categories, payees, groups and quick transactions implemented).
+> Last updated: 2026-09-22 (Phase 13 settings implemented; analysis re-verified against the source).
 
 ## Status
 
@@ -22,8 +22,10 @@ day selection, the day's net, and the day's transaction list, plus two shared ex
 (`TransactionBounds`, `MonthYearPicker`). **Management entities implemented (Phase 12)**: the four
 screens (categories, payees, groups, quick transactions) with their search/sort/reorder/view-mode
 controls and editors, the prioritisation writes, the shared Material→SF Symbol icon table, and the
-real quick-transaction picker + editor prefill — all unit tested (421 tests green).
-Next: Phase 13 (Settings).
+real quick-transaction picker + editor prefill — all unit tested. **Settings implemented (Phase 13)**:
+appearance override, daily reminders, Touch ID app lock, manage-data links, the sync row, the
+reset-data port with its quirk, and the account/sign-out rows — all unit tested (483 tests green).
+Next: Phase 14 (Authentication / Sync).
 
 ---
 
@@ -103,7 +105,9 @@ Jmoney/
 │   │                              #   with warning hard delete  [Phase 12 ✓]
 │   ├── QuickTransactions/         # Card/list, search, reorder, add/edit editor, and the real
 │   │                              #   ⌘⇧N picker that prefills the transaction editor  [Phase 12 ✓]
-│   └── Settings/                  # Pane + ⌘, scene views   [Phase 13]
+│   └── Settings/                  # Shared settings form (both the sidebar pane and the ⌘,
+│                                  #   window host it), view model, reminder-chooser sheet,
+│                                  #   settings rows  [Phase 13 ✓]
 ├── Services/
 │   ├── DatabaseService.swift      # GRDB WAL pool + v1 migration (exact RN schema)  [Phase 5 ✓]
 │   ├── SyncService.swift          # Full sync coordinator (mirror of syncService.ts)   [Phase 14]
@@ -129,11 +133,17 @@ Jmoney/
 │   ├── GroupService.swift         # List/filter/sort, upsert, hard delete, priorities  [Phase 12 ✓]
 │   ├── QuickTransactionService.swift  # Templates: list/filter, upsert, soft delete, priorities,
 │   │                              #   identifier rules  [Phase 12 ✓]
-│   ├── NotificationService.swift  # Daily reminders   [Phase 13]
-│   └── LocationService.swift      # GPS tagging   [Phase 7]
+│   ├── NotificationService.swift  # Daily reminder scheduling (UserNotifications)  [Phase 13 ✓]
+│   ├── BiometricService.swift     # LAContext capability + prompt (the rules are the pure
+│   │                              #   `BiometricGate`)  [Phase 13 ✓]
+│   ├── SettingsService.swift      # Reset Data (the six-table wipe) + the preference teardown
+│   │                              #   (mirror of `resetAppData` + the hook's key list)  [Phase 13 ✓]
+│   └── LocationService.swift      # GPS tagging   [Phase 7 — still outstanding]
 ├── Models/                        # 7 DTOs, column names identical to the RN schema  [Phase 5 ✓]
 ├── Stores/
-│   └── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
+│   ├── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
+│   └── AppearanceStore.swift      # @Observable appearance override, shared by both scenes
+│                                  #   so ⌘, and the sidebar agree  [Phase 13 ✓]
 ├── Support/
 │   ├── Formatters.swift           # ₹/en-IN currency, English date patterns, transaction timestamp
 │   │                              #   display, budget period labels  [Phase 6 ✓, Phase 7 ✓, Phase 8 ✓]
@@ -147,9 +157,15 @@ Jmoney/
 │   │                              #   fallbacks (transaction/report/config/category)  [Phase 12 ✓]
 │   ├── EntityOrdering.swift       # Shared search + name/priority sort + reorder renumbering
 │   │                              #   (categories + payees + groups + quick transactions)  [Phase 12 ✓]
-│   └── ViewModePreference.swift   # Per-screen list/grid + card/list preference, keyed exactly
-│                                  #   like the source's AsyncStorage keys  [Phase 12 ✓]
-JmoneyTests/                       # 421 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+│   ├── ViewModePreference.swift   # Per-screen list/grid + card/list preference, keyed exactly
+│   │                              #   like the source's AsyncStorage keys  [Phase 12 ✓]
+│   ├── AppearancePreference.swift # `app_theme` port (System = the source's absent key)  [Phase 13 ✓]
+│   ├── ReminderPreference.swift   # `notification_pref` port: storage, display, the 9:00
+│   │                              #   fall-through default  [Phase 13 ✓]
+│   ├── BiometricPreference.swift  # `use_biometrics` key + the pure enable/disable gate  [Phase 13 ✓]
+│   └── SyncPreference.swift       # `@last_sync_master_<user>` read/write for the sync row
+│                                  #   and the status bar  [Phase 13 ✓]
+JmoneyTests/                       # 483 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
@@ -160,8 +176,10 @@ JmoneyTests/                       # 421 tests: schema/defaults/indexes, record 
                                    #   rules/bounds, calendar SQL & render smoke, management
                                    #   search/sort/reorder + icon mapping + view-mode preference,
                                    #   category/payee/group/template SQL & write paths,
-                                   #   quick-transaction prefill quirks, management render smoke
-                                   #   [Phase 5–12 ✓]
+                                   #   quick-transaction prefill quirks, management render smoke,
+                                   #   appearance/reminder/biometric/sync preference rules,
+                                   #   reset-data scope + key list + rollback, settings toggle
+                                   #   flows, settings render smoke   [Phase 5–13 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -179,11 +197,17 @@ JmoneyTests/                       # 421 tests: schema/defaults/indexes, record 
 | Header "Synced Xm ago" subtitle | Toolbar subtitle / status area |
 | Toasts | Transient status feedback (toolbar/sheet banners); errors as alerts |
 | Reorder arrows | Drag-and-drop reordering |
-| Biometric lock overlay | Secure field + LAContext on window activation |
+| Biometric lock overlay | Secure field + LAContext on window activation (template stored; the overlay itself is Phase 14) |
 | Report grid/list toggle | Toolbar view style toggle |
 | Vertical scroll of dashboard cards | Two-column adaptive `Grid` (net worth spans both columns) |
 | Quarter-segment border "circular progress" | Real stroked progress ring (`Circle().trim`) |
 | Collapsible search + filter panel | `.searchable` toolbar field plus toolbar filter buttons |
+| Settings tab | Settings *section* in the sidebar **and** a real ⌘, Settings window, both hosting the same form |
+| Theme switch (Light/Dark buttons) | Three-way System/Light/Dark segmented picker at the scene root |
+| Reminder bottom sheet (radio rows) | Sheet with the same five rows; the custom row expands an inline time field instead of swapping the sheet for a spinner |
+| Manage-data rows that `router.push` | Rows that select the matching sidebar section |
+| Confirmation bottom sheets (sign out, reset) | Native `.alert` confirmation dialogs |
+| In-app toggle (biometrics) | Native `Toggle`; a refused capability test leaves it off and explains why |
 | Filter bottom sheets | Popovers anchored to the toolbar buttons |
 | Icon-tile multi-select grid | Checkbox list with a search field |
 | Swipe-to-edit / swipe-to-delete | Context menu, `⌫` on the selection, double-click to edit |
@@ -225,11 +249,23 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
 
 ## 8. Open Items
 
-- None blocking Phase 6. Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
+- None blocking Phase 14. Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
 - Shell notes: ⌘F is owned by Edit > Find… (no TextEditingCommands are included, so there is no
   conflict); Find currently presents the search field on the Transactions view only. ⌘R lives in a
   custom Data menu and reports "not connected" until the sync engine exists. The auth gate uses a
   mock session; sign-out is added with real auth (Phase 14).
+- Settings notes: the sidebar pane and the ⌘, window render one shared `SettingsView`, so the RN
+  settings *tab* and the Mac-conventional settings window cannot drift apart; both scenes therefore
+  receive the same four environment objects (app state, session, database, appearance).
+  `AppearanceStore` sits above both scenes because the override has to reach `.preferredColorScheme`
+  at the root — including the Settings scene itself. The capability calls are injected into
+  `SettingsViewModel`, which is what makes the biometric and reminder flows unit-testable without
+  Touch ID hardware or a notification centre; the *rules* are pure (`BiometricGate`,
+  `ReminderPreference`) and the framework wrappers (`BiometricService`, `NotificationService`) are
+  thin. `SettingsService.resetLocalData` deliberately does **not** open its own transaction: GRDB
+  refuses to nest one inside `DatabasePool.write`, so the caller's write is the transaction the
+  source's explicit `BEGIN`/`COMMIT` amounts to. Outstanding from Phase 7: location tagging.
+  `Services/LocationService.swift` still does not exist.
 - Data-layer notes: `DatabaseService` is `@Observable` and injected via `.environment`; the pool
   opens + migrates in `prepare()` (idempotent) called from `RootView.task`, mirroring the RN boot
   order (`initDB()` before navigation). Status bar reports "Local database ready."/failure. Tests
