@@ -13,9 +13,8 @@ import SwiftUI
 /// through the same path. The period popover is the shared `MonthYearPicker`,
 /// which the reports and calendar screens use too.
 ///
-/// The RN header's manual sync button is not reproduced: there is no sync engine
-/// until Phase 14. The first-open auto-sync guard is kept as a pure predicate on
-/// `BudgetsViewModel` for that phase to call.
+/// Phase 14 wires the RN header's manual sync button (the toolbar's sync item)
+/// and the first-open auto-sync guard, whose pure predicate now gets called.
 struct BudgetsView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var sessionStore
@@ -55,6 +54,7 @@ struct BudgetsView: View {
         .task {
             await viewModel.loadLookups(pool: database.pool, userId: sessionStore.userId)
             await reload()
+            await runInitialSyncIfNeeded()
         }
         .sheet(item: $editorTarget) { target in
             BudgetEditorView(target: target) { budget in
@@ -169,6 +169,8 @@ struct BudgetsView: View {
             if selection == budget.id { selection = nil }
             appState.markDataChanged()
             appState.statusMessage = "Budget deleted."
+            // The RN delete modal also fires `handleBudgetSync` fire-and-forget.
+            appState.requestEntitySync(.budgets)
         }
     }
 
@@ -223,7 +225,13 @@ struct BudgetsView: View {
             sortMenu
         }
 
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ManagementSyncButton(
+                entity: .budgets,
+                action: { appState.requestEntitySync(.budgets) },
+                isSyncing: appState.isSyncing
+            )
+
             Button {
                 editorTarget = .new
             } label: {
@@ -285,5 +293,27 @@ struct BudgetsView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// The budgets screen's first-open auto-sync: the RN screen's `loadData` runs
+    /// `handleBudgetSync` when the list is empty or the last-sync value is not a
+    /// timestamp, gated by the `@initial_budget_sync_checked_` flag. The condition
+    /// is `BudgetsViewModel.shouldRunInitialSync` (== `InitialSyncGuard`); the flag
+    /// write happens in `RootView.finish` after the sync completes.
+    private func runInitialSyncIfNeeded() async {
+        guard sessionStore.userId != nil, !appState.isSyncing else { return }
+        let userId = sessionStore.userId!
+        guard
+            BudgetsViewModel.shouldRunInitialSync(
+                budgetCount: viewModel.budgets.count,
+                lastSyncTimestamp: SyncPreference.lastSyncTimestamp(
+                    entity: .budgets, userId: userId
+                ),
+                alreadyChecked: SyncPreference.initialSyncChecked(
+                    entity: .budgets, userId: userId
+                )
+            )
+        else { return }
+        appState.requestEntitySync(.budgets)
     }
 }

@@ -133,6 +133,8 @@ struct GoalEditorView: View {
             appState.markDataChanged()
             appState.statusMessage =
                 target.goal == nil ? "Goal added successfully." : "Goal updated successfully."
+            // The RN modal's save handler also fires `handleGoalSync` fire-and-forget.
+            appState.requestEntitySync(.goals)
             dismiss()
         }
     }

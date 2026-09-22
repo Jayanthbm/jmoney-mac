@@ -12,9 +12,8 @@ import SwiftUI
 /// Sort changes are observed rather than driven imperatively, so the menu reloads
 /// through the same path the other list phases use.
 ///
-/// The RN header's manual sync button is not reproduced: there is no sync engine
-/// until Phase 14. The first-open auto-sync guard is kept as a pure predicate on
-/// `GoalsViewModel` for that phase to call.
+/// Phase 14 wires the RN header's manual sync button and the first-open
+/// auto-sync guard, whose pure predicate now gets called.
 struct GoalsView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var sessionStore
@@ -43,7 +42,10 @@ struct GoalsView: View {
         .onChange(of: viewModel.sortKey) { _, _ in Task { await reload() } }
         .onChange(of: viewModel.ascending) { _, _ in Task { await reload() } }
         .onChange(of: appState.dataRevision) { _, _ in Task { await reload() } }
-        .task { await reload() }
+        .task {
+            await reload()
+            await runInitialSyncIfNeeded()
+        }
         .sheet(item: $editorTarget) { target in
             GoalEditorView(target: target) { goal in
                 // The RN sheet asks its parent to confirm, and the parent closes the
@@ -127,6 +129,8 @@ struct GoalsView: View {
             if selection == goal.id { selection = nil }
             appState.markDataChanged()
             appState.statusMessage = "Goal deleted."
+            // The RN delete modal also fires `handleGoalSync` fire-and-forget.
+            appState.requestEntitySync(.goals)
         }
     }
 
@@ -138,7 +142,13 @@ struct GoalsView: View {
             sortMenu
         }
 
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ManagementSyncButton(
+                entity: .goals,
+                action: { appState.requestEntitySync(.goals) },
+                isSyncing: appState.isSyncing
+            )
+
             Button {
                 editorTarget = .new
             } label: {
@@ -200,5 +210,25 @@ struct GoalsView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// The goals screen's first-open auto-sync (the budgets guard's twin): run
+    /// `handleGoalSync` when the list is empty or the last-sync value is not a
+    /// timestamp, gated by `@initial_goals_sync_checked_`. The flag write happens
+    /// in `RootView.finish` after the sync completes.
+    private func runInitialSyncIfNeeded() async {
+        guard let userId = sessionStore.userId, !appState.isSyncing else { return }
+        guard
+            GoalsViewModel.shouldRunInitialSync(
+                goalCount: viewModel.goals.count,
+                lastSyncTimestamp: SyncPreference.lastSyncTimestamp(
+                    entity: .goals, userId: userId
+                ),
+                alreadyChecked: SyncPreference.initialSyncChecked(
+                    entity: .goals, userId: userId
+                )
+            )
+        else { return }
+        appState.requestEntitySync(.goals)
     }
 }

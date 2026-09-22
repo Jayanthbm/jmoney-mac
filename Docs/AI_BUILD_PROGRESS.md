@@ -156,7 +156,7 @@ Design notes for the next agent:
 | 11    | Calendar                            | COMPLETE    |
 | 12    | Categories / Payees / Groups / Quick Transactions | COMPLETE |
 | 13    | Settings                            | COMPLETE    |
-| 14    | Authentication / Sync               | NOT STARTED |
+| 14    | Authentication / Sync               | COMPLETE    |
 | 15    | Import / Export                     | NOT STARTED |
 | 16    | macOS commands / keyboard shortcuts | NOT STARTED |
 | 17    | Accessibility / performance         | NOT STARTED |
@@ -167,53 +167,39 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 14 — Authentication / Sync
+**Phase:** 15 — Import / Export
 
-Phases 0–13 are complete, built, and tested (483 tests green — see the Progress Log).
+Phases 0–14 are complete, built, and tested (574 tests green — see the Progress Log).
 
-## Phase 14 brief — Authentication / Sync
+## Phase 15 brief — Import / Export (macOS-original feature)
 
-This is the biggest remaining phase. It replaces two mocks and activates every piece the earlier
-phases deliberately left dormant:
+The React Native app has **no import or export feature** (the Phase 1 analysis verified the README
+claims are untrue — no code exists). Phase 15 is therefore a deliberate, documented macOS addition,
+not parity work. Keep it that way in the feature matrix: §12 records CSV/JSON export as a planned
+macOS-only enhancement.
 
-1. **Real auth.** `Stores/SessionStore.swift` is a mock (`signInPlaceholder` +
-   `placeholderUserId`). Replace its internals with `supabase-swift` and Keychain-backed session
-   storage, **keeping its public surface** (`isAuthenticated` / `userEmail` / `userId` / `signOut`) so
-   the shell and every per-user query keep working. `Features/Auth/AuthGateView.swift` is the login
-   UI to wire up. Source: `src/store/AuthContext.tsx` — note the 7 s session timeout that forces
-   `loading = false`, and that sign-out keeps local data.
-2. **Credentials.** The RN app hardcodes the URL and anon key in `src/services/supabase.ts`. Do
-   **not** copy them into source (master prompt §15): inject them from build configuration
-   (`.xcconfig` + Info.plist) as `DATA_ARCHITECTURE.md` §3.5 requires.
-3. **The sync engine.** `Services/SyncService.swift` + `Services/Sync/` do not exist yet. Port
-   `src/services/syncService.ts` (`runFullSync`) and the seven per-entity modules in
-   `src/services/sync/`. The protocol is specified exactly in `DATA_ARCHITECTURE.md` §3 — push
-   `sync_status = 1` (upsert by id; deleted rows push a remote delete then hard-delete locally),
-   full-replace pulls for the six meta entities, `tid`-cursor incremental pulls for transactions in
-   1000-row chunks, force-resync, per-entity last-sync timestamps, and a re-entrancy guard.
-   Preserve the four documented sync quirks (budget interval normalization + empty-category skip,
-   `is_living_cost` stripped on push and omitted on pull, the quick-transactions pull filtering
-   `deleted = 0`, the group last-sync key mismatch).
-4. **The pieces waiting for it.** Every `InitialSyncGuard` wrapper
-   (`BudgetsViewModel.shouldRunInitialSync`, `GoalsViewModel.shouldRunInitialSync`) calls its pure
-   predicate; every write since Phase 7 has been setting `sync_status = 1`; `SyncPreference` already
-   reads and writes `@last_sync_master_<userId>`; `AppState.requestSync()` is the honest
-   "Sync isn't connected yet." stub to replace; and `AppState.lastSyncDate` / the status bar light up
-   as soon as a sync completes.
-5. **Deferred UI to restore once the engine exists.** The transaction row's "not yet uploaded"
-   cloud badge (Phase 7), the manual sync buttons in the budgets/goals headers (Phases 8–9), the
-   first-launch sync modal (`DashboardSyncModal`), and the dashboard's `needsTransactionSync`
-   (local max `tid` < remote max `tid`) focus check.
-6. **Also in scope:** the biometric app-lock *overlay* (`src/components/BiometricLock.tsx`) —
-   Phase 13 built the preference, the gate and the enable prompt, but nothing locks the window yet.
-   `BiometricPreference.isEnabled(in:)` is the flag to gate on; `BiometricService.authenticate` is
-   the prompt.
-7. **Connectivity** is `NWPathMonitor`, replacing NetInfo
-   (`isConnected && isInternetReachable`).
+Suggested scope (choose what best serves a Mac finance app; do not wait for approval on details):
 
-Still outstanding from Phase 7 (independent of Phase 14): **location tagging** on create plus the
-location edit sheet, and `Services/LocationService.swift` does not exist yet. The editor currently
-shows saved coordinates read-only and preserves them on save.
+1. **CSV export** of the filtered transaction list (`TransactionService.list` already produces the
+   rows; the denormalized name columns make CSVs human-readable). Follow the macOS convention:
+   `NSSavePanel` from File > Export… (⌘E is free), column headers matching the RN schema names.
+2. Optionally: budgets/goals/categories as CSV, and a JSON **backup** of all user rows (the seven
+   synced tables) with the schema version recorded.
+3. **Import** is the riskier half: prefer a clearly-scoped CSV transaction import that maps
+   category/payee by *name*, creates nothing silently, and reports every skipped row — the local
+   schema's sentinel values (`'null'` ids, `''` names) and `sync_status = 1` on insert (born-dirty,
+   so the next sync uploads imported rows) must be respected. `Validators` covers the amount and
+   description bounds.
+4. Tests: round-trip export → import, the born-dirty rule, sentinel preservation, and the
+   validators' re-use.
+
+Also carry into the phase (or a follow-up): **location tagging** — the one remaining Phase 7 item.
+`Services/LocationService.swift` still does not exist; the editor shows saved coordinates
+read-only and preserves them on save. Create-time capture plus the location edit sheet closes it.
+
+After Phase 15 the remaining phases are 16 (commands/shortcuts audit), 17 (accessibility &
+performance), 18 (feature-parity audit — flip verified matrix rows to MACOS EQUIVALENT) and 19
+(release preparation).
 
 ---
 
@@ -1005,6 +991,101 @@ the behavior of an **absent** key. `MACOS_FEATURE_MATRIX.md` §10 already stated
 * **`app_theme` and `use_biometrics` survive a reset**, because the source's key sweep does not name
   them. Preserved and asserted in tests; `AppearanceStore` is re-read after a reset for that reason.
 
+## Phase 14 — Authentication / Sync
+
+**Status:** COMPLETE (2026-09-22)
+
+### What was done (by the agent that started this session's work, found uncommitted)
+
+The phase was implemented in a prior session and left uncommitted in the working tree. This session
+verified it against the RN source, completed the remaining items, and committed everything.
+
+**Found in the tree (verified, not rewritten):**
+
+* `Support/SupabaseConfig.swift` + `Jmoney.xcconfig` — credentials resolve from build configuration
+  (xcconfig → Info.plist → runtime), never source (§15). The committed xcconfig is an **empty
+  template** (with the `https:/$()/host` escaping note); an unconfigured build is a supported state:
+  `CloudServices` swaps in honest stubs, the gate says sign-in is unavailable, and sync attempts
+  report the configuration reason instead of pretending.
+* `Support/KeychainStore.swift` + the Keychain session storage — real sessions, `autoRefreshToken`,
+  `emitLocalSessionAsInitialSession` for the local-first restore.
+* `Stores/SessionStore.swift` — replaced the mock, public surface unchanged; ports the 7-second
+  restore timeout (a task-group race) and keeps sign-out data-preserving.
+* `Services/Auth/` (`AuthProviding` + `SupabaseAuthService`), `Services/CloudServices.swift`,
+  `Services/ConnectivityMonitor.swift` (NWPathMonitor behind `ConnectivityProviding`),
+  `Support/JSONValue.swift`.
+* `Services/SyncService.swift` + `Services/Sync/` — the full engine: `runFullSync` (push-all,
+  seven ordered pulls, the source's progress strings, the `isSyncing` guard, master timestamp only
+  on success), `syncTransactions(isPartial:)` with the push-before-wipe force resync,
+  `needsTransactionSync`, and one module per entity. Every documented quirk preserved and tested.
+* `Support/SyncPolicy.swift` — the screens' sync predicates as pure functions.
+* Wiring: `RootView` is the sync runner (`syncRequestID`/`transactionSyncRequest`/
+  `entitySyncRequest`), the dashboard runs the focus check (`needsTransactionSync` + the auto-sync
+  gate; the documented `isPartial` deviation noted on the method), the transactions toolbar sync
+  button, Settings' Sync Now row, and the transaction row's "not yet uploaded" cloud badge.
+* Tests: `SyncFoundationTests` (20) and `SyncEngineTests` (43) — the protocol quirks asserted
+  end-to-end against a fake backend.
+
+### What this session verified and added
+
+* **Verification pass (fourth)** — re-read `syncService.ts`, all seven sync modules, `baseSync.ts`,
+  `AuthContext.tsx`, `useBiometrics.ts`, `BiometricLock.tsx`, `_layout.tsx`'s lock lifecycle, and
+  the sync call sites of every screen. **Verdict: the engine, auth and quirks match the source**;
+  findings folded into `DATA_ARCHITECTURE.md` §8 (the `performGroupSync` service-key stamp, the six
+  manual sync buttons, the timestamp-only guards, the reorder-exit pushes, the post-write syncs,
+  the lock's password-fallback prompt).
+* **App-lock overlay** (`Features/Auth/AppLockView.swift`) — `RootView` covers the whole window
+  when `AppState.isLocked`, set at launch and on every `didBecomeActive` when
+  `BiometricPreference.isEnabled` (the `'true'`-string test). Auto-prompts on mount; the error box
+  and "Unlock App" retry mirror `BiometricLock.tsx`. The lock prompt is `.deviceOwnerAuthentication`
+  (the source passes `disableDeviceFallback: false`), while the Settings enable flow stays
+  biometrics-only — the two different calls preserved.
+* **Manual sync buttons on all six management screens** — `Support/ManagementSyncButton.swift`
+  (spinner while syncing, the RN headers' refresh behaviour); per-entity success strings in the
+  status bar match the RN toasts ("Budgets synced successfully.").
+* **First-open guards wired**: budgets/goals call their `shouldRunInitialSync` predicates
+  (`@initial_*_sync_checked_` written after completion, as `handleBudgetSync`/`handleGoalSync` do);
+  categories/payees/groups/quick-transactions use the timestamp-only
+  `SyncPolicy.needsTimestampOnlySync`. Groups re-fires every open — the source's key-mismatch
+  quirk — and converges only because the port re-stamps the groupService key after a groups sync
+  (`SyncPreference.groupServiceLastSyncKey`), exactly as `performGroupSync` does.
+* **Reorder-exit pushes**: exiting reorder mode on categories/payees/groups/quick-transactions
+  fires `AppState.requestEntityPush` → `SyncService.pushEntity` (push-only, no pull, no flags;
+  the per-entity key re-stamped by the runner) — the `backgroundPush…` functions.
+* **Post-write syncs**: goals/budgets editors and delete confirmations request their entity sync;
+  transaction save/delete requests a partial transaction sync — the RN handlers' fire-and-forget
+  calls.
+* Tests, 15 new (574 total): `Phase14CompletionTests` — the push-only path (dirty-only push,
+  clean marking, no pull/no stamp, offline short-circuit, failure leaves rows dirty, the
+  re-entrancy guard via a re-entrant backend), the timestamp-only guard, the lock flag and the
+  `'true'`-string preference test, the sync button's syncing state and labels, and the request
+  plumbing (key carrying, counter bumping, nil-user rejection).
+* `xcodegen generate` (two new files); `project.yml` unchanged since the prior session's Supabase
+  package addition.
+
+### Verification
+
+* `xcodebuild … build` → `BUILD SUCCEEDED`, no compile warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (574 tests, 0 failures).
+* Launch smoke test: the built app ran for 5 s and quit cleanly.
+
+### Issues / deviations
+
+* **The groups screen syncs on every open** (source parity): its guard reads `@last_sync_groups_`,
+  which the pull never writes. The port preserves this and makes it converge the same way the
+  source does — the post-sync stamp of the service key. Tested via the key-shape assertion.
+* **The dashboard's automatic transaction sync is partial, not force** — the source's
+  `syncTransactions(userId, manual)` argument swap would re-download the entire ledger on every
+  dashboard focus; the deviation is documented on the call site and was already recorded in
+  `DATA_ARCHITECTURE.md` §8.
+* **The first-launch sync modal is not reproduced** — the RN `DashboardSyncModal` blocks the screen
+  for a background concern; the macOS status bar carries the same progress strings.
+* **The lock's window coverage is an overlay, not a route swap** — the RN app swaps the whole nav
+  tree for `BiometricLock`; a Mac window keeps its hierarchy and covers it, which also means the
+  unlock does not re-trigger the boot sequence.
+* The lock auto-prompt cannot run in unit tests (real Touch ID); the state machine and the
+  preference test are covered instead.
+
 ---
 
 # Decision Log
@@ -1088,6 +1169,17 @@ the behavior of an **absent** key. `MACOS_FEATURE_MATRIX.md` §10 already stated
 | 2026-09-22 | Reset additionally cancels the pending OS reminder | The source clears `notification_pref` without cancelling the scheduled notification, leaving an app that reads "Off" while still notifying. The phase's one deliberate addition to the reset path | Phase 13 |
 | 2026-09-22 | The reset confirmation states that templates survive | The source is silent about the `quick_transactions` omission; the master prompt forbids hiding functionality, so the consequence is made visible rather than "fixed" silently | Phase 13 |
 | 2026-09-22 | The haptics row is disabled with an explanation rather than removed | Records the MACOS EQUIVALENT decision in the UI itself, instead of leaving users to wonder where the setting went | Phase 13 |
+| 2026-09-22 | Credentials via `Jmoney.xcconfig` (committed as an empty template) → Info.plist → `SupabaseConfig` | Master prompt §15 forbids secrets in source; an unconfigured build stays buildable and runs local-only with honest stubs | Phase 14 |
+| 2026-09-22 | An unconfigured build is a supported state, not an error | The app must build and run in a fresh checkout; cloud features explain why they are unavailable rather than failing cryptically | Phase 14 |
+| 2026-09-22 | `SessionStore` keeps its public surface; only the internals swap to supabase-swift + Keychain | The shell, every per-user query, the status bar and Settings read it; the mock-to-real swap must be invisible to them | Phase 14 |
+| 2026-09-22 | `emitLocalSessionAsInitialSession` on the Supabase client | The source's `getSession()` is local-first; the 7-second restore guard should not be spent on a refresh round-trip | Phase 14 |
+| 2026-09-22 | Sync requests ride `AppState` counters; `RootView` owns the runner | Any view or command can request a sync without holding services; one place serializes the outcomes into the status bar | Phase 14 |
+| 2026-09-22 | The dashboard's automatic transaction sync is partial, not force | The source's `manual` argument lands in the `isPartial` slot, making its auto-path a full wipe-and-redownload; almost certainly a bug, documented as a deviation | Phase 14 |
+| 2026-09-22 | The first-launch sync modal becomes status-bar progress | A modal would block the window for a background concern; the RN progress strings are preserved verbatim | Phase 14 |
+| 2026-09-22 | The lock overlay covers the window; the nav hierarchy stays | A Mac window keeps its state across a lock; the RN route swap would restart the boot sequence on unlock | Phase 14 |
+| 2026-09-22 | The lock allows the OS password fallback; enabling stays biometrics-only | The source passes `disableDeviceFallback: false` for the lock but uses the biometrics-only policy for the enable prompt — two different calls, both preserved | Phase 14 |
+| 2026-09-22 | A groups sync writes both group keys (pull's `-transaction_groups_`, service's `-groups_`) | Preserves the source's key-mismatch quirk *and* its convergence via `performGroupSync`'s extra stamp, without renaming the load-bearing sync-module key | Phase 14 |
+| 2026-09-22 | The reorder-exit push is push-only; the caller re-stamps the last-sync key | The JS `backgroundPush…` functions are fire-and-forget and stamp from the call site; the engine's `pushEntity` must not grow pull/flag side effects | Phase 14 |
 
 ---
 
@@ -1098,18 +1190,23 @@ the behavior of an **absent** key. `MACOS_FEATURE_MATRIX.md` §10 already stated
 * **Decision item raised by Phase 13:** Reset Data keeps `quick_transactions` templates, exactly as
   the source does. The confirmation now says so, but if the desired behavior is to wipe templates
   too, that is a deliberate divergence from the source — see the Phase 13 "Issues / deviations".
-* **Known limitation:** the biometric app lock can be *enabled* but nothing locks yet. The overlay is
-  Phase 14's; until then `BiometricPreference` only records the user's intent.
+* **Decision item raised by Phase 14:** the groups screen syncs on every open (its guard reads a key
+  the pull never writes). Preserved for parity and converged the way the source converges it; if it
+  should sync once, fix the *source's* key mismatch in both apps as a deliberate divergence.
+* **Real-device verification outstanding:** Supabase auth and the sync engine are verified against
+  fakes (574 green tests, protocol asserted end-to-end). A run against a live Supabase project
+  (credentials in `Jmoney.xcconfig`) plus a real Touch ID lock/unlock cycle is the remaining
+  manual check for Phase 18's parity audit.
 
 ---
 
 # Next Agent Instructions
 
-Phases 0–13 are complete and green (483 tests). Start **Phase 14 (Authentication / Sync)** — the
-full brief is in the "Current Phase" section above. It is the largest remaining phase: real
-Supabase auth + Keychain, the sync engine (`Services/SyncService.swift` + `Services/Sync/`), and the
-dormant UI that depends on it. The only Phase 7 item still outstanding is **location tagging**
-(create-time tagging plus the location edit sheet); the quick-transaction presets landed in Phase 12.
+Phases 0–14 are complete and green (574 tests). Start **Phase 15 (Import / Export)** — the brief is
+in the "Current Phase" section above. It is a macOS-original feature (the RN app has none), so the
+feature matrix's §12 row is the parity contract: document it as an addition, not parity. The one
+remaining Phase 7 item is **location tagging** (create-time capture plus the location edit sheet);
+carry it into Phase 15 or a follow-up, and create `Services/LocationService.swift` when you do.
 
 Existing infrastructure (don't redo):
 
@@ -1123,16 +1220,16 @@ Existing infrastructure (don't redo):
   `DatabaseQueue`. Follow it for `TransactionService` and the rest.
 * `AppFormat` (`Support/Formatters.swift`) for currency (₹/en-IN) and English date patterns.
 * `ProgressBarView` / `CircularProgressView` (`Support/ProgressViews.swift`) are reusable.
-* `SessionStore.userId` is the mock user id to scope per-user queries by; `AppState.openReport(_:)`
+* `SessionStore.userId` is the signed-in user's id to scope per-user queries by; `AppState.openReport(_:)`
   + `ReportDestination` handle cross-section links.
 * `TransactionService` is the reference for entity work: `Filters` in, parameterized queries out,
   with a `Draft` → row factory for writes. Its tests show the in-memory `DatabaseQueue` fixture
   pattern — seed with a shared helper through `dbQueue.write`, then assert inside `dbQueue.read`
   (seeding inside a read transaction fails with SQLite error 8).
-* `BudgetService` / `GoalService` are the closest references for the remaining entity phases (the
+* `BudgetService` / `GoalService` are the closest references for the entity services (the
   meta entities): a list query, a per-row enrichment aggregate where needed, a stable sorted
   comparator, and `save`/`softDelete`. Their view models show the observed-sort reload pattern, and
-  `InitialSyncGuard` is where any further first-open sync predicate belongs (Phase 14).
+  `InitialSyncGuard` is where any further first-open sync predicate belongs.
 * Reports (Phase 10) is complete: `ReportService` is the reference for a **read-only aggregate**
   service (pure statics + parameterized queries, one `pool.read` per screen load), and
   `Features/Reports/` shows the config-driven-page pattern. Reuse `ReportService.sorted`'s stable
@@ -1160,16 +1257,20 @@ Existing infrastructure (don't redo):
   touch reset behavior, `SettingsServiceTests` asserts both the list and the keys it must *not*
   clear. `SettingsViewModel` injects its capability calls, so follow that pattern when a flow needs
   hardware.
-* **Phase 14 hook-ups already in place:** `SyncPreference.lastFullSync(userId:)` /
-  `saveLastFullSync(_:userId:)` are the `@last_sync_master_<userId>` accessors;
-  `AppState.refreshLastSync(userId:)` re-reads them (call it after a sync completes);
-  `InitialSyncGuard` + the two `shouldRunInitialSync` wrappers are waiting to be called;
-  `SyncPreference`/`ReminderPreference` both use `UserDefaults` as the AsyncStorage stand-in;
-  and `BiometricPreference.isEnabled(in:)` is the flag for the app-lock overlay that Phase 13 built
-  the enable path for but did not wire up.
+* **Sync/auth (Phase 14) is complete and is the reference for cloud work**: `SyncService` and the
+  `Services/Sync/` modules are the exact protocol ports — do not alter their quirks without
+  recording a deliberate divergence. `AppState.requestSync` / `requestTransactionSync(isPartial:)` /
+  `requestEntitySync(_:)` / `requestEntityPush(_:userId:)` are the four request channels; `RootView`
+  owns the runners and funnels every outcome into the status bar. `CloudFactory.make()` resolves
+  config + services once at launch; an unconfigured build is a supported state with stubs.
+  `Support/SyncPolicy.swift` holds the sync predicates; `SyncPreference` now also carries
+  `now`, the groupService key accessor, and the initial-sync-checked flag helpers.
+* `BiometricPreference.isEnabled(in:)` gates the app lock; `BiometricService.unlock()` (password
+  fallback allowed) is the lock prompt, `BiometricService.authenticate` (biometrics-only) is for
+  the Settings enable flow. `AppLockView` is presented by `RootView`'s overlay — do not re-implement.
 * `TransactionRow` is shared with the dashboard and the budget drill-down; keep new list renderers
   consistent with it.
-* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (483 passing).
+* Tests: `JmoneyTests/` via `xcodebuild … test -destination 'platform=macOS'` (574 passing).
 * Do not re-analyze the RN app from scratch — this file plus the three docs are the analysis record.
 
 ### Phase 1 Commit

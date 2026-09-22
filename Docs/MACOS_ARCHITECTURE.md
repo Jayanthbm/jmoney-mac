@@ -25,7 +25,13 @@ controls and editors, the prioritisation writes, the shared Material→SF Symbol
 real quick-transaction picker + editor prefill — all unit tested. **Settings implemented (Phase 13)**:
 appearance override, daily reminders, Touch ID app lock, manage-data links, the sync row, the
 reset-data port with its quirk, and the account/sign-out rows — all unit tested (483 tests green).
-Next: Phase 14 (Authentication / Sync).
+**Authentication / Sync implemented (Phase 14)**: real Supabase auth with Keychain-backed sessions
+and the 7-second restore guard, the credential-free build-configuration path, the full sync engine
+(`SyncService` + the seven entity modules) with its quirks preserved, per-entity and master
+last-sync timestamps, the management screens' manual sync buttons + first-open guards +
+reorder-exit pushes, the post-save/post-delete syncs, the transaction row's cloud badge, and the
+biometric app-lock overlay — 574 tests green.
+Next: Phase 15 (Import / Export).
 
 ---
 
@@ -80,7 +86,8 @@ Jmoney/
 │   ├── RootView.swift             # Auth gate + split view + sheets + detail routing  [Phase 4 ✓]
 │   └── StatusBarView.swift        # Bottom status bar (sync status, messages)  [Phase 4 ✓]
 ├── Features/
-│   ├── Auth/                      # AuthGateView placeholder (mock session)  [Phase 4 ✓; real auth Phase 14]
+│   ├── Auth/                      # AuthGateView (real sign-in) + AppLockView (the
+│   │                              #   biometric lock overlay)  [Phase 4 ✓, Phase 14 ✓]
 │   ├── Dashboard/                 # DashboardViewModel (@Observable) + widgets: daily limit,
 │   │                              #   remaining, pay day, top categories, month/year summaries,
 │   │                              #   net worth, Today's Activity sheet, shared card container  [Phase 6 ✓]
@@ -110,10 +117,14 @@ Jmoney/
 │                                  #   settings rows  [Phase 13 ✓]
 ├── Services/
 │   ├── DatabaseService.swift      # GRDB WAL pool + v1 migration (exact RN schema)  [Phase 5 ✓]
-│   ├── SyncService.swift          # Full sync coordinator (mirror of syncService.ts)   [Phase 14]
+│   ├── SyncService.swift          # Full sync coordinator (mirror of syncService.ts)  [Phase 14 ✓]
+│   │                              #   + push-only runs and the sync-needed check
 │   ├── Sync/                      # Per-entity push/pull (transactions, budgets, goals,
-│   │                              #   categories, payees, quick transactions, groups)   [Phase 14]
-│   ├── SupabaseService.swift      # Client config, session persistence   [Phase 14]
+│   │                              #   categories, payees, quick transactions, groups)  [Phase 14 ✓]
+│   ├── Auth/                      # AuthProviding + SupabaseAuthService  [Phase 14 ✓]
+│   ├── CloudServices.swift        # Config resolution → SupabaseClient + services;
+│   │                              #   honest stubs on an unconfigured build  [Phase 14 ✓]
+│   ├── ConnectivityMonitor.swift  # NWPathMonitor behind ConnectivityProviding  [Phase 14 ✓]
 │   ├── DashboardService.swift     # Metrics + daily-limit + payday + date-window calculations
 │   │                              #   (pure, testable) and the dashboard queries   [Phase 6 ✓]
 │   ├── TransactionService.swift   # Fetch/filter/sections/stats/lookups + save & soft delete
@@ -141,7 +152,8 @@ Jmoney/
 │   └── LocationService.swift      # GPS tagging   [Phase 7 — still outstanding]
 ├── Models/                        # 7 DTOs, column names identical to the RN schema  [Phase 5 ✓]
 ├── Stores/
-│   ├── SessionStore.swift         # @Observable session (mock now; Supabase+Keychain Phase 14)  [Phase 4 ✓]
+│   ├── SessionStore.swift         # @Observable session: supabase-swift + Keychain, restore
+│   │                              #   behind the source's 7 s guard  [Phase 4 ✓, Phase 14 ✓]
 │   └── AppearanceStore.swift      # @Observable appearance override, shared by both scenes
 │                                  #   so ⌘, and the sidebar agree  [Phase 13 ✓]
 ├── Support/
@@ -163,9 +175,15 @@ Jmoney/
 │   ├── ReminderPreference.swift   # `notification_pref` port: storage, display, the 9:00
 │   │                              #   fall-through default  [Phase 13 ✓]
 │   ├── BiometricPreference.swift  # `use_biometrics` key + the pure enable/disable gate  [Phase 13 ✓]
-│   └── SyncPreference.swift       # `@last_sync_master_<user>` read/write for the sync row
-│                                  #   and the status bar  [Phase 13 ✓]
-JmoneyTests/                       # 483 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+│   ├── SyncPreference.swift       # `@last_sync_master_<user>` read/write for the sync row
+│   │                              #   and the status bar  [Phase 13 ✓]
+│   ├── SyncPolicy.swift           # The screens' "should we sync now?" predicates  [Phase 14 ✓]
+│   ├── KeychainStore.swift        # Keychain read/write used for the session tokens  [Phase 14 ✓]
+│   ├── SupabaseConfig.swift       # Info.plist credential resolution + unconfigured states  [Phase 14 ✓]
+│   ├── JSONValue.swift            # Codable-ish JSON for the sync payloads/records  [Phase 14 ✓]
+│   └── ManagementSyncButton.swift # The six management screens' shared toolbar sync button
+│                                  #   [Phase 14 ✓]
+JmoneyTests/                       # 574 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
@@ -179,7 +197,9 @@ JmoneyTests/                       # 483 tests: schema/defaults/indexes, record 
                                    #   quick-transaction prefill quirks, management render smoke,
                                    #   appearance/reminder/biometric/sync preference rules,
                                    #   reset-data scope + key list + rollback, settings toggle
-                                   #   flows, settings render smoke   [Phase 5–13 ✓]
+                                   #   flows, settings render smoke, session/auth flows, the sync
+                                   #   engine incl. every preserved quirk, sync foundation rules,
+                                   #   push-only runs + lock + guards + button   [Phase 5–14 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -197,7 +217,7 @@ JmoneyTests/                       # 483 tests: schema/defaults/indexes, record 
 | Header "Synced Xm ago" subtitle | Toolbar subtitle / status area |
 | Toasts | Transient status feedback (toolbar/sheet banners); errors as alerts |
 | Reorder arrows | Drag-and-drop reordering |
-| Biometric lock overlay | Secure field + LAContext on window activation (template stored; the overlay itself is Phase 14) |
+| Biometric lock overlay | Window-covering `AppLockView` on launch + `didBecomeActive`; Touch ID with the OS password fallback |
 | Report grid/list toggle | Toolbar view style toggle |
 | Vertical scroll of dashboard cards | Two-column adaptive `Grid` (net worth spans both columns) |
 | Quarter-segment border "circular progress" | Real stroked progress ring (`Circle().trim`) |
@@ -249,11 +269,15 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
 
 ## 8. Open Items
 
-- None blocking Phase 14. Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
-- Shell notes: ⌘F is owned by Edit > Find… (no TextEditingCommands are included, so there is no
-  conflict); Find currently presents the search field on the Transactions view only. ⌘R lives in a
-  custom Data menu and reports "not connected" until the sync engine exists. The auth gate uses a
-  mock session; sign-out is added with real auth (Phase 14).
+- Phase 14 notes: an unconfigured build (empty `Jmoney.xcconfig`) is a supported state — the auth
+  gate explains why sign-in cannot work and sync attempts report the configuration reason rather
+  than pretending to succeed. The lock overlay uses `.deviceOwnerAuthentication` (password fallback
+  allowed), while the Settings enable flow stays biometrics-only, matching the source's two different
+  calls. ⌘R now runs the real full sync.
+- Location tagging (create-time GPS capture plus the location edit sheet) remains the one feature
+  gap; `Services/LocationService.swift` does not exist yet and the editor shows saved coordinates
+  read-only.
+- Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
 - Settings notes: the sidebar pane and the ⌘, window render one shared `SettingsView`, so the RN
   settings *tab* and the Mac-conventional settings window cannot drift apart; both scenes therefore
   receive the same four environment objects (app state, session, database, appearance).

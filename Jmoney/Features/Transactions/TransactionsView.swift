@@ -11,6 +11,7 @@ struct TransactionsView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
+    @Environment(SyncService.self) private var syncService
 
     @State private var viewModel = TransactionsViewModel()
     @State private var searchText = ""
@@ -63,6 +64,7 @@ struct TransactionsView: View {
                 apply(request)
             }
             await reload()
+            await runAutoSyncIfNeeded()
         }
         .task(id: searchText) {
             // The RN hook debounces 300 ms; the guard keeps first appearance from
@@ -210,6 +212,9 @@ struct TransactionsView: View {
             if selection == transaction.id { selection = nil }
             appState.markDataChanged()
             appState.statusMessage = "Transaction deleted."
+            // The RN transactions screen's delete handler fires
+            // `syncTransactions(userId, true)` fire-and-forget.
+            appState.requestTransactionSync(isPartial: true)
         }
     }
 
@@ -288,6 +293,15 @@ struct TransactionsView: View {
         }
 
         ToolbarItemGroup(placement: .primaryAction) {
+            // The RN header's manual sync: `syncTransactions(userId, manual)`,
+            // which is the partial pull.
+            Button {
+                appState.requestTransactionSync(isPartial: true)
+            } label: {
+                Label("Sync Transactions", systemImage: "arrow.triangle.2.circlepath")
+            }
+            .help("Sync Transactions")
+
             // The RN screen's bolt FAB, beside the add FAB.
             Button {
                 appState.showQuickTransactionPicker = true
@@ -382,6 +396,30 @@ struct TransactionsView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// `useTransactionSync`'s focus check, run on appearance.
+    ///
+    /// ⚠️ Deliberate deviation: the source calls `syncTransactions(userId, manual)`
+    /// where the function's second parameter is `isPartial`, so its *automatic*
+    /// path (`manual === false`) is the **force resync** — every focus of the
+    /// transactions screen deletes the local ledger and re-downloads all of it.
+    /// That is almost certainly an argument swap (the name and the
+    /// `needsTransactionSync` gate both describe a partial pull), and reproducing
+    /// it would make a screen switch cost a full re-download. The automatic path
+    /// therefore performs the partial sync the code intends; the manual button
+    /// above matches the source exactly. See DATA_ARCHITECTURE.md §8.
+    private func runAutoSyncIfNeeded() async {
+        guard let pool = database.pool, let userId = sessionStore.userId else { return }
+        let remoteAhead = await syncService.needsTransactionSync(userId: userId, writer: pool)
+        let lastSync = SyncPreference.lastSyncTimestamp(entity: .transactions, userId: userId)
+        guard
+            SyncPolicy.needsTransactionAutoSync(
+                needsTransactionSync: remoteAhead,
+                lastTransactionTimestamp: lastSync
+            )
+        else { return }
+        appState.requestTransactionSync(isPartial: true)
     }
 
     /// Applies a filter handed over by another section (a category or payee row's

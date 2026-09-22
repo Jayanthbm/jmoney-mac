@@ -76,6 +76,16 @@ struct TransactionRow: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
+
+                // The RN card's "not yet uploaded" indicator, deferred in Phase 7
+                // while no sync engine existed (every row would have been flagged).
+                if transaction.syncStatus == 1 {
+                    Image(systemName: "arrow.triangle.2.circlepath.icloud")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .help("Not yet uploaded")
+                        .accessibilityLabel("Not yet uploaded")
+                }
             }
         }
         .padding(.vertical, 3)

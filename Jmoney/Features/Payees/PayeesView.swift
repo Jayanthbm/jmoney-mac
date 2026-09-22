@@ -47,7 +47,10 @@ struct PayeesView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
-        .task { await reload() }
+        .task {
+            await reload()
+            await runInitialSyncIfNeeded()
+        }
         .sheet(isPresented: $isAddPresented) {
             PayeeEditorView()
         }
@@ -160,7 +163,13 @@ struct PayeesView: View {
             }
 
             Button {
+                let wasReordering = viewModel.isReordering
                 viewModel.toggleReordering(userId: sessionStore.userId)
+                // Exiting reorder mode pushes the reordered rows —
+                // `toggleReorderMode`'s `backgroundPushPayees`.
+                if wasReordering {
+                    appState.requestEntityPush(.payees, userId: sessionStore.userId)
+                }
             } label: {
                 Label(
                     viewModel.isReordering ? "Done Reordering" : "Reorder",
@@ -187,7 +196,13 @@ struct PayeesView: View {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ManagementSyncButton(
+                entity: .payees,
+                action: { appState.requestEntitySync(.payees) },
+                isSyncing: appState.isSyncing
+            )
+
             Button {
                 isAddPresented = true
             } label: {
@@ -231,6 +246,15 @@ struct PayeesView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// `fetchPayeesData`'s auto-sync: a missing or non-timestamp
+    /// `@last_sync_payees_` value triggers `performPayeeSync` on first open.
+    private func runInitialSyncIfNeeded() async {
+        guard let userId = sessionStore.userId, !appState.isSyncing else { return }
+        let lastSync = SyncPreference.lastSyncTimestamp(entity: .payees, userId: userId)
+        guard SyncPolicy.needsTimestampOnlySync(lastSyncTimestamp: lastSync) else { return }
+        appState.requestEntitySync(.payees)
     }
 
     /// The RN card's tap: route to Transactions with this payee preselected.

@@ -134,14 +134,81 @@ final class AppState {
     }
 
     /// Re-reads the persisted full-sync timestamp (`@last_sync_master_<userId>`, the
-    /// key the source writes at the end of `runFullSync`). Phase 14's sync engine
-    /// writes it; until then the status bar stays honest and reports "Never".
+    /// key the source writes at the end of `runFullSync`).
     func refreshLastSync(userId: String?) {
         lastSyncDate = SyncPreference.lastFullSync(userId: userId)
     }
 
+    // MARK: - Sync requests
+
+    /// Bumped to ask for a full sync. The root view owns the runner (it holds the
+    /// services), so a toolbar button, a menu item or the Settings row only has to
+    /// raise the request — the same shape as `searchRequestID`.
+    private(set) var syncRequestID = 0
+
     func requestSync() {
-        // The sync engine (GRDB + Supabase) arrives with the data layer.
-        statusMessage = "Sync isn't connected yet."
+        syncRequestID += 1
     }
+
+    /// A transactions-only sync request (`syncTransactions`).
+    struct TransactionSyncRequest: Equatable {
+        /// Distinguishes two identical requests, so a second click still runs.
+        var id: Int
+        /// `false` is the source's force resync (wipe local transactions and
+        /// re-pull everything).
+        var isPartial: Bool
+    }
+
+    private(set) var transactionSyncRequest: TransactionSyncRequest?
+
+    func requestTransactionSync(isPartial: Bool = true) {
+        transactionSyncRequest = TransactionSyncRequest(
+            id: (transactionSyncRequest?.id ?? 0) + 1,
+            isPartial: isPartial
+        )
+    }
+
+    /// A one-entity sync request, used by the four management screens' first-open
+    /// guards (`syncBudgets` and friends).
+    struct EntitySyncRequest: Equatable {
+        var id: Int
+        var entity: SyncEntity
+    }
+
+    private(set) var entitySyncRequest: EntitySyncRequest?
+
+    func requestEntitySync(_ entity: SyncEntity) {
+        entitySyncRequest = EntitySyncRequest(id: (entitySyncRequest?.id ?? 0) + 1, entity: entity)
+    }
+
+    /// A **push-only** request for one entity. The reorder toggles of categories,
+    /// payees, groups and quick transactions call `backgroundPush…` when they are
+    /// *exited* — dirty priority rows go up, no pull comes back, and the per-entity
+    /// last-sync key is re-stamped. `RootView` owns the runner.
+    struct EntityPushRequest: Equatable {
+        var id: Int
+        var entity: SyncEntity
+        /// The storage key each `backgroundPush…` re-stamps after pushing
+        /// (`SyncService.pushEntity` is fire-and-forget, so the caller writes it).
+        var lastSyncKey: String
+    }
+
+    private(set) var entityPushRequest: EntityPushRequest?
+
+    func requestEntityPush(_ entity: SyncEntity, userId: String?) {
+        guard let userId else { return }
+        entityPushRequest = EntityPushRequest(
+            id: (entityPushRequest?.id ?? 0) + 1,
+            entity: entity,
+            lastSyncKey: SyncPreference.lastSyncKey(entity: entity, userId: userId)
+        )
+    }
+
+    // MARK: - App lock (the RN `BiometricLock` overlay)
+
+    /// True while the window is covered by the lock overlay. The RN `_layout.tsx`
+    /// sets this at launch and on every re-activation when `use_biometrics` is
+    /// `'true'`; `RootView` mirrors that lifecycle and reads the preference itself,
+    /// so no lock request has to carry the flag around.
+    var isLocked = false
 }

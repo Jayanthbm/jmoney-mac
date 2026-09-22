@@ -50,4 +50,25 @@ enum BiometricService {
 
     /// The prompt copy the source uses.
     static let enableReason = "Verify biometrics to enable app lock"
+
+    /// `BiometricLock`'s `authenticateAsync({ promptMessage: 'Unlock Jmoney',
+    /// disableDeviceFallback: false })`.
+    ///
+    /// The lock deliberately allows the OS account-password fallback — the source
+    /// passes `disableDeviceFallback: false` — which on macOS is
+    /// `.deviceOwnerAuthentication` (Touch ID first, then the account password).
+    static func unlock() async -> Bool {
+        let context = LAContext()
+        guard
+            context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+        else { return false }
+        do {
+            return try await context.evaluatePolicy(
+                .deviceOwnerAuthentication,
+                localizedReason: "Unlock Jmoney"
+            )
+        } catch {
+            return false
+        }
+    }
 }

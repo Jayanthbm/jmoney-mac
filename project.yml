@@ -9,6 +9,9 @@ packages:
   GRDB:
     url: https://github.com/groue/GRDB.swift
     from: "7.0.0"
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: "2.0.0"
 
 targets:
   Jmoney:
@@ -20,12 +23,25 @@ targets:
 
     dependencies:
       - package: GRDB
+      - package: Supabase
+        product: Supabase
 
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.jayanth.jmoney
       SWIFT_VERSION: "5.0"
       MACOSX_DEPLOYMENT_TARGET: "14.0"
       GENERATE_INFOPLIST_FILE: YES
+      # Credentials are read from Info.plist at runtime; see Jmoney.xcconfig.
+      INFOPLIST_KEY_JMoneySupabaseURL: "$(JMONEY_SUPABASE_URL)"
+      INFOPLIST_KEY_JMoneySupabaseAnonKey: "$(JMONEY_SUPABASE_ANON_KEY)"
+
+    configFiles:
+      # Supabase credentials are build configuration, never source (master prompt
+      # §15). Jmoney.xcconfig is intentionally committed as a *template* with
+      # empty values; JMONEY_SUPABASE_URL / JMONEY_SUPABASE_ANON_KEY are injected
+      # into Info.plist below and read at runtime by SupabaseConfig.
+      Debug: Jmoney.xcconfig
+      Release: Jmoney.xcconfig
 
   JmoneyTests:
     type: bundle.unit-test
@@ -37,6 +53,8 @@ targets:
     dependencies:
       - target: Jmoney
       - package: GRDB
+      - package: Supabase
+        product: Supabase
 
     settings:
       SWIFT_VERSION: "5.0"

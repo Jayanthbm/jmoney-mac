@@ -53,7 +53,10 @@ struct CategoriesView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
-        .task { await reload() }
+        .task {
+            await reload()
+            await runInitialSyncIfNeeded()
+        }
         .sheet(isPresented: $isAddPresented) {
             CategoryEditorView()
         }
@@ -188,7 +191,13 @@ struct CategoriesView: View {
             }
 
             Button {
+                let wasReordering = viewModel.isReordering
                 viewModel.toggleReordering(userId: sessionStore.userId)
+                // Exiting reorder mode pushes the reordered rows —
+                // `toggleReorderMode`'s `backgroundPushCategories`.
+                if wasReordering {
+                    appState.requestEntityPush(.categories, userId: sessionStore.userId)
+                }
             } label: {
                 Label(
                     viewModel.isReordering ? "Done Reordering" : "Reorder",
@@ -215,7 +224,13 @@ struct CategoriesView: View {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ManagementSyncButton(
+                entity: .categories,
+                action: { appState.requestEntitySync(.categories) },
+                isSyncing: appState.isSyncing
+            )
+
             Button {
                 isAddPresented = true
             } label: {
@@ -266,6 +281,17 @@ struct CategoriesView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// `fetchCategoriesData`'s auto-sync: a missing or non-timestamp
+    /// `@last_sync_categories_` value triggers `performCategorySync` on first open.
+    /// Unlike budgets/goals there is no `alreadyChecked` flag in the condition
+    /// (the reset sweep clears those two only), so the check is timestamp-only.
+    private func runInitialSyncIfNeeded() async {
+        guard let userId = sessionStore.userId, !appState.isSyncing else { return }
+        let lastSync = SyncPreference.lastSyncTimestamp(entity: .categories, userId: userId)
+        guard SyncPolicy.needsTimestampOnlySync(lastSyncTimestamp: lastSync) else { return }
+        appState.requestEntitySync(.categories)
     }
 
     /// The RN card's tap: route to Transactions with this category preselected

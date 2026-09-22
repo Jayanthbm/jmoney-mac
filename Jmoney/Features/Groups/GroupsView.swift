@@ -51,7 +51,10 @@ struct GroupsView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
-        .task { await reload() }
+        .task {
+            await reload()
+            await runInitialSyncIfNeeded()
+        }
         .sheet(item: $editorTarget) { target in
             GroupEditorView(target: target) { group in
                 editorTarget = nil
@@ -195,7 +198,13 @@ struct GroupsView: View {
             }
 
             Button {
+                let wasReordering = viewModel.isReordering
                 viewModel.toggleReordering(userId: sessionStore.userId)
+                // Exiting reorder mode pushes the reordered rows —
+                // `toggleReorderMode`'s `backgroundPushGroups`.
+                if wasReordering {
+                    appState.requestEntityPush(.transactionGroups, userId: sessionStore.userId)
+                }
             } label: {
                 Label(
                     viewModel.isReordering ? "Done Reordering" : "Reorder",
@@ -222,7 +231,13 @@ struct GroupsView: View {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ManagementSyncButton(
+                entity: .transactionGroups,
+                action: { appState.requestEntitySync(.transactionGroups) },
+                isSyncing: appState.isSyncing
+            )
+
             Button {
                 editorTarget = .new
             } label: {
@@ -266,6 +281,18 @@ struct GroupsView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// `fetchGroupsData`'s auto-sync: a missing or non-timestamp `@last_sync_groups_`
+    /// value triggers `performGroupSync` on first open. The key is the one
+    /// `groupService.ts` reads (the sync module writes the `-transaction_groups_`
+    /// spelling — the source's key mismatch, preserved), so the guard fires on
+    /// every open and the screen syncs each time, exactly as in the RN app.
+    private func runInitialSyncIfNeeded() async {
+        guard let userId = sessionStore.userId, !appState.isSyncing else { return }
+        let lastSync = SyncPreference.lastSyncTimestamp(entity: .transactionGroups, userId: userId)
+        guard SyncPolicy.needsTimestampOnlySync(lastSyncTimestamp: lastSync) else { return }
+        appState.requestEntitySync(.transactionGroups)
     }
 
     private func delete(_ group: TransactionGroup) {

@@ -27,8 +27,17 @@ progress maths, the three sort orders, the fetch, and the write path (`save` ups
 `PayeeService.swift`, `GroupService.swift` and `QuickTransactionService.swift` carry the four
 lists (with the source's `priority ASC, name ASC` order), their filters/sorts, the `MAX(priority)+1`
 auto-assignment, the upserts, `updatePriorities`, and each table's own delete shape (group hard
-delete, quick-transaction soft delete, categories/payees none). Sync/push-pull logic itself lands in
-Phase 14.
+delete, quick-transaction soft delete, categories/payees none). **Sync engine implemented
+(Phase 14)**: `Services/SyncService.swift` (the `syncService.ts` coordinator — push-all,
+seven ordered pulls, the source's progress strings, the `isSyncing` re-entrancy guard, the master
+timestamp written only on success) plus `Services/Sync/` — one module per entity porting
+`src/services/sync/*` exactly, including every quirk in §3–§4 (budget interval normalization and
+the empty-category skip, the `is_living_cost` strip, the quick-transaction pull's `deleted = 0`
+filter, the group key mismatch, the transaction pull's sentinel values and 1000-row `tid` paging,
+the push-before-wipe force resync). `Services/Auth/` + `Stores/SessionStore.swift` port
+`AuthContext.tsx` (7-second restore guard, local-data-preserving sign-out) over `supabase-swift`
+with Keychain session storage; credentials come from `Jmoney.xcconfig` → Info.plist →
+`SupabaseConfig` (§3.5), and an unconfigured build degrades to honest stubs instead of crashing.
 
 ---
 
@@ -337,3 +346,45 @@ the behavior of an **absent** key (`ThemeContext` falls back to `Appearance.getC
 the settings screen offers no way back to it. `MACOS_FEATURE_MATRIX.md` §10 already said this
 correctly; the brief was corrected to match, and `AppearancePreference` models `System` as the
 absent state.
+
+### Fourth pass (2026-09-22, the Phase 14 agent)
+
+Re-read directly from source before finishing Phase 14: `src/services/syncService.ts`, all seven
+modules in `src/services/sync/` (`transactionSync.ts`, `budgetSync.ts`, `goalSync.ts`,
+`categorySync.ts`, `payeeSync.ts`, `quickTransactionSync.ts`, `groupSync.ts`) and `baseSync.ts`,
+`src/store/AuthContext.tsx`, `src/hooks/useBiometrics.ts`, `src/components/BiometricLock.tsx`,
+`app/_layout.tsx` (the lock lifecycle), and the sync call sites in every screen (`app/goals.tsx`,
+`app/(tabs)/budgets/index.tsx`, `app/categories.tsx`, `app/payees.tsx`, `app/groups.tsx`,
+`app/quick-transactions.tsx`, `app/(tabs)/transactions/index.tsx`,
+`app/(tabs)/dashboard/index.tsx`, plus `fetch<Entity>Data`/`perform<Entity>Sync`/
+`backgroundPush*` in the four entity services and `handleBudgetSync`/`handleGoalSync`).
+
+**Verdict: the sync/auth documentation (§1.5, §3, §4) is accurate**, and it matched the already-
+ported `Services/Sync/` engine line for line — including every deliberate quirk. Findings that
+were *not* yet documented and are now reflected in the macOS implementation:
+
+1. **`performGroupSync` re-stamps the groupService key.** The groups screen's never-synced guard
+   and its `performGroupSync` both use `@last_sync_groups_` (§4's key mismatch), so after the
+   first open the guard converges — the service's stamp, not the pull's, is what stops the
+   re-firing. The port reproduces this: a groups sync writes both keys.
+2. **Manual sync buttons exist on all six management screens**, not just budgets/goals:
+   categories, payees, groups and quick transactions each have a header refresh running
+   `perform<Entity>Sync`, each with its own success toast. All six are ported (`ManagementSyncButton`).
+3. **The categories/payees/groups/quick-transactions first-open checks are timestamp-only**
+   (`!lastSynced || !lastSynced.includes('T')` in each `fetch<Entity>Data`) — no `alreadyChecked`
+   flag in the condition, unlike budgets/goals. Ported as `SyncPolicy.needsTimestampOnlySync`.
+4. **Reorder-exit pushes** (`backgroundPush{Categories,Payees,Groups,QuickTransactions}`) push only
+   and re-stamp the per-entity last-sync key from the caller; ported as
+   `SyncService.pushEntity` + `AppState.requestEntityPush`.
+5. **Post-write syncs**: goals and budgets sync after save *and* delete
+   (`handleGoalSync`/`handleBudgetSync`, which also write the `@initial_*_sync_checked_` flags);
+   transactions fire a partial `syncTransactions` after save and delete. Ported through the same
+   `AppState` request channels.
+6. **The lock's prompt differs from the enable flow's**: `BiometricLock` passes
+   `disableDeviceFallback: false`, so the OS password fallback is allowed — on macOS that is
+   `.deviceOwnerAuthentication` for the lock, while the enable flow keeps
+   `.deviceOwnerAuthenticationWithBiometrics`.
+
+The one new implementation in this pass that has no source counterpart is the groups *service-key*
+stamp in `SyncPreference.groupServiceLastSyncKey` — it exists to reproduce the convergence in
+finding 1 without renaming the (load-bearing) sync-module key.

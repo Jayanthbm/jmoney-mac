@@ -146,6 +146,8 @@ struct BudgetEditorView: View {
             appState.markDataChanged()
             appState.statusMessage =
                 target.budget == nil ? "Budget added successfully." : "Budget updated successfully."
+            // The RN modal's save handler also fires `handleBudgetSync` fire-and-forget.
+            appState.requestEntitySync(.budgets)
             dismiss()
         }
     }

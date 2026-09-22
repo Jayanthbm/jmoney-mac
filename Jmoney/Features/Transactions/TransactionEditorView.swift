@@ -192,6 +192,9 @@ struct TransactionEditorView: View {
             guard saved else { return }
             appState.markDataChanged()
             appState.statusMessage = "Transaction saved."
+            // The RN add-transaction screen's save handler fires
+            // `syncTransactions(userId, true)` — the partial pull — fire-and-forget.
+            appState.requestTransactionSync(isPartial: true)
             dismiss()
         }
     }

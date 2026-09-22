@@ -1,19 +1,24 @@
 import SwiftUI
 
-/// Placeholder auth gate shown when signed out.
+/// The auth gate shown when signed out.
 ///
-/// The real Supabase email/password sign-in, session restore, and the 7-second
-/// initialization timeout land in Phase 14 (DATA_ARCHITECTURE.md §3.5). The
-/// mock sign-in simply flips the session so the shell can be exercised.
+/// Replaces the Phase 4 mock. Sign-in is Supabase's `signInWithPassword` via
+/// `SessionStore`, which keeps the source's minimal client-side rule: both fields
+/// must be non-empty before the button is enabled, and anything else is the
+/// server's answer. A failed attempt is reported inline rather than as a toast,
+/// because the form is where the user is looking.
 struct AuthGateView: View {
     @Environment(SessionStore.self) private var sessionStore
 
     @State private var email = ""
     @State private var password = ""
 
+    private var trimmedEmail: String {
+        email.trimmingCharacters(in: .whitespaces)
+    }
+
     private var canSubmit: Bool {
-        !email.trimmingCharacters(in: .whitespaces).isEmpty
-            && !password.isEmpty
+        !trimmedEmail.isEmpty && !password.isEmpty && !sessionStore.isSigningIn
     }
 
     var body: some View {
@@ -34,26 +39,58 @@ struct AuthGateView: View {
             VStack(spacing: 10) {
                 TextField("Email", text: $email)
                     .textFieldStyle(.roundedBorder)
+                    .textContentType(.username)
+                    .disabled(sessionStore.isSigningIn)
+
                 SecureField("Password", text: $password)
                     .textFieldStyle(.roundedBorder)
+                    .textContentType(.password)
+                    .disabled(sessionStore.isSigningIn)
+                    .onSubmit { submit() }
 
-                Button("Sign In") {
-                    sessionStore.signInPlaceholder(
-                        email: email.trimmingCharacters(in: .whitespaces)
-                    )
+                Button("Sign In") { submit() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSubmit)
+                    .keyboardShortcut(.defaultAction)
+
+                if sessionStore.isSigningIn {
+                    ProgressView()
+                        .controlSize(.small)
+                        .accessibilityLabel("Signing in")
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(!canSubmit)
-                .keyboardShortcut(.defaultAction)
             }
-            .frame(width: 260)
+            .frame(width: 280)
 
-            Text("Placeholder sign-in — real authentication arrives with cloud sync.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            statusText
         }
         .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    @ViewBuilder
+    private var statusText: some View {
+        if let message = sessionStore.errorMessage {
+            Text(message)
+                .font(.caption)
+                .foregroundStyle(.red)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+        } else if let configuration = sessionStore.configurationMessage {
+            // An unconfigured build says so before the user tries, instead of
+            // failing every attempt with a network error.
+            Text(configuration)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 320)
+        }
+    }
+
+    private func submit() {
+        guard canSubmit else { return }
+        let email = trimmedEmail
+        let password = password
+        Task { await sessionStore.signIn(email: email, password: password) }
     }
 }

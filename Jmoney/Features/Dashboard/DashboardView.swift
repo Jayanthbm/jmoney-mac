@@ -74,11 +74,13 @@ struct DashboardView: View {
         .toolbar {
             ToolbarItem {
                 Button {
-                    Task { await reload() }
+                    // The RN header's sync button: `syncTransactions(userId, true)`
+                    // — a partial pull, not a full sync.
+                    Task { await reload(refreshingFromCloud: true) }
                 } label: {
-                    Label("Refresh", systemImage: "arrow.clockwise")
+                    Label("Sync Transactions", systemImage: "arrow.clockwise")
                 }
-                .help("Reload dashboard metrics")
+                .help("Sync transactions and reload metrics")
             }
         }
         .sheet(isPresented: $showTodaysActivity) {
@@ -86,6 +88,7 @@ struct DashboardView: View {
         }
         .task(id: sessionStore.userId) {
             await reload()
+            await runInitialSyncIfNeeded()
         }
         // Saving or deleting a transaction marks the data changed; refresh so the
         // widgets reflect it without the RN app's module_refreshed events.
@@ -105,7 +108,23 @@ struct DashboardView: View {
         }
     }
 
-    private func reload() async {
+    private func reload(refreshingFromCloud: Bool = false) async {
+        if refreshingFromCloud {
+            appState.requestTransactionSync(isPartial: true)
+        }
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// `useDashboardSync.checkSyncStatus`: run a full sync when the account has no
+    /// master timestamp (a fresh install, or after Reset Data cleared it).
+    ///
+    /// The source additionally shows `DashboardSyncModal`; on macOS the status bar
+    /// already reports each step, so a modal would only block the window during a
+    /// background job. See the Phase 14 notes.
+    private func runInitialSyncIfNeeded() async {
+        guard sessionStore.userId != nil else { return }
+        let master = SyncPreference.lastFullSyncRaw(userId: sessionStore.userId)
+        guard SyncPolicy.needsFullSync(lastMasterTimestamp: master) else { return }
+        appState.requestSync()
     }
 }

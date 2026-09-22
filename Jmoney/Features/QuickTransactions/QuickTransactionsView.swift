@@ -49,7 +49,10 @@ struct QuickTransactionsView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
-        .task { await reload() }
+        .task {
+            await reload()
+            await runInitialSyncIfNeeded()
+        }
         .sheet(item: $editorTarget) { target in
             QuickTransactionEditorView(target: target)
         }
@@ -164,7 +167,15 @@ struct QuickTransactionsView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
             Button {
+                let wasReordering = viewModel.isReordering
                 viewModel.toggleReordering(userId: sessionStore.userId)
+                // Exiting reorder mode pushes the reordered rows —
+                // `toggleReorderMode`'s `backgroundPushQuickTransactions`.
+                if wasReordering {
+                    appState.requestEntityPush(
+                        .quickTransactions, userId: sessionStore.userId
+                    )
+                }
             } label: {
                 Label(
                     viewModel.isReordering ? "Done" : "Order",
@@ -189,7 +200,13 @@ struct QuickTransactionsView: View {
             }
         }
 
-        ToolbarItem(placement: .primaryAction) {
+        ToolbarItemGroup(placement: .primaryAction) {
+            ManagementSyncButton(
+                entity: .quickTransactions,
+                action: { appState.requestEntitySync(.quickTransactions) },
+                isSyncing: appState.isSyncing
+            )
+
             Button {
                 editorTarget = .new
             } label: {
@@ -233,6 +250,17 @@ struct QuickTransactionsView: View {
 
     private func reload() async {
         await viewModel.load(pool: database.pool, userId: sessionStore.userId)
+    }
+
+    /// `fetchQuickTransactionsData`'s auto-sync: a missing or non-timestamp
+    /// `@last_sync_quick_transactions_` value triggers the first-open sync.
+    private func runInitialSyncIfNeeded() async {
+        guard let userId = sessionStore.userId, !appState.isSyncing else { return }
+        let lastSync = SyncPreference.lastSyncTimestamp(
+            entity: .quickTransactions, userId: userId
+        )
+        guard SyncPolicy.needsTimestampOnlySync(lastSyncTimestamp: lastSync) else { return }
+        appState.requestEntitySync(.quickTransactions)
     }
 
     private func delete(_ template: QuickTransaction) {

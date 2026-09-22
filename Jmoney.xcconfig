@@ -1,0 +1,26 @@
+// Jmoney — build configuration
+//
+// Supabase credentials live here, NOT in source code (master prompt §15). These
+// values are substituted into Info.plist at build time as
+//   JMoneySupabaseURL / JMoneySupabaseAnonKey
+// and read at runtime by `SupabaseConfig`.
+//
+// This file is committed as an empty TEMPLATE. Fill it in locally and do not
+// commit real values:
+//
+//   JMONEY_SUPABASE_URL = https:/$()/your-project.supabase.co
+//   JMONEY_SUPABASE_ANON_KEY = eyJhbGciOi...
+//
+// NOTE: `//` starts a comment in an .xcconfig file, so a URL must be written
+// with the empty `$()` between the slashes — `https:/$()/host` — to survive
+// parsing. Writing `https://host` silently truncates the value at the slashes.
+//
+// The anon key is public by design (it ships in every Supabase client), but it
+// is still configuration rather than code. The service-role key must NEVER be
+// put here — the app has no use for it and it bypasses RLS.
+//
+// Leaving both values empty is supported: the app builds and runs with cloud
+// sync disabled and says so in Settings, instead of failing to launch.
+
+JMONEY_SUPABASE_URL =
+JMONEY_SUPABASE_ANON_KEY =
