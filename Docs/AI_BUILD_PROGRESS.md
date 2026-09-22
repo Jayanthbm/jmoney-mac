@@ -898,7 +898,7 @@ no warnings) and `TEST SUCCEEDED` (421 tests, 0 failures) immediately before com
 
 ## Phase 13 — Settings
 
-**Status:** COMPLETE (2026-09-22)
+**Status:** COMPLETE (2026-09-22) — commit `a8f1ef2`
 
 ### What was done
 
@@ -1230,6 +1230,6 @@ recorded in a follow-up docs commit per the established pattern).
 
 ### Phase 13 Commit
 
-`PENDING` — 2026-09-22 — "phase: implement settings" (hash recorded in a follow-up docs commit per
+`a8f1ef2` — 2026-09-22 — "phase: implement settings" (hash recorded in a follow-up docs commit per
 the established pattern). This phase also carried the third analysis re-verification pass — see the
 Phase 13 section above.
