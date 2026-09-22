@@ -1334,3 +1334,9 @@ recorded in a follow-up docs commit per the established pattern).
 `a8f1ef2` — 2026-09-22 — "phase: implement settings" (hash recorded in a follow-up docs commit per
 the established pattern). This phase also carried the third analysis re-verification pass — see the
 Phase 13 section above.
+
+### Phase 14 Commit
+
+`c7aee09` — 2026-09-22 — "phase: implement authentication and sync" (hash recorded in a follow-up
+docs commit per the established pattern). This phase carried the fourth analysis re-verification
+pass — see the Phase 14 section above.
