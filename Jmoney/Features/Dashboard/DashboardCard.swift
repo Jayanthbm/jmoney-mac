@@ -17,6 +17,8 @@ struct DashboardCard<Content: View>: View {
     var onOpen: (() -> Void)?
     @ViewBuilder var content: Content
 
+    @State private var isHovered = false
+
     var body: some View {
         Group {
             if let onOpen {
@@ -34,41 +36,66 @@ struct DashboardCard<Content: View>: View {
     }
 
     private var card: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             header
             if isLoading {
                 ProgressView()
                     .controlSize(.small)
-                    .frame(maxWidth: .infinity, minHeight: 60)
+                    .frame(maxWidth: .infinity, minHeight: 64)
             } else {
                 content
             }
         }
-        .padding(isMain ? 20 : 16)
+        .padding(isMain ? 22 : 18)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isHovered ? 0.45 : 0.25),
+                            Color.white.opacity(0.08),
+                            Color.black.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
         )
-        .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(
+            color: isHovered ? Color.black.opacity(0.14) : Color.black.opacity(0.06),
+            radius: isHovered ? 16 : 10,
+            x: 0,
+            y: isHovered ? 8 : 4
+        )
+        .scaleEffect(onOpen != nil && isHovered ? 1.01 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isHovered)
+        .onHover { hovering in
+            if onOpen != nil {
+                isHovered = hovering
+            }
+        }
     }
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: systemImage)
-                .font(.callout)
-                .foregroundStyle(Color.accentColor)
-                .accessibilityHidden(true)
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color.accentColor.opacity(0.15))
+                    .frame(width: 28, height: 28)
+                Image(systemName: systemImage)
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.accentColor)
+                    .accessibilityHidden(true)
+            }
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(title.uppercased())
-                    .font(.caption.weight(.bold))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
                     .tracking(1)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary.opacity(0.85))
                 if let subtitle {
                     Text(subtitle)
                         .font(.caption2.weight(.medium))
@@ -80,8 +107,11 @@ struct DashboardCard<Content: View>: View {
 
             if onOpen != nil {
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.tertiary)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.secondary)
+                    .opacity(isHovered ? 1.0 : 0.5)
+                    .offset(x: isHovered ? 2 : 0)
+                    .animation(.easeOut(duration: 0.2), value: isHovered)
                     .accessibilityHidden(true)
             }
         }
