@@ -159,7 +159,7 @@ Design notes for the next agent:
 | 14    | Authentication / Sync               | COMPLETE    |
 | 15    | Import / Export                     | COMPLETE    |
 | 16    | macOS commands / keyboard shortcuts | COMPLETE    |
-| 17    | Accessibility / performance         | NOT STARTED |
+| 17    | Accessibility / performance         | COMPLETE    |
 | 18    | Final feature parity audit          | NOT STARTED |
 | 19    | Release preparation                 | NOT STARTED |
 
@@ -167,34 +167,29 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 17 — Accessibility / performance
+**Phase:** 18 — Final feature parity audit
 
-Phases 0–16 are complete, built, and tested (608 tests green — see the Progress Log).
+Phases 0–17 are complete, built, and tested (620 tests green — see the Progress Log).
 
-## Phase 17 brief — Accessibility / performance
+## Phase 18 brief — Final feature parity audit
 
-The master prompt's §17 (accessibility) and §18 (performance) are one phase. Suggested scope:
+Suggested scope:
 
-1. **Accessibility pass**: audit every custom control for a meaningful
-   `accessibilityLabel`/`accessibilityValue` (start with `TransactionRow`, the dashboard cards and
-   the progress views, the calendar grid, the quick-transaction cards), mark decorative glyphs
-   `accessibilityHidden`, check VoiceOver focus order through the editors (type → amount →
-   category…), and confirm every flow is completable with the keyboard alone (⌘N → editor fields →
-   Return to save is already the path to verify).
-2. **Performance pass**: seed a 10,000-row transaction fixture and verify the list, filters,
-   search, dashboard and reports stay responsive (the schema's indexes are already in place —
-   confirm queries hit them with `EXPLAIN QUERY PLAN`); keep per-render work out of the views
-   (the view models' load-on-revision pattern already does this); confirm large exports run off
-   the main thread (they already do — `pool.read` is background).
-3. Prefer label/identifier assertions in render tests over timing assertions; performance tests
-   that assert wall-clock are flaky and the suite should stay trustworthy.
+1. Walk the RN app's screens one final time against `MACOS_FEATURE_MATRIX.md`, screen by screen,
+   with the macOS app open beside it. For each row: verify the macOS behaviour actually matches
+   the RN source (re-read the RN screen when in doubt — the Phase 1 analysis was verified twice,
+   but this audit is the last line of defense), then flip the row to MACOS EQUIVALENT, or
+   document the deliberate difference in place.
+2. The known deliberate differences are already documented in the matrix (§12 macOS-original
+   features, the row-badge tap-to-sync, import/export) — the audit's job is to find *undocumented*
+   differences, not to re-litigate documented ones.
+3. Re-verify the calc-parity list (`DATA_ARCHITECTURE.md` §7): daily limit, pay-day, budget
+   progress, goal sorting — these have pinned tests; spot-check the test names still match the
+   RN helpers they pin.
+4. End state: every matrix row is either MACOS EQUIVALENT, COMPLETE (macOS-original, documented)
+   or explicitly BLOCKED with a reason. No row may remain NOT STARTED or IN PROGRESS.
 
-Also still open: **location tagging** — the one remaining Phase 7 item. `Services/LocationService.swift`
-still does not exist; the editor shows saved coordinates read-only and preserves them on save.
-Carry it into Phase 17 or a follow-up.
-
-After Phase 17 the remaining phases are 18 (feature-parity audit — flip verified matrix rows to
-MACOS EQUIVALENT) and 19 (release preparation).
+After Phase 18 the only remaining phase is 19 (release preparation).
 
 ---
 
@@ -1215,6 +1210,43 @@ here beyond the data itself.
 
 ---
 
+## Phase 17 — Accessibility / Performance
+
+**Status:** COMPLETE (2026-09-23)
+
+### What was done
+
+* **Accessibility — the real gaps, not blanket re-labeling.** The baseline from prior phases was
+  already strong (rows, cards, rings, grid, editors all carry labels/values), so the pass hunted
+  for figures whose meaning lives only in colour: the Transactions day-header's net and the
+  filtered-net in the toolbar read as bare unsigned numbers to VoiceOver (the RN source's
+  sign-dropping quirk). Both now carry `accessibilityLabel`s that state the direction in words
+  ("spent", "received", "net negative/positive"), following the existing `NetWorthCard` precedent.
+* **Query-plan proofs.** `PerformanceTests` runs the core queries (dashboard date-range aggregate,
+  per-user list ordering, filtered list, payees, categories, goals) through `EXPLAIN QUERY PLAN`
+  on a seeded database and asserts each scans through an index, never `SCAN transactions` without
+  one. The Phase 5 index assertions proved the indexes exist; these prove the screens' queries
+  *use* them — adding a query or index cannot silently regress the plan.
+* **Scale correctness.** A 10,000-row fixture (300 days, 6 categories, 2 payees, one prepared
+  statement) drives the list, filters, search, dashboard, reports and soft-delete paths and pins
+  their correctness at scale: exact row counts, day-section ordering newest-first, per-row
+  filtering, filtered-net equality with a direct SQL aggregate, dashboard summary/net-worth
+  equality with direct arithmetic, report aggregates equal to the ledger and ordered largest-first,
+  and soft-deleted rows absent from every path. Wall-clock assertions are deliberately avoided
+  (flaky on shared hardware; an order-of-magnitude regression shows up as a correctness failure
+  anyway since GRDB round-trips every row).
+* Tests, 12 new (620 total).
+
+### Issues / deviations
+
+* The fixture itself caught two of my own seed bugs before they shipped: `DateFormatter` formats
+  in UTC but `Calendar` was local (IST) — so 34 rows on day-offset 0 landed on `2024-12-31`,
+  outside every 2025 query window (the giveaway was the exact −6808.50 delta = Σ day-0 income);
+  and the c1-filter expectation ignored that income rows are routed to c5 (2500 − 500 = 2000).
+* Location tagging remains open (the Phase 7 item) — carried into Phase 18 as a follow-up.
+
+---
+
 # Decision Log
 
 | Date       | Decision                                                   | Reason                                    | Agent         |
@@ -1339,12 +1371,12 @@ here beyond the data itself.
 
 # Next Agent Instructions
 
-Phases 0–16 are complete and green (608 tests). Start **Phase 17 (accessibility / performance)** —
+Phases 0–17 are complete and green (620 tests). Start **Phase 18 (final feature parity audit)** —
 the brief is
-in the "Current Phase" section above. It is a macOS-original feature (the RN app has none), so the
-feature matrix's §12 row is the parity contract: document it as an addition, not parity. The one
-remaining Phase 7 item is **location tagging** (create-time capture plus the location edit sheet);
-carry it into Phase 15 or a follow-up, and create `Services/LocationService.swift` when you do.
+in the "Current Phase" section above. Walk every matrix row against the RN source one last time,
+flip verified rows to MACOS EQUIVALENT, and document (not re-litigate) the deliberate differences.
+The one remaining Phase 7 item is **location tagging** (create-time capture plus the location edit
+sheet); carry it into Phase 18 or a follow-up, and create `Services/LocationService.swift` when you do.
 
 Existing infrastructure (don't redo):
 

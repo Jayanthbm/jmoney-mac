@@ -37,8 +37,12 @@ per-row-validated, born-dirty CSV transaction import with a per-row report; File
 and File > Import Transactions… — 599 tests green. **Commands / shortcuts audited and completed
 (Phase 16)**: the full menu set (per-section New items with ⇧⌘ bindings, ⇧⌘I import, the Data
 menu's section sync) driven by `AppCommands.menuAuditTable` with the HIG conflict rules pinned in
-`CommandsTests` — 608 tests green.
-Next: Phase 17 (accessibility / performance).
+`CommandsTests` — 608 tests green. **Accessibility gaps closed and performance pinned (Phase 17)**:
+the two colour-only figures (the day-header net and the filtered net) now state their direction in
+words for VoiceOver, and `PerformanceTests` proves the core queries run through indexes
+(`EXPLAIN QUERY PLAN`) and that the list/filter/search/dashboard/report/soft-delete paths stay
+correct on a 10,000-row ledger — 620 tests green.
+Next: Phase 18 (final feature parity audit).
 
 ---
 
@@ -198,7 +202,7 @@ Jmoney/
 │   ├── JSONValue.swift            # Codable-ish JSON for the sync payloads/records  [Phase 14 ✓]
 │   └── ManagementSyncButton.swift # The six management screens' shared toolbar sync button
 │                                  #   [Phase 14 ✓]
-JmoneyTests/                       # 608 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+JmoneyTests/                       # 620 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
@@ -216,8 +220,9 @@ JmoneyTests/                       # 608 tests: schema/defaults/indexes, record 
                                    #   engine incl. every preserved quirk, sync foundation rules,
                                    #   push-only runs + lock + guards + button, CSV codec, export
                                    #   rows/backup shape, import mapping/validation/sentinels and
-                                   #   the export→import round trip, the menu-audit conflict rules
-                                   #   [Phase 5–16 ✓]
+                                   #   the export→import round trip, the menu-audit conflict rules,
+                                   #   query-plan index proofs, 10k-row scale correctness
+                                   #   [Phase 5–17 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -288,6 +293,10 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   indexed queries (same indexes as RN schema), avoid loading full tables into memory.
 - Aggregate queries (reports, dashboard) run on a background read-only DB connection.
 - Sync chunking (1000 rows) preserved for large transaction pulls.
+- Pinned by tests (Phase 17): the core queries are proven to run through indexes via
+  `EXPLAIN QUERY PLAN`, and the list/filter/search/dashboard/report/soft-delete paths are verified
+  for correctness on a 10,000-row ledger (`PerformanceTests`). Wall-clock assertions are
+  deliberately excluded as flaky.
 
 ## 8. Open Items
 

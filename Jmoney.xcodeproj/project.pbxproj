@@ -137,6 +137,7 @@
 		BA36635639E55199297FBDA8 /* BudgetSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4015FC1AE4E119A963187B2 /* BudgetSync.swift */; };
 		BCE866C929B527A523DD2066 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876BB8B34BE7030EDA53CCF0 /* NotificationService.swift */; };
 		BD06ACFCF781B5A5DC8605EB /* RemainingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE810883F1DFD0DBCD1977E /* RemainingCard.swift */; };
+		BD663C3CCC1DF1E76B3C14A2 /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32B385A2C5A55E7E8D7B388C /* PerformanceTests.swift */; };
 		BE245A706B02DF4765821240 /* AuthGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC91B0D6D6CB7F404AFBBD74 /* AuthGateView.swift */; };
 		C09C20CB5F4E341F9479CC55 /* MetaEntityServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 176B1671E48B8C6FE31F25E6 /* MetaEntityServiceTests.swift */; };
 		C21535E190CE293F91459F54 /* ReportDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4FABD06E8F74A06F0C96964 /* ReportDetailView.swift */; };
@@ -238,6 +239,7 @@
 		31248779AD2D350083998C64 /* ReportsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsViewModel.swift; sourceTree = "<group>"; };
 		312DA5DA87BBEB59E78610D9 /* SupabaseAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseAuthService.swift; sourceTree = "<group>"; };
 		319B38DBE5CADC861AD53E4A /* TransactionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionService.swift; sourceTree = "<group>"; };
+		32B385A2C5A55E7E8D7B388C /* PerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTests.swift; sourceTree = "<group>"; };
 		33EC5AC45036828AEC304352 /* GoalRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalRow.swift; sourceTree = "<group>"; };
 		3479362A1E4D486F2D5A106A /* AppLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockView.swift; sourceTree = "<group>"; };
 		36DE7921491C9E29BB1A725F /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
@@ -677,6 +679,7 @@
 				7F721474BD8E40928DD1C1F7 /* ManagementViewsRenderingTests.swift */,
 				F4C887AE77E778CF0F0D8D37 /* MetaEntityCalculationTests.swift */,
 				176B1671E48B8C6FE31F25E6 /* MetaEntityServiceTests.swift */,
+				32B385A2C5A55E7E8D7B388C /* PerformanceTests.swift */,
 				D6FE5D039E499334BC4290EE /* Phase14CompletionTests.swift */,
 				172C1E4BC4DFB9E250957DC9 /* RecordPersistenceTests.swift */,
 				B26E59130197972FDE2429EC /* ReportCalculationTests.swift */,
@@ -897,6 +900,7 @@
 				E91DA35E15A7C1C3A42F7EF5 /* ManagementViewsRenderingTests.swift in Sources */,
 				90145F370E1CB75BDCBE7755 /* MetaEntityCalculationTests.swift in Sources */,
 				C09C20CB5F4E341F9479CC55 /* MetaEntityServiceTests.swift in Sources */,
+				BD663C3CCC1DF1E76B3C14A2 /* PerformanceTests.swift in Sources */,
 				F264DF914300BBC938CE1115 /* Phase14CompletionTests.swift in Sources */,
 				EACC1DAFDDB893C5A9817FD5 /* RecordPersistenceTests.swift in Sources */,
 				2D4B5E207B1900A8E41D8EB8 /* ReportCalculationTests.swift in Sources */,

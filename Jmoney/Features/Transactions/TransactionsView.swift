@@ -155,10 +155,17 @@ struct TransactionsView: View {
                             .monospacedDigit()
                         Image(systemName: "chevron.right")
                             .font(.caption2)
+                            .accessibilityHidden(true)
                     }
                 }
                 .buttonStyle(.borderless)
                 .help("Show the last 5 months for these filters")
+                .accessibilityLabel("Filtered net")
+                // Phase 17: the sign-dropped figure's direction lives only in
+                // colour; speak it explicitly (the day header's rule).
+                .accessibilityValue(
+                    "net \(viewModel.page.totalFiltered >= 0 ? "increased" : "decreased") \(AppFormat.currency(viewModel.page.totalFiltered))"
+                )
                 .popover(isPresented: $showStatistics, arrowEdge: .bottom) {
                     FilteredStatsPopover(
                         statistics: viewModel.statistics,

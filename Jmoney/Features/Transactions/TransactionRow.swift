@@ -148,7 +148,15 @@ struct TransactionDayHeader: View {
                 .monospacedDigit()
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(AppFormat.monthDayYear(section.date)), net \(AppFormat.currency(section.total))")
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    /// Phase 17: the header's sign-dropping quirk (a negative net shows no `-`,
+    /// only red) is colour-only information — VoiceOver would read a bare amount.
+    /// The direction is therefore spoken explicitly.
+    private var accessibilityLabel: String {
+        let direction = section.total >= 0 ? "increased" : "decreased"
+        return "\(AppFormat.monthDayYear(section.date)), net \(direction) \(AppFormat.currency(section.total))"
     }
 }

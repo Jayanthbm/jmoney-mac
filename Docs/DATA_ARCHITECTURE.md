@@ -1,8 +1,10 @@
 # Jmoney macOS — Data Architecture
 
 > Populated after analyzing the React Native application's database, offline-first behavior,
-> synchronization, and Supabase integration. Last updated: 2026-09-23 (Phase 15 import/export:
-> the file-exchange data contract — see §9; §8's verification record is unchanged).
+> synchronization, and Supabase integration. Last updated: 2026-09-23 (Phase 17: the §1.2 index set
+> is now proven load-bearing — `PerformanceTests` asserts via `EXPLAIN QUERY PLAN` that the
+> screens' queries run through these indexes, and pins list/filter/dashboard/report correctness
+> on a 10,000-row ledger; §8's verification record is unchanged).
 
 ## Status
 
