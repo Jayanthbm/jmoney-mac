@@ -42,6 +42,16 @@ struct GoalsView: View {
         .onChange(of: viewModel.sortKey) { _, _ in Task { await reload() } }
         .onChange(of: viewModel.ascending) { _, _ in Task { await reload() } }
         .onChange(of: appState.dataRevision) { _, _ in Task { await reload() } }
+        // Phase 16: File > New Goal switches here and raises the request; this
+        // view presents the editor only when its section is the visible one.
+        .onChange(of: appState.sectionEditorRequestID) { _, _ in
+            guard appState.selectedSection == .goals else { return }
+            editorTarget = .new
+        }
+        .onChange(of: appState.sectionSyncRequestID) { _, _ in
+            guard appState.selectedSection == .goals else { return }
+            appState.requestEntitySync(.goals)
+        }
         .task {
             await reload()
             await runInitialSyncIfNeeded()

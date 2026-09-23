@@ -53,6 +53,15 @@ struct CategoriesView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
+        // Phase 16: File > New Category switches here and raises the request.
+        .onChange(of: appState.sectionEditorRequestID) { _, _ in
+            guard appState.selectedSection == .categories else { return }
+            isAddPresented = true
+        }
+        .onChange(of: appState.sectionSyncRequestID) { _, _ in
+            guard appState.selectedSection == .categories else { return }
+            appState.requestEntitySync(.categories)
+        }
         .task {
             await reload()
             await runInitialSyncIfNeeded()

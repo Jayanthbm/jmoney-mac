@@ -47,6 +47,15 @@ struct PayeesView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
+        // Phase 16: File > New Payee switches here and raises the request.
+        .onChange(of: appState.sectionEditorRequestID) { _, _ in
+            guard appState.selectedSection == .payees else { return }
+            isAddPresented = true
+        }
+        .onChange(of: appState.sectionSyncRequestID) { _, _ in
+            guard appState.selectedSection == .payees else { return }
+            appState.requestEntitySync(.payees)
+        }
         .task {
             await reload()
             await runInitialSyncIfNeeded()

@@ -56,6 +56,11 @@ struct TransactionsView: View {
         .onChange(of: appState.transactionFilterRequestID) { _, _ in
             Task { await applyRequestedFilters() }
         }
+        // Phase 16: Data > Sync Transactions (the toolbar button's menu twin).
+        .onChange(of: appState.sectionSyncRequestID) { _, _ in
+            guard appState.selectedSection == .transactions else { return }
+            appState.requestTransactionSync(isPartial: true)
+        }
         .task {
             // Phase 15: hand the shell state over so reloads can record the live
             // filter set for File > Export's "what's on screen" option.

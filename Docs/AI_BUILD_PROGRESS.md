@@ -158,7 +158,7 @@ Design notes for the next agent:
 | 13    | Settings                            | COMPLETE    |
 | 14    | Authentication / Sync               | COMPLETE    |
 | 15    | Import / Export                     | COMPLETE    |
-| 16    | macOS commands / keyboard shortcuts | NOT STARTED |
+| 16    | macOS commands / keyboard shortcuts | COMPLETE    |
 | 17    | Accessibility / performance         | NOT STARTED |
 | 18    | Final feature parity audit          | NOT STARTED |
 | 19    | Release preparation                 | NOT STARTED |
@@ -167,33 +167,34 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 16 — macOS commands / keyboard shortcuts audit
+**Phase:** 17 — Accessibility / performance
 
-Phases 0–15 are complete, built, and tested (599 tests green — see the Progress Log).
+Phases 0–16 are complete, built, and tested (608 tests green — see the Progress Log).
 
-## Phase 16 brief — macOS commands / keyboard shortcuts audit
+## Phase 17 brief — Accessibility / performance
 
-The shortcut surface grew organically across phases (⌘N/⌘⇧N/⌘F/⌘R/⌘E/⌘, plus per-view ⌫ and
-Return handling). The master prompt (§16) wants a deliberate, conflict-free command set. The audit
-should:
+The master prompt's §17 (accessibility) and §18 (performance) are one phase. Suggested scope:
 
-1. Inventory every existing key equivalent and menu item (start from `App/AppCommands.swift`, the
-   toolbar `.help` strings, and the editor sheets' `cancelAction`/`defaultAction` shortcuts).
-2. Verify no conflicts with standard macOS shortcuts (⌘X/⌘C/⌘V/⌘A/⌘Z… are currently untouched —
-   keep it that way) or with the system's own shortcuts.
-3. Close the gaps the phases deferred: Import has no key equivalent; New Budget/New Goal/New
-   Category/New Payee/New Group/New Template have none either; per-screen commands (the date
-   filters, Sync <Entity>) could surface in the Data menu when their section is frontmost.
-4. Keep the master prompt's rule: do not implement shortcuts that conflict with standard macOS
-   behavior. Use native menus and commands.
+1. **Accessibility pass**: audit every custom control for a meaningful
+   `accessibilityLabel`/`accessibilityValue` (start with `TransactionRow`, the dashboard cards and
+   the progress views, the calendar grid, the quick-transaction cards), mark decorative glyphs
+   `accessibilityHidden`, check VoiceOver focus order through the editors (type → amount →
+   category…), and confirm every flow is completable with the keyboard alone (⌘N → editor fields →
+   Return to save is already the path to verify).
+2. **Performance pass**: seed a 10,000-row transaction fixture and verify the list, filters,
+   search, dashboard and reports stay responsive (the schema's indexes are already in place —
+   confirm queries hit them with `EXPLAIN QUERY PLAN`); keep per-render work out of the views
+   (the view models' load-on-revision pattern already does this); confirm large exports run off
+   the main thread (they already do — `pool.read` is background).
+3. Prefer label/identifier assertions in render tests over timing assertions; performance tests
+   that assert wall-clock are flaky and the suite should stay trustworthy.
 
-Also still open from before Phase 15: **location tagging** — the one remaining Phase 7 item.
-`Services/LocationService.swift` still does not exist; the editor shows saved coordinates
-read-only and preserves them on save. Create-time capture plus the location edit sheet closes it.
-Carry it into Phase 16 or a follow-up.
+Also still open: **location tagging** — the one remaining Phase 7 item. `Services/LocationService.swift`
+still does not exist; the editor shows saved coordinates read-only and preserves them on save.
+Carry it into Phase 17 or a follow-up.
 
-After Phase 16 the remaining phases are 17 (accessibility & performance), 18 (feature-parity
-audit — flip verified matrix rows to MACOS EQUIVALENT) and 19 (release preparation).
+After Phase 17 the remaining phases are 18 (feature-parity audit — flip verified matrix rows to
+MACOS EQUIVALENT) and 19 (release preparation).
 
 ---
 
@@ -1146,6 +1147,72 @@ here beyond the data itself.
   which also means re-importing an exported file updates rather than duplicates rows — consistent
   with the app's upsert-by-id write path.
 
+## Phase 16 — macOS Commands / Keyboard Shortcuts
+
+**Status:** COMPLETE (2026-09-23)
+
+### The audit (what was found)
+
+* **Already wired, conflict-free (kept):** ⌘N New Transaction, ⌘⇧N Quick Transaction (Phase 4);
+  ⌘F Edit > Find… — safe because the app does not include `TextEditingCommands`, so there is no
+  Find submenu to shadow; ⌘R Data > Sync Now; ⌘E Export… (Phase 15); ⌘, by the Settings scene.
+  Per-view: ⌫ delete on the Transactions/Budgets/Goals selections, Return/double-click to edit,
+  Escape/Return in every editor sheet, `.defaultAction`/`.cancelAction` in all sheets and panels.
+* **Gap: no per-section New commands** — New Budget / New Goal / New Category / New Payee / New
+  Group / New Template had no menu presence or key equivalents (deferred by Phases 8–12 to
+  "Phase 16 owns the shortcut set").
+* **Gap: Import had no key equivalent** (the Phase 15 addition was menu-only).
+* **Gap: no Data-menu route to a section's own sync** — the six management screens' toolbar sync
+  buttons were toolbar-only.
+* **Verified non-conflicts:** the standard ⌘X/C/V/A/Z/O/P/S/Q/W/M slots are untouched; the app
+  never uses option/control modifiers; ⌘M (minimize), ⇧⌘A/H and the ⇧⌘ digit shots are clear.
+
+### What was done
+
+* **`AppCommands.menuAuditTable`** — the shortcut set's single source of truth (title, key,
+  modifiers per item). The menu body builds from the same declarations, and `CommandsTests` runs
+  the standard-macOS conflict rules against the table, so a future shortcut addition that ignores
+  the audit fails the suite. The three plain-⌘ re-uses (`n`, `e`, `f`) each carry their safety
+  reason in the test and are pinned by it.
+* **File > New *section* items** — New Budget… (⇧⌘B), New Goal… (⇧⌘G), New Category… (⇧⌘C), New
+  Payee… (⇧⌘P), New Group… (⇧⌘T), New Template… (⇧⌘M). Each selects its sidebar section and raises
+  `AppState.requestSectionEditor()`; the section's list view observes the counter and presents its
+  editor **only when frontmost** (`selectedSection` guard), so the request is answered exactly once
+  no matter how many section views are alive in the split view's lifetime. The ⇧⌘ letters were
+  chosen against the system ⇧⌘ map (A/H/digits clear); none collide with each other or with ⌘⇧N.
+* **File > Import Transactions… (⇧⌘I)** — closes the Phase 15 gap.
+* **Data > Sync Transactions** and **Data > Sync This Section** — the toolbar buttons' menu twins;
+  the latter rides the same request channel as the screens' own buttons.
+* **`AppSection.syncEntity`** — the section→entity mapping for Sync This Section, as a tested
+  property (every entity reachable exactly once; dashboard/calendar/reports/settings deliberately
+  `nil` and fall back to ⌘R's full sync).
+* Observers added to Transactions, Budgets, Goals, Categories, Payees, Groups and Quick
+  Transactions; the request channels themselves are unit-tested.
+* Tests, 9 new (608 total): the audit table's shape, per-modifier-set key uniqueness, the plain-⌘
+  and ⇧⌘ conflict rules (with the documented re-uses), the modifier whitelist, the re-use pin,
+  the sync-entity mapping (bijective onto the seven entities; `nil` for the four full-sync
+  sections), and the request-channel counters.
+
+### Verification
+
+* `xcodebuild … build` → `BUILD SUCCEEDED`, no compile warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (608 tests, 0 failures).
+* Launch smoke test: the built app ran for 6 s and quit cleanly.
+
+### Issues / deviations
+
+* **⌘E stays on Export** rather than the historic "Enter selection" binding: the audit treats
+  menu-command parity as the stronger convention for a data app, and the selection-open role is
+  already Return's. Documented here so the choice is deliberate.
+* **No ⌘D (Bookmarks), ⇧⌘F (Recents), ⌘⌥-series, or F-key additions**: the audit adds nothing
+  without a workflow reason; the set is complete for the app's flows, and more bindings would
+  increase collision surface without user value.
+* The section-editor requests are *present* requests, not focus requests: the editor sheet opens
+  through the same `.sheet(item:)` the toolbar buttons use, so keyboard focus lands in the first
+  field by the system's default sheet behavior rather than custom first-responder code.
+* A first draft of the audit test tried to introspect SwiftUI's opaque `Commands` content and was
+  discarded as dishonest; the audit table + conflict rules are the honest replacement.
+
 ---
 
 # Decision Log
@@ -1246,6 +1313,10 @@ here beyond the data itself.
 | 2026-09-23 | Import batch atomicity rides the caller's `pool.write` | Same constraint as `SettingsService.resetLocalData`: GRDB refuses nested `inTransaction` inside `DatabasePool.write`; one transaction = all valid rows or none | Phase 15 |
 | 2026-09-23 | The JSON backup stores raw column values incl. sync internals, NSNull for NULL | A backup must be a true snapshot (restore-worthy), not a cleaned view; NULL-vs-empty-string distinction survives round trips through the file | Phase 15 |
 | 2026-09-23 | A JSON *restore* is not implemented in Phase 15 | Restoring must resolve id collisions and cooperate with the sync protocol (a naive restore fights the next pull); recorded as an open item instead of shipping a half-design | Phase 15 |
+| 2026-09-23 | `menuAuditTable` as the shortcut set's single source of truth | SwiftUI `Commands` content is opaque, so the audit pins the contract as data and runs the HIG conflict rules against it in tests; adding a shortcut without clearing the audit fails the suite | Phase 16 |
+| 2026-09-23 | Section editors answer requests only when frontmost | Multiple section views stay alive in the split view's lifetime; a `selectedSection` guard on each observer makes the menu's request land on exactly one view | Phase 16 |
+| 2026-09-23 | ⇧⌘B/G/C/P/T/M for the per-section New items | The item initials, checked against the system ⇧⌘ map (A/H/digits) and each other; ⇧⌘ keeps them clear of the app's plain-⌘ set | Phase 16 |
+| 2026-09-23 | ⌘E stays Export rather than a selection-open binding | Menu-command parity is the stronger convention for a data app; Return already opens the selection | Phase 16 |
 
 ---
 
@@ -1268,8 +1339,8 @@ here beyond the data itself.
 
 # Next Agent Instructions
 
-Phases 0–15 are complete and green (599 tests). Start **Phase 16 (macOS commands / keyboard
-shortcuts audit)** — the brief is
+Phases 0–16 are complete and green (608 tests). Start **Phase 17 (accessibility / performance)** —
+the brief is
 in the "Current Phase" section above. It is a macOS-original feature (the RN app has none), so the
 feature matrix's §12 row is the parity contract: document it as an addition, not parity. The one
 remaining Phase 7 item is **location tagging** (create-time capture plus the location edit sheet);
@@ -1332,6 +1403,12 @@ Existing infrastructure (don't redo):
   config + services once at launch; an unconfigured build is a supported state with stubs.
   `Support/SyncPolicy.swift` holds the sync predicates; `SyncPreference` now also carries
   `now`, the groupService key accessor, and the initial-sync-checked flag helpers.
+* **Commands (Phase 16)**: `AppCommands.menuAuditTable` is the shortcut set's single source of
+  truth — the menu body builds from it and `CommandsTests` runs the standard-macOS conflict rules
+  against it (the three deliberate plain-⌘ re-uses each carry their safety reason in the test).
+  `AppSection.syncEntity` maps a section to its per-entity sync, and
+  `AppState.requestSectionEditor` / `requestSectionSync` are the two request channels that section
+  views answer only when frontmost (`selectedSection` guard).
 * **Import/Export (Phase 15) is complete and is the reference for file exchange**:
   `Support/CSV.swift` (RFC 4180 encode/decode — mind the Swift grapheme-cluster CRLF trap:
   `"\r\n"` is one `Character`, match `case "\r", "\r\n"`), `Services/ExportService.swift`
@@ -1422,3 +1499,8 @@ pass — see the Phase 14 section above.
 
 `4947adc` — 2026-09-23 — "phase: implement import and export" (hash recorded in a follow-up docs
 commit per the established pattern).
+
+### Phase 16 Commit
+
+`PENDING` — 2026-09-23 — "phase: audit and complete keyboard commands" (hash recorded in a
+follow-up docs commit per the established pattern).

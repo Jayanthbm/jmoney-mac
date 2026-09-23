@@ -51,6 +51,15 @@ struct GroupsView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
+        // Phase 16: File > New Group switches here and raises the request.
+        .onChange(of: appState.sectionEditorRequestID) { _, _ in
+            guard appState.selectedSection == .groups else { return }
+            editorTarget = .new
+        }
+        .onChange(of: appState.sectionSyncRequestID) { _, _ in
+            guard appState.selectedSection == .groups else { return }
+            appState.requestEntitySync(.transactionGroups)
+        }
         .task {
             await reload()
             await runInitialSyncIfNeeded()

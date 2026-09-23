@@ -204,6 +204,27 @@ final class AppState {
         )
     }
 
+    // MARK: - Section editor requests (Phase 16)
+
+    /// Asks the **frontmost section** to present its new-item editor. The File
+    /// menu's New Budget/Goal/Category/… items raise this; only the visible
+    /// section's list view is alive to observe it, so exactly one editor answers.
+    /// Views select nothing and simply present — the menu item first switches to
+    /// the section it names.
+    private(set) var sectionEditorRequestID = 0
+
+    func requestSectionEditor() {
+        sectionEditorRequestID += 1
+    }
+
+    /// Bumped when the Data menu asks the frontmost management section to sync
+    /// its own entity (the same request the screens' toolbar buttons raise).
+    private(set) var sectionSyncRequestID = 0
+
+    func requestSectionSync() {
+        sectionSyncRequestID += 1
+    }
+
     // MARK: - Import / Export (Phase 15 — macOS-original feature)
 
     /// Presents the export sheet (File > Export…, ⌘E).

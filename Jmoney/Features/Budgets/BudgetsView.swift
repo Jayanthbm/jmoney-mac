@@ -51,6 +51,15 @@ struct BudgetsView: View {
                 await reload()
             }
         }
+        // Phase 16: File > New Budget switches here and raises the request.
+        .onChange(of: appState.sectionEditorRequestID) { _, _ in
+            guard appState.selectedSection == .budgets else { return }
+            editorTarget = .new
+        }
+        .onChange(of: appState.sectionSyncRequestID) { _, _ in
+            guard appState.selectedSection == .budgets else { return }
+            appState.requestEntitySync(.budgets)
+        }
         .task {
             await viewModel.loadLookups(pool: database.pool, userId: sessionStore.userId)
             await reload()

@@ -85,6 +85,7 @@
 		6E86F81A581DE43FA716DDAE /* ReportDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6882A63BD64E27170062B6D6 /* ReportDestination.swift */; };
 		72822FF59F484428BB89B121 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65169BB951F85CE02085CBE5 /* Formatters.swift */; };
 		747C74FD51BE89F135E619F5 /* TransactionSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78B5FFEBCD344D6E6711280D /* TransactionSync.swift */; };
+		752347E061D4632B27170823 /* CommandsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F59344684E2856526ED56C7A /* CommandsTests.swift */; };
 		786BAB14BF699EB02C1054EF /* TransactionFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D121EB9555E2FA7D46248A17 /* TransactionFilterTests.swift */; };
 		78C8584686E654CE3143AAA5 /* GoalEditorTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4435FD54F58E62143237F89D /* GoalEditorTarget.swift */; };
 		79F2F88A729920D38F457B56 /* BudgetServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1586B984F7441082156EA774 /* BudgetServiceTests.swift */; };
@@ -367,6 +368,7 @@
 		F4C887AE77E778CF0F0D8D37 /* MetaEntityCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetaEntityCalculationTests.swift; sourceTree = "<group>"; };
 		F4FABD06E8F74A06F0C96964 /* ReportDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDetailView.swift; sourceTree = "<group>"; };
 		F5595EC1395A2DC5DE3DBE7F /* ImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportService.swift; sourceTree = "<group>"; };
+		F59344684E2856526ED56C7A /* CommandsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandsTests.swift; sourceTree = "<group>"; };
 		F60EF012B5FB135BFCC3603E /* Payee.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Payee.swift; sourceTree = "<group>"; };
 		F6D03D46351537F86CE3FF4F /* AppSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSection.swift; sourceTree = "<group>"; };
 		F758FB81A2FDCAA5C1C685B8 /* BudgetsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetsViewModel.swift; sourceTree = "<group>"; };
@@ -662,6 +664,7 @@
 				73519BDDDEA351DC947E40DB /* CalendarCalculationTests.swift */,
 				546ED06EA3019C1C3FC8A58C /* CalendarServiceTests.swift */,
 				4B41C55C0251E9EE0AD297E2 /* CalendarViewRenderingTests.swift */,
+				F59344684E2856526ED56C7A /* CommandsTests.swift */,
 				642E99D77243AC89EC762D7B /* DashboardCalculationTests.swift */,
 				C7E2C3A7C3EB9D58217836F3 /* DashboardQueryTests.swift */,
 				20CAD7460775A6469CF2AD94 /* DashboardViewRenderingTests.swift */,
@@ -881,6 +884,7 @@
 				5235529BDE3A2BA8F207008A /* CalendarCalculationTests.swift in Sources */,
 				24DF723BCB9C19274138EBCB /* CalendarServiceTests.swift in Sources */,
 				0B8E06FE29407020D04F0A61 /* CalendarViewRenderingTests.swift in Sources */,
+				752347E061D4632B27170823 /* CommandsTests.swift in Sources */,
 				32089E53F864CFA1B899261E /* DashboardCalculationTests.swift in Sources */,
 				849ABBB6CE3E1C1DF02E47E8 /* DashboardQueryTests.swift in Sources */,
 				4483E8399D81DA150306A99D /* DashboardViewRenderingTests.swift in Sources */,

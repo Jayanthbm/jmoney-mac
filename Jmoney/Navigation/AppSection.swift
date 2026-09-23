@@ -48,4 +48,21 @@ enum AppSection: String, CaseIterable, Identifiable, Hashable {
         case .settings: return "gearshape"
         }
     }
+
+    /// The entity a section's own sync covers — what Data > Sync This Section
+    /// (Phase 16) requests and what the screen's toolbar sync button raises.
+    /// `nil` for the sections with no per-entity sync (dashboard, calendar,
+    /// reports, settings use ⌘R's full sync instead).
+    var syncEntity: SyncEntity? {
+        switch self {
+        case .transactions: return .transactions
+        case .budgets: return .budgets
+        case .goals: return .goals
+        case .categories: return .categories
+        case .payees: return .payees
+        case .quickTransactions: return .quickTransactions
+        case .groups: return .transactionGroups
+        case .dashboard, .calendar, .reports, .settings: return nil
+        }
+    }
 }

@@ -49,6 +49,15 @@ struct QuickTransactionsView: View {
         .onChange(of: appState.dataRevision) { _, _ in
             Task { await reload() }
         }
+        // Phase 16: File > New Template switches here and raises the request.
+        .onChange(of: appState.sectionEditorRequestID) { _, _ in
+            guard appState.selectedSection == .quickTransactions else { return }
+            editorTarget = .new
+        }
+        .onChange(of: appState.sectionSyncRequestID) { _, _ in
+            guard appState.selectedSection == .quickTransactions else { return }
+            appState.requestEntitySync(.quickTransactions)
+        }
         .task {
             await reload()
             await runInitialSyncIfNeeded()

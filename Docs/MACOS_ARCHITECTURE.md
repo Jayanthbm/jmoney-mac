@@ -34,8 +34,11 @@ biometric app-lock overlay — 574 tests green. **Import / Export implemented (P
 deliberate macOS-original addition (the RN app has none): an RFC 4180 CSV codec, transaction/
 category/payee/goal CSV exports plus a full seven-table JSON backup, and a name-mapped,
 per-row-validated, born-dirty CSV transaction import with a per-row report; File > Export… (⌘E)
-and File > Import Transactions… — 599 tests green.
-Next: Phase 16 (commands / keyboard-shortcuts audit).
+and File > Import Transactions… — 599 tests green. **Commands / shortcuts audited and completed
+(Phase 16)**: the full menu set (per-section New items with ⇧⌘ bindings, ⇧⌘I import, the Data
+menu's section sync) driven by `AppCommands.menuAuditTable` with the HIG conflict rules pinned in
+`CommandsTests` — 608 tests green.
+Next: Phase 17 (accessibility / performance).
 
 ---
 
@@ -81,8 +84,8 @@ The React Native app is an offline-first personal finance tracker:
 Jmoney/
 ├── App/
 │   ├── JmoneyApp.swift            # @main: WindowGroup + Settings scene + Commands  [Phase 4 ✓]
-│   ├── AppCommands.swift          # ⌘N/⌘⇧N new+quick transaction, ⌘F find, ⌘E export,
-│   │                              #   import, Data menu ⌘R  [Phase 4 ✓, Phase 15 ✓]
+│   ├── AppCommands.swift          # The full menu set (New series, Find, Export/Import, Data menu)
+│   │                              #   driven by `menuAuditTable`  [Phase 4 ✓, Phase 15 ✓, Phase 16 ✓]
 │   └── AppState.swift             # @Observable shell state: selection, sheets, search,
 │                                  #   status bar (AppEnvironment-style service wiring lands in Phase 5)
 ├── Navigation/
@@ -195,7 +198,7 @@ Jmoney/
 │   ├── JSONValue.swift            # Codable-ish JSON for the sync payloads/records  [Phase 14 ✓]
 │   └── ManagementSyncButton.swift # The six management screens' shared toolbar sync button
 │                                  #   [Phase 14 ✓]
-JmoneyTests/                       # 599 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+JmoneyTests/                       # 608 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
@@ -213,7 +216,8 @@ JmoneyTests/                       # 599 tests: schema/defaults/indexes, record 
                                    #   engine incl. every preserved quirk, sync foundation rules,
                                    #   push-only runs + lock + guards + button, CSV codec, export
                                    #   rows/backup shape, import mapping/validation/sentinels and
-                                   #   the export→import round trip   [Phase 5–15 ✓]
+                                   #   the export→import round trip, the menu-audit conflict rules
+                                   #   [Phase 5–16 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -247,11 +251,14 @@ JmoneyTests/                       # 599 tests: schema/defaults/indexes, record 
 | Swipe-to-edit / swipe-to-delete | Context menu, `⌫` on the selection, double-click to edit |
 | FlashList pinned (sticky) date headers | Native `List` sections with per-day headers and totals |
 | Long-press card actions | Context menu (edit, delete, filter by payee/category) |
-| File exchange (macOS-original, Phase 15) | File > Export… (⌘E) via `NSSavePanel` for the transactions/filtered/categories/payees/goals CSVs and the JSON backup; File > Import Transactions… with an open panel, a preview stage, and a per-row report sheet |
+| File exchange (macOS-original, Phase 15) | File > Export… (⌘E) via `NSSavePanel` for the transactions/filtered/categories/payees/goals CSVs and the JSON backup; File > Import Transactions… (⇧⌘I) with an open panel, a preview stage, and a per-row report sheet |
+| Section New commands (Phase 16) | File > New Budget/Goal/Category/Payee/Group/Template… (⇧⌘B/G/C/P/T/M): the item selects its sidebar section and raises a request the frontmost section's list view answers |
+| Per-section sync (Phase 16) | Data > Sync Transactions and Data > Sync This Section — the menu twins of the screens' toolbar sync buttons |
 
-Keyboard: ⌘N new transaction, ⌘⇧N quick transaction, ⌘F search, ⌘R sync, ⌘E export, ⌘, settings,
-Delete remove selection, Return open selection, Escape dismiss sheets — no conflicts with
-standard macOS shortcuts.
+Keyboard: ⌘N new transaction, ⌘⇧N quick transaction, ⇧⌘B/G/C/P/T/M per-section New, ⌘F search,
+⌘R sync, ⌘E export, ⇧⌘I import, ⌘, settings, Delete remove selection, Return open selection,
+Escape dismiss sheets — no conflicts with standard macOS shortcuts (audited and pinned by
+`CommandsTests`; the three plain-⌘ re-uses each carry a documented safety reason).
 
 ## 5. Data Flow
 
