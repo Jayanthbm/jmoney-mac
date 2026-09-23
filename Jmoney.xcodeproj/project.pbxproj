@@ -67,6 +67,7 @@
 		590B80DD40D0DB6C78167A6D /* PayeeSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F3B59CF556301A0527ED17B /* PayeeSync.swift */; };
 		5978EADBEBE2D51EEE4741FA /* CategoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8F6FFA440604EE5B63D9A2 /* CategoryEditorView.swift */; };
 		5999012C117F800120D74789 /* ReportsViewRenderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B92DCC39DE3680D6E09F6B /* ReportsViewRenderingTests.swift */; };
+		5A09852362C02851FFA06C51 /* Credits.html in Resources */ = {isa = PBXBuildFile; fileRef = 6F2C88C5C4E36331E8A8E3A2 /* Credits.html */; };
 		5A991E99E07A9A7454464D33 /* GoalEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B7C961AA108AADAB99DDB8 /* GoalEditorViewModel.swift */; };
 		5B53A9DA8D4E903B57960014 /* LocationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 541238C648396A1D516A650D /* LocationTests.swift */; };
 		5C3DDEC86A947B5739DBC9C0 /* PayeesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EC135C29C51BF6828D102E /* PayeesViewModel.swift */; };
@@ -117,6 +118,7 @@
 		A09BDBAB5D81421E62FD5D63 /* BudgetEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BF7C8CBE8BD0AC59A54E7C7 /* BudgetEditorViewModel.swift */; };
 		A2E98A27C48451CA237B1EFD /* SyncBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C70E3C72FDCB9433B898474 /* SyncBackend.swift */; };
 		A4C65E36B0C5C355E0EAAC88 /* SummaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44F88D9DFC92F45E9EFFC221 /* SummaryCard.swift */; };
+		A5051C969405C6D9F9B06608 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 24A7C177D6C3EAA16BC78C45 /* Assets.xcassets */; };
 		A5AB6553AC11F8B889821B8C /* CalendarDaySummaryBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1024E1DABACC869EF9AB7873 /* CalendarDaySummaryBar.swift */; };
 		A5FF8B6434B420509D0AA1D9 /* BiometricPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12731318FD9D58BB1B3586E2 /* BiometricPreference.swift */; };
 		ABDD93AA6E7EB4C1C2491050 /* SettingsSceneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3BCAA3041078C0CD099FF01 /* SettingsSceneView.swift */; };
@@ -227,6 +229,7 @@
 		1F1C498301D354DC26C2BB90 /* CategoryIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryIcon.swift; sourceTree = "<group>"; };
 		20CAD7460775A6469CF2AD94 /* DashboardViewRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewRenderingTests.swift; sourceTree = "<group>"; };
 		23DA19125C6E0357132BA80F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		24A7C177D6C3EAA16BC78C45 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		24E34071C721752546D48961 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		2547A609460875A46E440889 /* GroupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupService.swift; sourceTree = "<group>"; };
 		266658BA34E5E2BC2E3C3A5C /* GroupsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupsViewModel.swift; sourceTree = "<group>"; };
@@ -287,6 +290,7 @@
 		6BB7F978AC138DD6E08BC578 /* GoalCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCalculationTests.swift; sourceTree = "<group>"; };
 		6D6E197AAD1C7D4AC0C75315 /* SettingsViewRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewRenderingTests.swift; sourceTree = "<group>"; };
 		6E3DEF999882865F045B30B8 /* MonthYearPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthYearPicker.swift; sourceTree = "<group>"; };
+		6F2C88C5C4E36331E8A8E3A2 /* Credits.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = Credits.html; sourceTree = "<group>"; };
 		6F3C5149DD9D8631DEF78949 /* CategoryIconPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryIconPicker.swift; sourceTree = "<group>"; };
 		73519BDDDEA351DC947E40DB /* CalendarCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarCalculationTests.swift; sourceTree = "<group>"; };
 		76A77D28C2F37CCD4BF56989 /* CalendarMonthGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarMonthGrid.swift; sourceTree = "<group>"; };
@@ -720,6 +724,7 @@
 		AC4D54355077198409F3D64D = {
 			isa = PBXGroup;
 			children = (
+				6F2C88C5C4E36331E8A8E3A2 /* Credits.html */,
 				DD1FBB410F584ABB839C67DC /* Jmoney */,
 				9AA1B60901644103438E845A /* jmoney-mac */,
 				8DA70845064E6E186F16F007 /* JmoneyTests */,
@@ -730,6 +735,7 @@
 		DD1FBB410F584ABB839C67DC /* Jmoney */ = {
 			isa = PBXGroup;
 			children = (
+				24A7C177D6C3EAA16BC78C45 /* Assets.xcassets */,
 				86166E757EFFA294105763A8 /* App */,
 				FF0D6CE90E5F7270B3756060 /* Features */,
 				590B6F5A2F0C427D746B923C /* Models */,
@@ -835,6 +841,7 @@
 			buildConfigurationList = B90F1149C317ACCC2772C4F6 /* Build configuration list for PBXNativeTarget "Jmoney" */;
 			buildPhases = (
 				D711D2C96637BD79F40DE2C2 /* Sources */,
+				FCF5FE1481E5C322C660CC1F /* Resources */,
 				3CD9E93F1C43798B0F633DB6 /* Frameworks */,
 			);
 			buildRules = (
@@ -884,6 +891,18 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		FCF5FE1481E5C322C660CC1F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A5051C969405C6D9F9B06608 /* Assets.xcassets in Resources */,
+				5A09852362C02851FFA06C51 /* Credits.html in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		5798F1FDC39E8FA31A2C5162 /* Sources */ = {
@@ -1151,16 +1170,22 @@
 			baseConfigurationReference = 032B035613E173EE807C5370 /* Jmoney.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Jmoney;
 				INFOPLIST_KEY_JMoneySupabaseAnonKey = "$(JMONEY_SUPABASE_ANON_KEY)";
 				INFOPLIST_KEY_JMoneySupabaseURL = "$(JMONEY_SUPABASE_URL)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Jmoney. All rights reserved.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Jmoney uses your location to attach a location to a transaction when you turn on Include Location.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 3.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jayanth.jmoney;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;
@@ -1191,15 +1216,20 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Jmoney;
 				INFOPLIST_KEY_JMoneySupabaseAnonKey = "$(JMONEY_SUPABASE_ANON_KEY)";
 				INFOPLIST_KEY_JMoneySupabaseURL = "$(JMONEY_SUPABASE_URL)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Jmoney. All rights reserved.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Jmoney uses your location to attach a location to a transaction when you turn on Include Location.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 3.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.jayanth.jmoney;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.0;

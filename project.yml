@@ -20,6 +20,10 @@ targets:
 
     sources:
       - Jmoney
+      # The About panel's credits (Phase 19) — copied to the bundle root, where
+      # the standard About panel looks for it.
+      - path: Credits.html
+        buildPhase: resources
 
     dependencies:
       - package: GRDB
@@ -27,17 +31,35 @@ targets:
         product: Supabase
 
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.jayanth.jmoney
-      SWIFT_VERSION: "5.0"
-      MACOSX_DEPLOYMENT_TARGET: "14.0"
-      GENERATE_INFOPLIST_FILE: YES
-      # Credentials are read from Info.plist at runtime; see Jmoney.xcconfig.
-      INFOPLIST_KEY_JMoneySupabaseURL: "$(JMONEY_SUPABASE_URL)"
-      INFOPLIST_KEY_JMoneySupabaseAnonKey: "$(JMONEY_SUPABASE_ANON_KEY)"
-      # Location tagging (Phase 18): the system refuses to show the permission
-      # prompt without a usage string; matching the source's add-transaction
-      # screen (the only caller).
-      INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Jmoney uses your location to attach a location to a transaction when you turn on Include Location."
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.jayanth.jmoney
+        SWIFT_VERSION: "5.0"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        GENERATE_INFOPLIST_FILE: YES
+        # App identity (Phase 19). MARKETING_VERSION anchors to the source app's
+        # package.json version (jmoney 3.0.0) so the port tracks the original.
+        MARKETING_VERSION: "3.0.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: Jmoney
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.finance
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright © 2026 Jmoney. All rights reserved."
+        # The app icon (Phase 19): rendered by Scripts/make_app_icon.swift into
+        # Assets.xcassets — a Big Sur tile with the app's ₹ glyph.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Credentials are read from Info.plist at runtime; see Jmoney.xcconfig.
+        INFOPLIST_KEY_JMoneySupabaseURL: "$(JMONEY_SUPABASE_URL)"
+        INFOPLIST_KEY_JMoneySupabaseAnonKey: "$(JMONEY_SUPABASE_ANON_KEY)"
+        # Location tagging (Phase 18): the system refuses to show the permission
+        # prompt without a usage string; matching the source's add-transaction
+        # screen (the only caller).
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Jmoney uses your location to attach a location to a transaction when you turn on Include Location."
+      # Packaging hygiene (Phase 19): a Release build must not carry the
+      # `com.apple.security.get-task-allow` debug entitlement that Xcode injects
+      # into local builds by default. (Notarization/distribution would additionally
+      # need a Developer ID team + hardened runtime; this is the local-build baseline.)
+      configs:
+        Release:
+          CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
 
     configFiles:
       # Supabase credentials are build configuration, never source (master prompt

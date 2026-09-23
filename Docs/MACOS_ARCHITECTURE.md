@@ -45,8 +45,12 @@ correct on a 10,000-row ledger — 620 tests green. **Final parity audit complet
 matrix row re-verified against the RN source and flipped to a terminal status, and the last feature
 gap closed — location tagging (create-time capture with the last-known fallback + the
 progressive-accuracy ladder, the manual-coordinates sheet, remove, the maps deep link;
-`LocationService` + `LocationGate`) — 634 tests green.
-Next: Phase 19 (release preparation).
+`LocationService` + `LocationGate`) — 634 tests green. **Release preparation complete (Phase 19)**:
+app identity (₹-glyph icon rendered by `Scripts/make_app_icon.swift`, version 3.0.0 tracking the
+source's `package.json`, display name, Finance category, copyright, About-panel credits), a
+warning-free Release build, the archive pipeline verified end-to-end, and the debug entitlement
+(`get-task-allow`) stripped from Release.
+All 19 phases complete.
 
 ---
 
@@ -205,6 +209,8 @@ Jmoney/
 │   ├── SupabaseConfig.swift       # Info.plist credential resolution + unconfigured states  [Phase 14 ✓]
 │   ├── LocationService.swift      # CoreLocation wrapper: permission, fixes, capture strategy
 │                                  #   [Phase 18 ✓]
+Scripts/make_app_icon.swift        # Renders the ten-size app icon set (₹ glyph tile)  [Phase 19 ✓]
+Credits.html                       # About-panel credits (bundle-root resource)  [Phase 19 ✓]
 │   ├── JSONValue.swift            # Codable-ish JSON for the sync payloads/records  [Phase 14 ✓]
 │   ├── LocationGate.swift         # Pure location rules: accuracy ladder, manual parsing, maps
 │   │                              #   link [Phase 18 ✓]
@@ -318,6 +324,10 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   Phase 18: `Services/LocationService.swift` + `Support/LocationGate.swift`, the editor's
   Include-Location row and edit sheet, and the `NSLocationWhenInUseUsageDescription` key.
 - Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
+- Release baseline (Phase 19): version 3.0.0 (tracking the source's `package.json`), Finance
+  category, ₹-glyph icon (`Scripts/make_app_icon.swift`), About-panel credits, Release builds
+  without the debug entitlement. Distribution beyond this machine still needs Developer ID
+  signing + hardened runtime + notarization.
 - Settings notes: the sidebar pane and the ⌘, window render one shared `SettingsView`, so the RN
   settings *tab* and the Mac-conventional settings window cannot drift apart; both scenes therefore
   receive the same four environment objects (app state, session, database, appearance).

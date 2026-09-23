@@ -161,30 +161,17 @@ Design notes for the next agent:
 | 16    | macOS commands / keyboard shortcuts | COMPLETE    |
 | 17    | Accessibility / performance         | COMPLETE    |
 | 18    | Final feature parity audit          | COMPLETE    |
-| 19    | Release preparation                 | NOT STARTED |
+| 19    | Release preparation                 | COMPLETE    |
 
 ---
 
 # Current Phase
 
-**Phase:** 19 — Release preparation
+**Phase:** none — all 19 phases complete.
 
-Phases 0–18 are complete, built, and tested (634 tests green — see the Progress Log).
-
-## Phase 19 brief — Release preparation
-
-Suggested scope:
-
-1. **Release build**: an archive/Release configuration build with warnings-as-errors if cheap;
-   confirm the unconfigured-credential state still degrades honestly (the auth gate explains
-   itself, sync reports the configuration reason).
-2. **App identity**: app name/category/version in `project.yml` (`MARKETING_VERSION`,
-   `CURRENT_PROJECT_VERSION`), a real app icon (the Phase 4 placeholder), and the
-   About panel's credits.
-3. **Packaging hygiene**: verify the exported app has no debug entitlements, the Info.plist
-   usage strings are complete (location is in), and the app launches from `/Applications`.
-4. **Docs close-out**: the master prompt's §19 checklist; freeze the docs as the
-   handoff record.
+Phases 0–19 are complete, built, and tested (634 tests green — see the Progress Log). The project
+is at its release baseline; see the Phase 19 log entry for what "released" means here (local-build
+baseline: ad-hoc signature, no Developer ID/notarization).
 
 ---
 
@@ -1294,6 +1281,59 @@ stability rules. No undocumented difference was found beyond the three rows reso
   would accept it (`"12abc"` → 12); noted in `LocationGate`'s doc comment as a conscious
   tightening, since the sheet's field is explicitly two numbers.
 
+## Phase 19 — Release Preparation
+
+**Status:** COMPLETE (2026-09-23) — all phases done.
+
+### What was done
+
+* **App icon**: the Phase 4 placeholder state (no asset catalog at all) replaced by a real icon
+  set — a Big Sur tile (824/1024, 0.225 corner radius) with an indigo→violet gradient and a white
+  ₹ glyph, the app's currency throughout. All ten classic macOS sizes rendered vectorially by
+  `Scripts/make_app_icon.swift` (kept in-repo so the icon is reproducible), wired via
+  `ASSETCATALOG_COMPILER_APPICON_NAME`; the built app ships `AppIcon.icns` and Info.plist's
+  `CFBundleIconName`.
+* **Version metadata**: `MARKETING_VERSION` **3.0.0** (anchored to the source app's
+  `package.json` so the port tracks the original), `CURRENT_PROJECT_VERSION` 1,
+  `CFBundleDisplayName` Jmoney, `LSApplicationCategoryType` `public.app-category.finance`,
+  copyright string. Verified present in the built Info.plist.
+* **About panel credits**: `Credits.html` as a bundle-root resource (the standard About panel
+  renders it) — what the app is, and the three libraries it stands on.
+* **Release build**: `BUILD SUCCEEDED` with zero warnings in the app target. The brief's
+  warnings-as-errors was attempted and rejected: it collides with SPM packages' own
+  `-suppress-warnings` (a known swift-driver conflict), so the honest equivalent is the verified
+  zero-warning state.
+* **Packaging hygiene** — the audit's real find: the Release build carried
+  `com.apple.security.get-task-allow` (Xcode's local-build debug entitlement). Fixed with
+  `CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO` for Release; verified gone. Note: XcodeGen's
+  per-config `settings.configs` requires the flat keys under `base:` — the first attempt silently
+  dropped them and was caught by the failed build.
+* **Archive pipeline**: `xcodebuild archive` → `ARCHIVE SUCCEEDED`; the archived app has clean
+  entitlements, version 3.0.0, the icon, and launches outside DerivedData (the `/Applications`
+  scenario, exercised in `/tmp`).
+* **Unconfigured-credential state**: already test-pinned (`SessionStoreTests`:
+  `testUnconfiguredBuildSyncFailsAndLeavesTheAccountUnsynced`,
+  `testUnconfiguredAuthRefusesRestoreAndSignIn`); the committed `Jmoney.xcconfig` remains the
+  empty template.
+* **Docs close-out** (the master prompt's §19 is the documentation section): all five required
+  docs synchronized; the progress file's phase table is fully COMPLETE and the handoff
+  instructions now describe a finished project.
+
+### Verification
+
+* Debug `xcodebuild … test` → `TEST SUCCEEDED` (634 tests, 0 failures).
+* Release `xcodebuild … build` → `BUILD SUCCEEDED`, zero warnings in the app target.
+* `codesign --verify` passes on the Release build; signature is ad-hoc (`TeamIdentifier=not set`).
+* Release and archive-app launch smoke tests both passed.
+
+### Known remaining work (deliberately out of scope)
+
+* **Distribution beyond this machine**: Developer ID signing + hardened runtime + notarization
+  (needs an Apple Developer team). The current baseline is the correct local-build state:
+  ad-hoc signature, no debug entitlements.
+* A recorded sync reminder: the app-lock biometric enable flow and location permission need real
+  hardware interaction to exercise end-to-end; both are unit-tested at the gate/service level.
+
 ---
 
 # Decision Log
@@ -1420,11 +1460,19 @@ stability rules. No undocumented difference was found beyond the three rows reso
 
 # Next Agent Instructions
 
-Phases 0–18 are complete and green (634 tests). Start **Phase 19 (release preparation)** — the
-brief is in the "Current Phase" section above. The feature matrix is now fully terminal (every
-row MACOS EQUIVALENT or COMPLETE); do not reopen parity questions — treat the matrix as frozen
-except for a discovered regression. The one remaining Phase 7 item, location tagging, was closed
-in Phase 18 (create-time capture + the location edit sheet, `LocationService`/`LocationGate`).
+All 19 phases are complete and green (634 tests). There is no next phase. If you are picking this
+project up:
+
+* Treat the docs as the frozen handoff record: the feature matrix is terminal, the architecture
+  doc describes the shipped layout, and this file's progress log is the build history. Update them
+  for real changes only (a discovered regression, a new feature) — not for re-litigating parity.
+* Build with `xcodegen generate && xcodebuild -project Jmoney.xcodeproj -scheme Jmoney
+  -destination 'platform=macOS' build`; test the same way with `test`. Release:
+  add `-configuration Release`. Archive: `xcodebuild archive … -archivePath <path>`.
+* An unconfigured `Jmoney.xcconfig` (empty credential values) is a supported state; do not commit
+  real credentials.
+* If distribution beyond this machine is ever needed, the remaining work is Developer ID signing
+  + hardened runtime + notarization (see the Phase 19 log entry).
 
 Existing infrastructure (don't redo):
 

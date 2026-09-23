@@ -52,6 +52,8 @@ final class ConnectivityMonitor: ConnectivityProviding, @unchecked Sendable {
     }
 
     func isOnline() async -> Bool {
-        lock.withLock { latestPath?.status == .satisfied } ?? false
+        // `latestPath?.status == .satisfied` is a plain Bool (a nil path compares
+        // false), so no nil-coalescing is needed.
+        lock.withLock { latestPath?.status == .satisfied }
     }
 }
