@@ -15,12 +15,14 @@ struct QuickTransactionsView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
 
-    @State private var viewModel = QuickTransactionsViewModel()
+    private var viewModel: QuickTransactionsViewModel {
+        appState.quickTransactionsViewModel
+    }
     @State private var searchText = ""
     @State private var editorTarget: QuickTransactionEditorTarget?
     @State private var pendingDeletion: QuickTransaction?
 
-    private let cardColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
+    private let cardColumns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 2)
 
     var body: some View {
         Group {
@@ -84,7 +86,7 @@ struct QuickTransactionsView: View {
 
     private var cardContent: some View {
         ScrollView {
-            LazyVGrid(columns: cardColumns, spacing: 12) {
+            LazyVGrid(columns: cardColumns, spacing: 14) {
                 ForEach(viewModel.displayed, id: \.id) { template in
                     Button {
                         editorTarget = .edit(template)
@@ -94,7 +96,6 @@ struct QuickTransactionsView: View {
                             style: .card,
                             onDelete: { pendingDeletion = template }
                         )
-                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .contextMenu { rowMenu(for: template) }

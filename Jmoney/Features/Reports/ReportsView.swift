@@ -106,24 +106,7 @@ struct ReportsView: View {
     }
 
     private func gridCard(for destination: ReportDestination) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            iconBox(for: destination, size: 52, glyphSize: 28)
-            Text(destination.title)
-                .font(.headline)
-                .lineLimit(1)
-            Text(destination.summary)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16).strokeBorder(.separator)
-        )
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        ReportCardRow(destination: destination)
     }
 
     private func iconBox(for destination: ReportDestination, size: Double, glyphSize: Double)
@@ -135,6 +118,62 @@ struct ReportsView: View {
             .background(destination.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
             .accessibilityHidden(true)
     }
+
+private struct ReportCardRow: View {
+    let destination: ReportDestination
+    @State private var isHovered = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Image(systemName: destination.icon)
+                .font(.system(size: 26, weight: .semibold))
+                .foregroundStyle(destination.color)
+                .frame(width: 50, height: 50)
+                .background(destination.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 14))
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(destination.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                Text(destination.summary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isHovered ? 0.4 : 0.2),
+                            Color.white.opacity(0.05),
+                            Color.black.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: isHovered ? Color.black.opacity(0.12) : Color.black.opacity(0.04),
+            radius: isHovered ? 12 : 4,
+            x: 0,
+            y: isHovered ? 6 : 2
+        )
+        .scaleEffect(isHovered ? 1.015 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {

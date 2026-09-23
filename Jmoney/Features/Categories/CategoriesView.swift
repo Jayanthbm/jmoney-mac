@@ -20,11 +20,13 @@ struct CategoriesView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
 
-    @State private var viewModel = CategoriesViewModel()
+    private var viewModel: CategoriesViewModel {
+        appState.categoriesViewModel
+    }
     @State private var searchText = ""
     @State private var isAddPresented = false
 
-    private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 3)
 
     var body: some View {
         Group {
@@ -75,17 +77,12 @@ struct CategoriesView: View {
 
     private var gridContent: some View {
         ScrollView {
-            LazyVGrid(columns: gridColumns, spacing: 12) {
+            LazyVGrid(columns: gridColumns, spacing: 14) {
                 ForEach(viewModel.displayed) { category in
                     Button {
                         open(category)
                     } label: {
                         CategoryRow(category: category, viewMode: .grid)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(.background.secondary)
-                            )
-                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .contextMenu { rowMenu(for: category) }

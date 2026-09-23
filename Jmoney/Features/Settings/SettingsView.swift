@@ -33,6 +33,8 @@ struct SettingsView: View {
             accountSection
         }
         .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(.regularMaterial)
         .navigationTitle("Settings")
         .task { viewModel.load(userId: sessionStore.userId) }
         .onChange(of: viewModel.statusMessage) { _, message in

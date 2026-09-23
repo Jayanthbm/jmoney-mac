@@ -154,10 +154,20 @@ struct CalendarView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            List(viewModel.dayTransactions) { transaction in
-                TransactionRow(transaction: transaction)
+            GeometryReader { geometry in
+                ScrollView {
+                    let columns = geometry.size.width >= 640
+                        ? [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+                        : [GridItem(.flexible())]
+
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(viewModel.dayTransactions) { transaction in
+                            TransactionRow(transaction: transaction)
+                        }
+                    }
+                    .padding(16)
+                }
             }
-            .listStyle(.inset)
         }
     }
 

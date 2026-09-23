@@ -19,17 +19,45 @@ struct BudgetRow: View {
     let daysInMonth: Int
     let todayProgress: Double
 
+    @State private var isHovered = false
+
     private var accent: Color { info.isOverspent ? .red : .accentColor }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             header
             progress
             periodRow
-            Divider()
             footer
         }
-        .padding(.vertical, 6)
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isHovered ? 0.4 : 0.2),
+                            Color.white.opacity(0.05),
+                            Color.black.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: isHovered ? Color.black.opacity(0.1) : Color.black.opacity(0.03),
+            radius: isHovered ? 12 : 4,
+            x: 0,
+            y: isHovered ? 6 : 2
+        )
+        .scaleEffect(isHovered ? 1.008 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(info.adviceText)

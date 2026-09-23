@@ -9,31 +9,60 @@ struct PayeeRow: View {
     let payee: Payee
     var viewMode: ViewModePreference.ListGridMode = .list
 
+    @State private var isHovered = false
+
     var body: some View {
-        if viewMode == .grid {
-            VStack(spacing: 8) {
-                logo(size: 44, fontSize: 16)
-                Text(payee.name)
-                    .font(.caption.weight(.bold))
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
+        Group {
+            if viewMode == .grid {
+                VStack(spacing: 8) {
+                    logo(size: 44, fontSize: 16)
+                    Text(payee.name)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(14)
+            } else {
+                HStack(spacing: 12) {
+                    logo(size: 32, fontSize: 13)
+                    Text(payee.name)
+                        .font(.body.weight(.semibold))
+                        .lineLimit(1)
+                    Spacer(minLength: 8)
+                }
+                .padding(12)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(payee.name)
-        } else {
-            HStack(spacing: 10) {
-                logo(size: 30, fontSize: 12)
-                Text(payee.name)
-                    .font(.body.weight(.semibold))
-                    .lineLimit(1)
-                Spacer(minLength: 8)
-            }
-            .padding(.vertical, 2)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(payee.name)
         }
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isHovered ? 0.4 : 0.2),
+                            Color.white.opacity(0.05),
+                            Color.black.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: isHovered ? Color.black.opacity(0.1) : Color.black.opacity(0.03),
+            radius: isHovered ? 10 : 4,
+            x: 0,
+            y: isHovered ? 4 : 2
+        )
+        .scaleEffect(isHovered ? 1.01 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(payee.name)
     }
 
     @ViewBuilder

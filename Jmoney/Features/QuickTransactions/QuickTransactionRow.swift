@@ -16,11 +16,42 @@ struct QuickTransactionRow: View {
 
     private var accent: Color { isIncome ? .green : .red }
 
+    @State private var isHovered = false
+
     var body: some View {
-        if style == .card {
-            card
-        } else {
-            listRow
+        Group {
+            if style == .card {
+                card
+            } else {
+                listRow
+            }
+        }
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isHovered ? 0.4 : 0.2),
+                            Color.white.opacity(0.05),
+                            Color.black.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: isHovered ? Color.black.opacity(0.1) : Color.black.opacity(0.03),
+            radius: isHovered ? 10 : 4,
+            x: 0,
+            y: isHovered ? 4 : 2
+        )
+        .scaleEffect(isHovered ? 1.01 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
 
@@ -47,7 +78,6 @@ struct QuickTransactionRow: View {
             }
             .frame(maxWidth: .infinity)
             .padding(14)
-            .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14))
             .contentShape(Rectangle())
         }
         .overlay(alignment: .topTrailing) {

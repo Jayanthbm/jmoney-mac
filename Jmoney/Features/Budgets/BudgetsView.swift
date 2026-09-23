@@ -20,7 +20,9 @@ struct BudgetsView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
 
-    @State private var viewModel = BudgetsViewModel()
+    private var viewModel: BudgetsViewModel {
+        appState.budgetsViewModel
+    }
     @State private var selection: BudgetService.EnrichedBudget.ID?
     @State private var editorTarget: BudgetEditorTarget?
     @State private var drillDownBudget: BudgetService.EnrichedBudget?
@@ -103,26 +105,31 @@ struct BudgetsView: View {
     private var listContent: some View {
         VStack(spacing: 0) {
             toolsBar
-            Divider()
 
-            List(selection: $selection) {
-                ForEach(viewModel.budgets) { budget in
-                    BudgetRow(
-                        budget: budget,
-                        info: viewModel.cardInfo(for: budget),
-                        startLabel: viewModel.monthRange.startLabel(calendar: viewModel.calendar),
-                        endLabel: viewModel.monthRange.endLabel(calendar: viewModel.calendar),
-                        isCurrentMonth: viewModel.isCurrentMonth,
-                        daysInMonth: viewModel.daysInMonth,
-                        todayProgress: viewModel.todayProgress
-                    )
-                    .tag(budget.id)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) { drillDownBudget = budget }
-                    .contextMenu { rowMenu(for: budget) }
+            GeometryReader { geometry in
+                ScrollView {
+                    let columns = geometry.size.width >= 700
+                        ? [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+                        : [GridItem(.flexible())]
+
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        ForEach(viewModel.budgets) { budget in
+                            BudgetRow(
+                                budget: budget,
+                                info: viewModel.cardInfo(for: budget),
+                                startLabel: viewModel.monthRange.startLabel(calendar: viewModel.calendar),
+                                endLabel: viewModel.monthRange.endLabel(calendar: viewModel.calendar),
+                                isCurrentMonth: viewModel.isCurrentMonth,
+                                daysInMonth: viewModel.daysInMonth,
+                                todayProgress: viewModel.todayProgress
+                            )
+                            .onTapGesture(count: 2) { drillDownBudget = budget }
+                            .contextMenu { rowMenu(for: budget) }
+                        }
+                    }
+                    .padding(16)
                 }
             }
-            .listStyle(.inset)
             .onDeleteCommand { requestDeletion(for: selection) }
         }
     }

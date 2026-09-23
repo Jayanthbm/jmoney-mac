@@ -19,7 +19,9 @@ struct GoalsView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
 
-    @State private var viewModel = GoalsViewModel()
+    private var viewModel: GoalsViewModel {
+        appState.goalsViewModel
+    }
     @State private var selection: Goal.ID?
     @State private var editorTarget: GoalEditorTarget?
     @State private var pendingDeletion: Goal?
@@ -84,18 +86,23 @@ struct GoalsView: View {
     private var listContent: some View {
         VStack(spacing: 0) {
             toolsBar
-            Divider()
 
-            List(selection: $selection) {
-                ForEach(viewModel.goals) { goal in
-                    GoalRow(goal: goal, info: viewModel.cardInfo(for: goal))
-                        .tag(goal.id)
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: 2) { editorTarget = .edit(goal) }
-                        .contextMenu { rowMenu(for: goal) }
+            GeometryReader { geometry in
+                ScrollView {
+                    let columns = geometry.size.width >= 700
+                        ? [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+                        : [GridItem(.flexible())]
+
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        ForEach(viewModel.goals) { goal in
+                            GoalRow(goal: goal, info: viewModel.cardInfo(for: goal))
+                                .onTapGesture(count: 2) { editorTarget = .edit(goal) }
+                                .contextMenu { rowMenu(for: goal) }
+                        }
+                    }
+                    .padding(16)
                 }
             }
-            .listStyle(.inset)
             .onDeleteCommand { requestDeletion(for: selection) }
         }
     }

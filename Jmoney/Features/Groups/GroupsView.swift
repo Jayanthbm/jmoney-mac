@@ -17,12 +17,14 @@ struct GroupsView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
 
-    @State private var viewModel = GroupsViewModel()
+    private var viewModel: GroupsViewModel {
+        appState.groupsViewModel
+    }
     @State private var searchText = ""
     @State private var editorTarget: GroupEditorTarget?
     @State private var pendingDeletion: TransactionGroup?
 
-    private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
+    private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 2)
 
     var body: some View {
         Group {

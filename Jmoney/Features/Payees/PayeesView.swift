@@ -14,11 +14,13 @@ struct PayeesView: View {
     @Environment(SessionStore.self) private var sessionStore
     @Environment(DatabaseService.self) private var database
 
-    @State private var viewModel = PayeesViewModel()
+    private var viewModel: PayeesViewModel {
+        appState.payeesViewModel
+    }
     @State private var searchText = ""
     @State private var isAddPresented = false
 
-    private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private let gridColumns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 3)
 
     var body: some View {
         Group {
@@ -69,16 +71,12 @@ struct PayeesView: View {
 
     private var gridContent: some View {
         ScrollView {
-            LazyVGrid(columns: gridColumns, spacing: 12) {
+            LazyVGrid(columns: gridColumns, spacing: 14) {
                 ForEach(viewModel.displayed) { payee in
                     Button {
                         open(payee)
                     } label: {
                         PayeeRow(payee: payee, viewMode: .grid)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12).fill(.background.secondary)
-                            )
-                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .contextMenu { rowMenu(for: payee) }

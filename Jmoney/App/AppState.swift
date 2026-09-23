@@ -12,8 +12,14 @@ final class AppState {
 
     var selectedSection: AppSection = .dashboard
 
-    /// Shared persistent view model for Transactions screen to retain list state during navigation.
+    /// Shared persistent view models for app screens to eliminate loading flash during navigation.
     let transactionsViewModel = TransactionsViewModel()
+    let budgetsViewModel = BudgetsViewModel()
+    let goalsViewModel = GoalsViewModel()
+    let categoriesViewModel = CategoriesViewModel()
+    let payeesViewModel = PayeesViewModel()
+    let groupsViewModel = GroupsViewModel()
+    let quickTransactionsViewModel = QuickTransactionsViewModel()
 
     // MARK: Sheets
 
