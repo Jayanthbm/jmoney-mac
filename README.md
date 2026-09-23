@@ -227,6 +227,9 @@ Credits.html             # About-panel credits
 - **The schema's sentinel values matter** (`'null'` ids, `''` names) and new rows are
   born-dirty (`sync_status = 1`) so the next sync uploads them. Changing either breaks sync
   compatibility.
-- **Regenerating the app icon:** edit `Scripts/make_app_icon.swift`, then
-  `swift Scripts/make_app_icon.swift` and rebuild.
+- **Regenerating the app icon:** the appiconset is generated from a source brand image
+  (default: the original Jmoney app's `icon.png`) by
+  `swift Scripts/make_app_icon.swift [path/to/source.png]` — then rebuild. The script masks
+  the square source into the standard Big Sur tile (824/1024, rounded corners baked in) and
+  writes all ten macOS sizes.
 - **After adding or moving files:** run `xcodegen generate` before building.

@@ -4,30 +4,40 @@ import ImageIO
 import Foundation
 import UniformTypeIdentifiers
 
-/// Renders the Jmoney macOS app icon: the standard Big Sur tile (824/1024 with
-/// Apple's 0.225 corner-radius ratio), an indigo→violet gradient, and a white ₹
-/// glyph — the app's currency throughout (`AppFormat.currency`, en-IN).
+/// Renders the Jmoney macOS app icon set from a single square source image.
 ///
-/// Writes the classic ten-size macOS appiconset into
-/// `Jmoney/Assets.xcassets/AppIcon.appiconset/`, rendering each size directly
-/// from vectors (no bitmap downscaling artifacts).
+/// The source is the brand icon of the Jmoney app (the React Native project's
+/// `assets/icon.png`); pass its path as the first argument (defaults to
+/// `../jayledger/assets/icon.png` relative to the repo root).
 ///
-/// Run: `swift Scripts/make_app_icon.swift`
+/// macOS icons carry their own mask in the artwork: the source is drawn into a
+/// 1024×1024 canvas as the standard Big Sur tile — 824×824 centered, with
+/// Apple's 0.225 corner-radius ratio — so the rounded corners are baked in.
+/// All ten classic macOS sizes are written for the AppIcon.appiconset.
+///
+/// Run: `swift Scripts/make_app_icon.swift [path/to/source.png]`
 
 let canvas: CGFloat = 1024
+let tileSize: CGFloat = 824
+let tileRadius: CGFloat = tileSize * 0.225
 let outputDir = "Jmoney/Assets.xcassets/AppIcon.appiconset"
 
-// MARK: - Colors
+let arguments = CommandLine.arguments
+let sourcePath = arguments.count > 1
+    ? arguments[1]
+    : "../jayledger/assets/icon.png"
 
-func rgb(_ r: Double, _ g: Double, _ b: Double, _ a: Double = 1) -> CGColor {
-    CGColor(srgbRed: r / 255, green: g / 255, blue: b / 255, alpha: a)
+// MARK: - Load the source
+
+guard let sourceProvider = CGImageSourceCreateWithURL(
+    URL(fileURLWithPath: sourcePath) as CFURL, nil
+) else {
+    fatalError("Cannot read source icon at \(sourcePath)")
 }
+let sourceImage = CGImageSourceCreateImageAtIndex(sourceProvider, 0, nil)!
+let sourceSize = CGFloat(sourceImage.width)
 
-let topColor = rgb(79, 70, 229) // indigo 600
-let bottomColor = rgb(124, 58, 237) // violet 600
-let glyphColor = rgb(255, 255, 255)
-
-// MARK: - Context
+// MARK: - Render
 
 func makeContext(size: CGFloat) -> CGContext {
     let space = CGColorSpace(name: CGColorSpace.sRGB)!
@@ -43,69 +53,28 @@ func makeContext(size: CGFloat) -> CGContext {
     return context
 }
 
-// MARK: - Glyph (₹, U+20B9)
-
-let fontSize: CGFloat = 540
-var systemFont = CTFontCreateUIFontForLanguage(.system, fontSize, nil)!
-if let bold = CTFontCreateCopyWithSymbolicTraits(
-    systemFont, fontSize, nil, .boldTrait, .boldTrait
-) {
-    systemFont = bold
-}
-
-var characters = [UniChar(0x20B9)]
-var glyph = CGGlyph()
-guard CTFontGetGlyphsForCharacters(systemFont, &characters, &glyph, 1) else {
-    fatalError("The system font has no glyph for U+20B9 (₹) — cannot render the icon")
-}
-let bounding = CTFontGetBoundingRectsForGlyphs(
-    systemFont, .horizontal, [glyph], nil, 0
-)
-
-// Optical centering: dead-center, lifted slightly so the symbol reads balanced.
-let glyphX = canvas / 2 - (bounding.origin.x + bounding.width / 2)
-let glyphY = canvas / 2 - (bounding.origin.y + bounding.height / 2) - fontSize * 0.02
-
-// MARK: - Render
-
 func render(size: CGFloat) -> CGImage {
     let context = makeContext(size: size)
 
-    // The Big Sur tile: 824/1024, corner radius 0.225 of the tile width.
-    let tileRect = CGRect(x: 100, y: 100, width: 824, height: 824)
-    let radius = 824 * 0.225
-    let tile = CGPath(roundedRect: tileRect, cornerWidth: radius, cornerHeight: radius, transform: nil)
+    // The Big Sur tile: centered 824×824, corner radius 824 × 0.225.
+    let margin = (canvas - tileSize) / 2
+    let tileRect = CGRect(x: margin, y: margin, width: tileSize, height: tileSize)
+    let tile = CGPath(
+        roundedRect: tileRect, cornerWidth: tileRadius, cornerHeight: tileRadius, transform: nil
+    )
     context.addPath(tile)
     context.clip()
 
-    let space = CGColorSpace(name: CGColorSpace.sRGB)!
-    let gradient = CGGradient(
-        colorsSpace: space,
-        colors: [topColor, bottomColor] as CFArray,
-        locations: [0, 1]
-    )!
-    context.drawLinearGradient(
-        gradient,
-        start: CGPoint(x: canvas / 2, y: 924),
-        end: CGPoint(x: canvas / 2, y: 100),
-        options: []
+    // Draw the square source scaled to fill the tile exactly (aspect fill;
+    // a square source needs no cropping).
+    let scale = tileSize / sourceSize
+    let drawRect = CGRect(
+        x: margin - (sourceSize * scale - tileSize) / 2,
+        y: margin - (sourceSize * scale - tileSize) / 2,
+        width: sourceSize * scale,
+        height: sourceSize * scale
     )
-
-    // A quiet top highlight so the tile has depth without decoration.
-    let sheen = CGGradient(
-        colorsSpace: space,
-        colors: [rgb(255, 255, 255, 0.16), rgb(255, 255, 255, 0.0)] as CFArray,
-        locations: [0, 1]
-    )!
-    context.drawLinearGradient(
-        sheen,
-        start: CGPoint(x: canvas / 2, y: 924),
-        end: CGPoint(x: canvas / 2, y: 620),
-        options: []
-    )
-
-    context.setFillColor(glyphColor)
-    CTFontDrawGlyphs(systemFont, [glyph], [CGPoint(x: glyphX, y: glyphY)], 1, context)
+    context.draw(sourceImage, in: drawRect)
 
     return context.makeImage()!
 }
@@ -148,7 +117,7 @@ for entry in sizes {
 
 // MARK: - Contents.json
 
-var imageEntries = sizes.map { entry in
+let imageEntries = sizes.map { entry in
     """
             {
               "filename" : "\(entry.file)",
@@ -186,4 +155,4 @@ let rootJSON = """
     """
 try rootJSON.write(toFile: "\(catalogRoot)/Contents.json", atomically: true, encoding: .utf8)
 
-print("App icon set written to \(outputDir)")
+print("App icon set written to \(outputDir) from \(sourcePath)")

@@ -1292,7 +1292,10 @@ stability rules. No undocumented difference was found beyond the three rows reso
   ₹ glyph, the app's currency throughout. All ten classic macOS sizes rendered vectorially by
   `Scripts/make_app_icon.swift` (kept in-repo so the icon is reproducible), wired via
   `ASSETCATALOG_COMPILER_APPICON_NAME`; the built app ships `AppIcon.icns` and Info.plist's
-  `CFBundleIconName`.
+  `CFBundleIconName`. *(Follow-up, same day: at the user's choice the icon source switched to the
+  original app's brand icon — `Scripts/make_app_icon.swift` now masks a source PNG (default
+  `../jayledger/assets/icon.png`, 1024×1024) into the Big Sur tile geometry and regenerates the
+  same ten-size set; verified in a rebuilt Release app.)*
 * **Version metadata**: `MARKETING_VERSION` **3.0.0** (anchored to the source app's
   `package.json` so the port tracks the original), `CURRENT_PROJECT_VERSION` 1,
   `CFBundleDisplayName` Jmoney, `LSApplicationCategoryType` `public.app-category.finance`,
