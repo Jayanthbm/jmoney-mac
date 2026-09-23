@@ -1,13 +1,9 @@
 # Jmoney for Mac
 
-A native macOS port of the Jmoney personal finance tracker — offline-first, local SQLite,
-Supabase sync. Built with SwiftUI, GRDB.swift and supabase-swift.
+A native macOS personal finance tracker — offline-first, local SQLite, optional Supabase sync.
+Built with SwiftUI, GRDB.swift and supabase-swift.
 
-The React Native source app (at `../jayledger`) is the behavioral reference: every calculation,
-sync quirk and sentinel value in the macOS app is ported to match it exactly. The parity contract
-is documented row by row in [`Docs/MACOS_FEATURE_MATRIX.md`](Docs/MACOS_FEATURE_MATRIX.md).
-
-**Status:** all 19 build phases complete · 634 tests green · version 3.0.0.
+**Status:** 634 tests green · version 3.0.0.
 
 ---
 
@@ -20,20 +16,17 @@ is documented row by row in [`Docs/MACOS_FEATURE_MATRIX.md`](Docs/MACOS_FEATURE_
 - **Transactions** — day-grouped list with per-day nets, search, date-range and multi-select
   category/payee/group filters, stats popover, quick-transaction templates (⌘⇧N), location
   tagging (GPS capture, manual coordinates, Google Maps link).
-- **Budgets & Goals** — progress tracking with the source's exact math, month navigation,
-  sorting (including its stable-tie behavior), drill-downs.
-- **Reports** — all 11 report types from the RN app, with previous-period comparisons,
-  drill-downs and the living-costs configuration sheet.
+- **Budgets & Goals** — progress tracking, month navigation, stable sorting, drill-downs.
+- **Reports** — 11 report types with previous-period comparisons, drill-downs and the
+  living-costs configuration sheet.
 - **Calendar** — month grid + per-day ledger, bounded navigation.
 - **Management** — categories, payees, groups, quick-transaction templates with reorder,
   search, list/grid view modes and per-screen sync.
-- **Sync** — full push/pull engine preserving the source's protocol (chunked incremental
-  transaction pulls, full-replace entity pulls, born-dirty rows, per-entity last-sync
-  timestamps, partial syncs after saves/deletes).
-- **Security** — Supabase email/password auth, Keychain-backed sessions, Touch ID app lock,
-  biometrics-only enable flow (as in the source).
-- **Import / Export** (macOS-original) — CSV exports, a seven-table JSON backup, and a
-  validated, name-mapped CSV transaction import with a per-row report.
+- **Sync** — full push/pull engine: chunked incremental transaction pulls, full-replace entity
+  pulls, born-dirty rows, per-entity last-sync timestamps, partial syncs after saves/deletes.
+- **Security** — Supabase email/password auth, Keychain-backed sessions, Touch ID app lock.
+- **Import / Export** — CSV exports, a seven-table JSON backup, and a validated, name-mapped
+  CSV transaction import with a per-row report.
 - **Native Mac shell** — sidebar navigation, full keyboard set (⌘N, ⌘⇧N, ⌘F, ⌘R, ⌘E, ⇧⌘I,
   per-section New items), toolbar `+`/sync controls, status-bar toasts.
 
@@ -97,9 +90,9 @@ xcodebuild -project Jmoney.xcodeproj -scheme Jmoney \
 ```
 
 634 tests: schema/defaults/indexes, record round-trips, timestamp rules, dashboard
-calculations, formatters, budget/goal/report/calendar SQL and math, sync engine (including
-every preserved quirk), CSV codec, export/import round trip, menu-audit conflict rules,
-query-plan index proofs, 10,000-row scale correctness, and the location port.
+calculations, formatters, budget/goal/report/calendar SQL and math, the sync engine, the CSV
+codec, the export/import round trip, menu-audit conflict rules, query-plan index proofs,
+10,000-row scale correctness, and location capture.
 
 ## Building a release app
 
@@ -155,8 +148,7 @@ What the release configuration guarantees:
   `com.apple.security.get-task-allow` from Release (Debug keeps it for lldb).
 - **Zero warnings** in the app target.
 - **App icon + credits + identity** baked in: `AppIcon.icns`, `CFBundleShortVersionString`
-  3.0.0 (tracking the source app's `package.json`), Finance category, copyright, and the
-  About-panel `Credits.html`.
+  3.0.0, Finance category, copyright, and the About-panel `Credits.html`.
 
 ### 4. Distributing beyond this machine
 
@@ -182,10 +174,6 @@ xcrun notarytool submit /tmp/export/Jmoney.app.zip --keychain-profile <profile> 
 xcrun stapler staple /tmp/export/Jmoney.app
 ```
 
-This is deliberately out of scope of the build itself; the packaging work it would need
-(manual signing, hardened runtime, an `ExportOptions.plist`) is noted in
-`Docs/AI_BUILD_PROGRESS.md` under Phase 19.
-
 ## Project layout
 
 ```
@@ -200,31 +188,17 @@ Jmoney/                  # App sources
 └── Support/             # Validators, formatters, preferences, pure rules
 JmoneyTests/             # 634 tests (XCTest, in-memory GRDB fixtures)
 Scripts/make_app_icon.swift  # Renders the ten-size app icon set
-Docs/                    # The handoff documentation (see below)
+Docs/                    # Architecture and data-design notes
 project.yml              # XcodeGen manifest — the source of truth for the project
 Jmoney.xcconfig          # Supabase credentials (empty template; local-only values)
 Credits.html             # About-panel credits
 ```
 
-## Documentation
-
-The `Docs/` folder is the complete build record and handoff contract:
-
-| Document | Contents |
-| --- | --- |
-| [`AI_BUILD_PROGRESS.md`](Docs/AI_BUILD_PROGRESS.md) | Phase-by-phase progress log, decisions, known issues, commit hashes — **read this first** |
-| [`AI_BUILD_MASTER_PROMPT.md`](Docs/AI_BUILD_MASTER_PROMPT.md) | The rules every building agent follows |
-| [`MACOS_FEATURE_MATRIX.md`](Docs/MACOS_FEATURE_MATRIX.md) | Every RN feature → macOS equivalent, row by row, with status |
-| [`MACOS_ARCHITECTURE.md`](Docs/MACOS_ARCHITECTURE.md) | Module layout, tech decisions, interaction mapping |
-| [`DATA_ARCHITECTURE.md`](Docs/DATA_ARCHITECTURE.md) | Schema, sync protocol, business rules, quirks, file-exchange contract |
-
 ## Implementation notes
 
-- **Parity is a contract, not an aspiration.** Deliberate differences from the RN app
-  (report window clamping, `parseFloat` tightening in manual coordinates, row-badge tap-to-sync)
-  are documented in place in the matrix and data architecture docs — do not "fix" them silently.
-- **The schema mirrors the RN app exactly**, including sentinel values (`'null'` ids, `''`
-  names) and the born-dirty sync rule. Changing either breaks sync compatibility.
+- **The schema's sentinel values matter** (`'null'` ids, `''` names) and new rows are
+  born-dirty (`sync_status = 1`) so the next sync uploads them. Changing either breaks sync
+  compatibility.
 - **Regenerating the app icon:** edit `Scripts/make_app_icon.swift`, then
   `swift Scripts/make_app_icon.swift` and rebuild.
 - **After adding or moving files:** run `xcodegen generate` before building.
