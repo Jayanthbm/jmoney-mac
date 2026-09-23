@@ -94,6 +94,30 @@ calculations, formatters, budget/goal/report/calendar SQL and math, the sync eng
 codec, the export/import round trip, menu-audit conflict rules, query-plan index proofs,
 10,000-row scale correctness, and location capture.
 
+### Resetting everything (clean-slate debug run)
+
+To wipe all build products *and* local state, then rebuild a fresh debug build — a true
+first run (schema migrates from scratch, signed out, default preferences):
+
+```bash
+Scripts/reset_debug.sh            # reset + rebuild
+Scripts/reset_debug.sh --launch   # … and launch the fresh build
+Scripts/reset_debug.sh --keep-data  # rebuild only, keep local data/session/prefs
+```
+
+The script quits the app if running, then deletes:
+
+| What | Where |
+| --- | --- |
+| Build products (debug *and* release) | `~/Library/Developer/Xcode/DerivedData/Jmoney-*` |
+| Local database + WAL sidecars | `~/Library/Application Support/Jmoney` |
+| Sign-in session | Keychain items under `com.jayanth.jmoney.auth` |
+| Preferences (theme, view modes, reminders, sync timestamps) | `defaults` domain `com.jayanth.jmoney` |
+
+…then regenerates the project (`xcodegen generate`) and runs a clean debug build. Note the
+release build products are wiped too — DerivedData holds both; the next Release build just
+recompiles.
+
 ## Building a debug app
 
 Debug is the default configuration, so no flag is needed:
@@ -215,6 +239,7 @@ Jmoney/                  # App sources
 ├── Stores/              # Session store
 └── Support/             # Validators, formatters, preferences, pure rules
 JmoneyTests/             # 634 tests (XCTest, in-memory GRDB fixtures)
+Scripts/reset_debug.sh       # Wipe builds + local state, fresh debug build
 Scripts/make_app_icon.swift  # Renders the ten-size app icon set
 Docs/                    # Architecture and data-design notes
 project.yml              # XcodeGen manifest — the source of truth for the project
