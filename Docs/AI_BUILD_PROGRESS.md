@@ -1589,3 +1589,8 @@ follow-up docs commit per the established pattern).
 
 `0397bd8` — 2026-09-23 — "phase: accessibility gaps and performance pins" (hash recorded in a
 follow-up docs commit per the established pattern).
+
+### Phase 18 Commit
+
+`56e069c` — 2026-09-23 — "phase: final parity audit; implement location tagging" (hash recorded
+in a follow-up docs commit per the established pattern).
