@@ -1,12 +1,7 @@
+import AppKit
 import SwiftUI
 
-/// The auth gate shown when signed out.
-///
-/// Replaces the Phase 4 mock. Sign-in is Supabase's `signInWithPassword` via
-/// `SessionStore`, which keeps the source's minimal client-side rule: both fields
-/// must be non-empty before the button is enabled, and anything else is the
-/// server's answer. A failed attempt is reported inline rather than as a toast,
-/// because the form is where the user is looking.
+/// The modern AuthGateView shown when signed out.
 struct AuthGateView: View {
     @Environment(SessionStore.self) private var sessionStore
 
@@ -22,50 +17,112 @@ struct AuthGateView: View {
     }
 
     var body: some View {
-        VStack(spacing: 28) {
-            Image(systemName: "banknote.fill")
-                .font(.system(size: 44, weight: .medium))
-                .foregroundStyle(.tint)
-                .accessibilityHidden(true)
+        ZStack {
+            // Modern gradient background
+            LinearGradient(
+                colors: [
+                    Color.accentColor.opacity(0.12),
+                    Color(nsColor: .windowBackgroundColor)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
 
-            VStack(spacing: 6) {
-                Text("Jmoney")
-                    .font(.largeTitle.bold())
-                Text("Track your finances offline-first, with cloud sync.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            VStack(spacing: 32) {
+                // App Icon from bundle NSApplication icon
+                Image(nsImage: NSApplication.shared.applicationIconImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 96, height: 96)
+                    .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
 
-            VStack(spacing: 10) {
-                TextField("Email", text: $email)
-                    .textFieldStyle(.roundedBorder)
-                    .textContentType(.username)
-                    .disabled(sessionStore.isSigningIn)
+                VStack(spacing: 8) {
+                    Text("Jmoney")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                    Text("Offline-first finance tracking with cloud sync")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
-                SecureField("Password", text: $password)
-                    .textFieldStyle(.roundedBorder)
-                    .textContentType(.password)
-                    .disabled(sessionStore.isSigningIn)
-                    .onSubmit { submit() }
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Email")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        TextField("name@example.com", text: $email)
+                            .textFieldStyle(.plain)
+                            .padding(10)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                            )
+                            .textContentType(.username)
+                            .disabled(sessionStore.isSigningIn)
+                    }
 
-                Button("Sign In") { submit() }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Password")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        SecureField("••••••••", text: $password)
+                            .textFieldStyle(.plain)
+                            .padding(10)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                            )
+                            .textContentType(.password)
+                            .disabled(sessionStore.isSigningIn)
+                            .onSubmit { submit() }
+                    }
+
+                    Button(action: submit) {
+                        HStack {
+                            Spacer()
+                            if sessionStore.isSigningIn {
+                                ProgressView()
+                                    .controlSize(.small)
+                            } else {
+                                Text("Sign In")
+                                    .fontWeight(.semibold)
+                            }
+                            Spacer()
+                        }
+                        .padding(.vertical, 10)
+                    }
                     .buttonStyle(.borderedProminent)
+                    .tint(.accentColor)
                     .disabled(!canSubmit)
                     .keyboardShortcut(.defaultAction)
-
-                if sessionStore.isSigningIn {
-                    ProgressView()
-                        .controlSize(.small)
-                        .accessibilityLabel("Signing in")
                 }
-            }
-            .frame(width: 280)
+                .padding(28)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.4),
+                                    Color.white.opacity(0.1)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                )
+                .shadow(color: Color.black.opacity(0.12), radius: 24, x: 0, y: 12)
+                .frame(width: 340)
 
-            statusText
+                statusText
+            }
+            .padding(40)
         }
-        .padding(40)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     @ViewBuilder
@@ -75,15 +132,13 @@ struct AuthGateView: View {
                 .font(.caption)
                 .foregroundStyle(.red)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
+                .frame(maxWidth: 340)
         } else if let configuration = sessionStore.configurationMessage {
-            // An unconfigured build says so before the user tries, instead of
-            // failing every attempt with a network error.
             Text(configuration)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
+                .frame(maxWidth: 340)
         }
     }
 
@@ -94,3 +149,4 @@ struct AuthGateView: View {
         Task { await sessionStore.signIn(email: email, password: password) }
     }
 }
+

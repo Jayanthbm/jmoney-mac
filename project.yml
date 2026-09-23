@@ -3,7 +3,7 @@ name: Jmoney
 options:
   bundleIdPrefix: com.jayanth
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "15.0"
 
 packages:
   GRDB:
@@ -34,7 +34,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.jayanth.jmoney
         SWIFT_VERSION: "5.0"
-        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        MACOSX_DEPLOYMENT_TARGET: "15.0"
         GENERATE_INFOPLIST_FILE: YES
         # App identity (Phase 19). MARKETING_VERSION anchors to the source app's
         # package.json version (jmoney 3.0.0) so the port tracks the original.
