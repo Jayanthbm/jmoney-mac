@@ -204,6 +204,19 @@ final class AppState {
         )
     }
 
+    // MARK: - Import / Export (Phase 15 — macOS-original feature)
+
+    /// Presents the export sheet (File > Export…, ⌘E).
+    var showExportSheet = false
+
+    /// Presents the import sheet (File > Import Transactions…).
+    var showImportSheet = false
+
+    /// The Transactions screen's current filter state, recorded on every reload
+    /// so the export sheet can offer "what's on screen" without the shell owning
+    /// filter construction. `nil` = the Transactions screen hasn't loaded yet.
+    var transactionsFilters: TransactionService.Filters?
+
     // MARK: - App lock (the RN `BiometricLock` overlay)
 
     /// True while the window is covered by the lock overlay. The RN `_layout.tsx`

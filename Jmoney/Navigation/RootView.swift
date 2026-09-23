@@ -40,6 +40,12 @@ struct RootView: View {
                 ) {
                     QuickTransactionPickerSheet()
                 }
+                .sheet(isPresented: $appState.showExportSheet) {
+                    ExportSheetView()
+                }
+                .sheet(isPresented: $appState.showImportSheet) {
+                    ImportSheetView()
+                }
             } else {
                 AuthGateView()
             }

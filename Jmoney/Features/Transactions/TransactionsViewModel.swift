@@ -10,6 +10,10 @@ import Observation
 /// `AppState.dataRevision` changes, or via the toolbar.
 @Observable
 final class TransactionsViewModel {
+    /// Weak: the shell outlives this view model. Set by `TransactionsView` on
+    /// appearance; used only to record the live filter set for the export sheet.
+    weak var appState: AppState?
+
     private(set) var filters = TransactionService.Filters()
     private(set) var page = TransactionService.ListPage()
     private(set) var lookups = TransactionService.Lookups.empty
@@ -93,6 +97,9 @@ final class TransactionsViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+        // Phase 15: the export sheet offers "what's on screen" — record the live
+        // filter set so File > Export can reuse the exact query.
+        appState?.transactionsFilters = filters
     }
 
     /// Categories/payees/groups for the filter popovers and the editor pickers.

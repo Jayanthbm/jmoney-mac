@@ -157,7 +157,7 @@ Design notes for the next agent:
 | 12    | Categories / Payees / Groups / Quick Transactions | COMPLETE |
 | 13    | Settings                            | COMPLETE    |
 | 14    | Authentication / Sync               | COMPLETE    |
-| 15    | Import / Export                     | NOT STARTED |
+| 15    | Import / Export                     | COMPLETE    |
 | 16    | macOS commands / keyboard shortcuts | NOT STARTED |
 | 17    | Accessibility / performance         | NOT STARTED |
 | 18    | Final feature parity audit          | NOT STARTED |
@@ -167,39 +167,33 @@ Design notes for the next agent:
 
 # Current Phase
 
-**Phase:** 15 — Import / Export
+**Phase:** 16 — macOS commands / keyboard shortcuts audit
 
-Phases 0–14 are complete, built, and tested (574 tests green — see the Progress Log).
+Phases 0–15 are complete, built, and tested (599 tests green — see the Progress Log).
 
-## Phase 15 brief — Import / Export (macOS-original feature)
+## Phase 16 brief — macOS commands / keyboard shortcuts audit
 
-The React Native app has **no import or export feature** (the Phase 1 analysis verified the README
-claims are untrue — no code exists). Phase 15 is therefore a deliberate, documented macOS addition,
-not parity work. Keep it that way in the feature matrix: §12 records CSV/JSON export as a planned
-macOS-only enhancement.
+The shortcut surface grew organically across phases (⌘N/⌘⇧N/⌘F/⌘R/⌘E/⌘, plus per-view ⌫ and
+Return handling). The master prompt (§16) wants a deliberate, conflict-free command set. The audit
+should:
 
-Suggested scope (choose what best serves a Mac finance app; do not wait for approval on details):
+1. Inventory every existing key equivalent and menu item (start from `App/AppCommands.swift`, the
+   toolbar `.help` strings, and the editor sheets' `cancelAction`/`defaultAction` shortcuts).
+2. Verify no conflicts with standard macOS shortcuts (⌘X/⌘C/⌘V/⌘A/⌘Z… are currently untouched —
+   keep it that way) or with the system's own shortcuts.
+3. Close the gaps the phases deferred: Import has no key equivalent; New Budget/New Goal/New
+   Category/New Payee/New Group/New Template have none either; per-screen commands (the date
+   filters, Sync <Entity>) could surface in the Data menu when their section is frontmost.
+4. Keep the master prompt's rule: do not implement shortcuts that conflict with standard macOS
+   behavior. Use native menus and commands.
 
-1. **CSV export** of the filtered transaction list (`TransactionService.list` already produces the
-   rows; the denormalized name columns make CSVs human-readable). Follow the macOS convention:
-   `NSSavePanel` from File > Export… (⌘E is free), column headers matching the RN schema names.
-2. Optionally: budgets/goals/categories as CSV, and a JSON **backup** of all user rows (the seven
-   synced tables) with the schema version recorded.
-3. **Import** is the riskier half: prefer a clearly-scoped CSV transaction import that maps
-   category/payee by *name*, creates nothing silently, and reports every skipped row — the local
-   schema's sentinel values (`'null'` ids, `''` names) and `sync_status = 1` on insert (born-dirty,
-   so the next sync uploads imported rows) must be respected. `Validators` covers the amount and
-   description bounds.
-4. Tests: round-trip export → import, the born-dirty rule, sentinel preservation, and the
-   validators' re-use.
-
-Also carry into the phase (or a follow-up): **location tagging** — the one remaining Phase 7 item.
+Also still open from before Phase 15: **location tagging** — the one remaining Phase 7 item.
 `Services/LocationService.swift` still does not exist; the editor shows saved coordinates
 read-only and preserves them on save. Create-time capture plus the location edit sheet closes it.
+Carry it into Phase 16 or a follow-up.
 
-After Phase 15 the remaining phases are 16 (commands/shortcuts audit), 17 (accessibility &
-performance), 18 (feature-parity audit — flip verified matrix rows to MACOS EQUIVALENT) and 19
-(release preparation).
+After Phase 16 the remaining phases are 17 (accessibility & performance), 18 (feature-parity
+audit — flip verified matrix rows to MACOS EQUIVALENT) and 19 (release preparation).
 
 ---
 
@@ -1086,6 +1080,72 @@ verified it against the RN source, completed the remaining items, and committed 
 * The lock auto-prompt cannot run in unit tests (real Touch ID); the state machine and the
   preference test are covered instead.
 
+## Phase 15 — Import / Export
+
+**Status:** COMPLETE (2026-09-23)
+
+A **macOS-original feature** — the RN app has none (matrix §12), so there is no parity contract
+here beyond the data itself.
+
+### What was done
+
+* `Support/CSV.swift` — a minimal RFC 4180 codec: quoting/doubling, CRLF+LF decode, BOM on encode
+  and skipped on decode, embedded newlines preserved.
+* `Services/ExportService.swift` — transactions CSV through `TransactionService.transactions` with
+  the **screen's filter state** (so File > Export can export what is on screen), plus
+  categories/payees/goals CSVs and a JSON **backup** of all seven tables for the user with
+  `format`/`version`/`exported_at` metadata and the sync internals (`sync_status`, `tid`,
+  `deleted`) verbatim — a backup is a true snapshot, soft-deleted rows included. Column headers
+  are the schema's snake_case names.
+* `Services/ImportService.swift` — a deliberately narrow **transaction CSV import**: header matched
+  by column name with required-column validation before anything is written; category/payee/group
+  matched **by name** (case-insensitive, trimmed) against the user's existing rows; missing matches
+  **skip the row and are reported — nothing is created silently**; every row passes the existing
+  `Validators` (amount bounds, description ≤ 500) plus type/date checks; blank `date` derives from
+  the timestamp prefix; blank/sentinel ids (`null`, `undefined`) become fresh UUIDs (§7); blank
+  optionals insert as SQL NULL; rows are **born dirty** (`sync_status = 1`) so the next sync
+  uploads them; `tid = 0`. Validation runs over *all* rows before any insert, and the insert batch
+  relies on the **caller's** `pool.write` transaction (the `SettingsService.resetLocalData`
+  pattern — GRDB refuses nested transactions), so an exception mid-batch rolls everything back.
+* `Features/Export/ExportSheetView.swift` — format picker (all six exports), `NSSavePanel`, dated
+  file names, status-bar confirmation. `Features/Export/ImportSheetView.swift` — choose → preview
+  (first 5 rows) → import → the **per-row report** listing every skip with its reason.
+* `App/AppCommands.swift` — File > Export… (**⌘E**) and File > Import Transactions….
+* `AppState` — `showExportSheet`/`showImportSheet`, and `transactionsFilters`: a live snapshot of
+  the Transactions screen's filter state recorded on every reload (`TransactionsViewModel.appState`,
+  weak), which is what makes "export what's on screen" possible without the shell owning filters.
+* Tests, 25 new (599 total): the CSV codec (round-trip with quoted/embedded-newline fields, BOM,
+  both row endings, minimal quoting), export rows/header/schema-name/sentinel assertions, the
+  filtered export, the JSON backup shape (seven tables, metadata, NULL-vs-empty, deleted rows
+  included), parse errors, born-dirty inserts, name mapping (case-insensitive) with the stored
+  spelling, unknown category/payee/group skips that create nothing, every validator message
+  (including the `1,234` non-truncation rule), sentinel-id replacement, the all-or-nothing batch,
+  line-numbered reports, and the **export → import round trip** into a different database/user.
+
+### Verification
+
+* `xcodebuild … build` → `BUILD SUCCEEDED`, no compile warnings.
+* `xcodebuild … test -destination 'platform=macOS'` → `TEST SUCCEEDED` (599 tests, 0 failures).
+* Launch smoke test: the built app ran for 6 s and quit cleanly.
+* The suite caught a real bug before commit: **Swift treats `\r\n` as a single `Character`
+  (grapheme cluster)**, so the decoder's original `case "\r"` never matched a CRLF pair and whole
+  spreadsheet rows merged into one field. Fixed as `case "\r", "\r\n"` and pinned by tests.
+
+### Issues / deviations
+
+* Import is transactions-only by design (the brief's "clearly-scoped" requirement). A full JSON
+  *restore* is intentionally not implemented in this phase: restoring a snapshot must resolve id
+  collisions and interact with the sync protocol (a naive restore would fight the next pull), and
+  deserves its own design pass. The backup file is tool-readable and complete; the phase-16+ agent
+  should treat "restore from backup" as an open item, not an oversight.
+* Export writes the *stored* denormalized names (`category_name` etc.), not the entities' current
+  names — faithful to the schema, which is what a CSV/backup should capture.
+* The import's per-row report is shown in the sheet and summarized in the status bar; per-row
+  error text uses the validators' exact source messages.
+* Ids: a provided id is kept as-is (round-trip stability, idempotent re-import upserts in place),
+  which also means re-importing an exported file updates rather than duplicates rows — consistent
+  with the app's upsert-by-id write path.
+
 ---
 
 # Decision Log
@@ -1180,6 +1240,12 @@ verified it against the RN source, completed the remaining items, and committed 
 | 2026-09-22 | The lock allows the OS password fallback; enabling stays biometrics-only | The source passes `disableDeviceFallback: false` for the lock but uses the biometrics-only policy for the enable prompt — two different calls, both preserved | Phase 14 |
 | 2026-09-22 | A groups sync writes both group keys (pull's `-transaction_groups_`, service's `-groups_`) | Preserves the source's key-mismatch quirk *and* its convergence via `performGroupSync`'s extra stamp, without renaming the load-bearing sync-module key | Phase 14 |
 | 2026-09-22 | The reorder-exit push is push-only; the caller re-stamps the last-sync key | The JS `backgroundPush…` functions are fire-and-forget and stamp from the call site; the engine's `pushEntity` must not grow pull/flag side effects | Phase 14 |
+| 2026-09-23 | Export headers use the schema's snake_case column names | The CSV is a data snapshot, not a report; schema names keep it faithful to what sync exchanges and make the file self-describing for re-import | Phase 15 |
+| 2026-09-23 | Import matches category/payee/group by **name**, creates nothing silently | The brief's core safety rule: an unknown name skips its row and is reported instead of inventing entities that would then sync to the server | Phase 15 |
+| 2026-09-23 | Imported rows are born dirty and keep provided ids | `sync_status = 1` gets the rows uploaded by the next sync; idempotent re-import (upsert-by-id) matches the app's write path and makes export→import a round trip | Phase 15 |
+| 2026-09-23 | Import batch atomicity rides the caller's `pool.write` | Same constraint as `SettingsService.resetLocalData`: GRDB refuses nested `inTransaction` inside `DatabasePool.write`; one transaction = all valid rows or none | Phase 15 |
+| 2026-09-23 | The JSON backup stores raw column values incl. sync internals, NSNull for NULL | A backup must be a true snapshot (restore-worthy), not a cleaned view; NULL-vs-empty-string distinction survives round trips through the file | Phase 15 |
+| 2026-09-23 | A JSON *restore* is not implemented in Phase 15 | Restoring must resolve id collisions and cooperate with the sync protocol (a naive restore fights the next pull); recorded as an open item instead of shipping a half-design | Phase 15 |
 
 ---
 
@@ -1202,7 +1268,8 @@ verified it against the RN source, completed the remaining items, and committed 
 
 # Next Agent Instructions
 
-Phases 0–14 are complete and green (574 tests). Start **Phase 15 (Import / Export)** — the brief is
+Phases 0–15 are complete and green (599 tests). Start **Phase 16 (macOS commands / keyboard
+shortcuts audit)** — the brief is
 in the "Current Phase" section above. It is a macOS-original feature (the RN app has none), so the
 feature matrix's §12 row is the parity contract: document it as an addition, not parity. The one
 remaining Phase 7 item is **location tagging** (create-time capture plus the location edit sheet);
@@ -1265,6 +1332,16 @@ Existing infrastructure (don't redo):
   config + services once at launch; an unconfigured build is a supported state with stubs.
   `Support/SyncPolicy.swift` holds the sync predicates; `SyncPreference` now also carries
   `now`, the groupService key accessor, and the initial-sync-checked flag helpers.
+* **Import/Export (Phase 15) is complete and is the reference for file exchange**:
+  `Support/CSV.swift` (RFC 4180 encode/decode — mind the Swift grapheme-cluster CRLF trap:
+  `"\r\n"` is one `Character`, match `case "\r", "\r\n"`), `Services/ExportService.swift`
+  (transactions/categories/payees/goals CSV + the JSON backup of all seven tables with
+  `sync_status`/`tid`/`deleted` verbatim), `Services/ImportService.swift` (name-mapped, per-row
+  validated, born-dirty import), and the two sheets in `Features/Export/`. `AppState.showExportSheet`
+  / `showImportSheet` present them; `AppState.transactionsFilters` is the live filter snapshot that
+  makes "export what's on screen" possible. The import's atomicity relies on the **caller's**
+  `pool.write` transaction (the `SettingsService.resetLocalData` pattern) — do not add a nested
+  `db.inTransaction`.
 * `BiometricPreference.isEnabled(in:)` gates the app lock; `BiometricService.unlock()` (password
   fallback allowed) is the lock prompt, `BiometricService.authenticate` (biometrics-only) is for
   the Settings enable flow. `AppLockView` is presented by `RootView`'s overlay — do not re-implement.
@@ -1340,3 +1417,8 @@ Phase 13 section above.
 `c7aee09` — 2026-09-22 — "phase: implement authentication and sync" (hash recorded in a follow-up
 docs commit per the established pattern). This phase carried the fourth analysis re-verification
 pass — see the Phase 14 section above.
+
+### Phase 15 Commit
+
+`PENDING` — 2026-09-23 — "phase: implement import and export" (hash recorded in a follow-up docs
+commit per the established pattern).

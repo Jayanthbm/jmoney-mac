@@ -20,6 +20,17 @@ struct AppCommands: Commands {
             .keyboardShortcut("n", modifiers: [.command, .shift])
         }
 
+        CommandGroup(after: .newItem) {
+            Button("Export…") {
+                appState.showExportSheet = true
+            }
+            .keyboardShortcut("e", modifiers: .command)
+
+            Button("Import Transactions…") {
+                appState.showImportSheet = true
+            }
+        }
+
         // The default SwiftUI Edit menu has no Find submenu (that comes from
         // TextEditingCommands, which this app does not include), so placing
         // Find here owns the ⌘F shortcut without conflicts.

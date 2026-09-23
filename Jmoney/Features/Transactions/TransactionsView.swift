@@ -57,6 +57,9 @@ struct TransactionsView: View {
             Task { await applyRequestedFilters() }
         }
         .task {
+            // Phase 15: hand the shell state over so reloads can record the live
+            // filter set for File > Export's "what's on screen" option.
+            viewModel.appState = appState
             await viewModel.loadLookups(pool: database.pool, userId: sessionStore.userId)
             // A click-through from a category or payee row arrives before the first
             // load, so it is consumed here rather than in a second pass.

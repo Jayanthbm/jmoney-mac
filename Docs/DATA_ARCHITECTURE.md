@@ -1,9 +1,8 @@
 # Jmoney macOS — Data Architecture
 
 > Populated after analyzing the React Native application's database, offline-first behavior,
-> synchronization, and Supabase integration. Last updated: 2026-09-22 (Phase 13 settings: the
-> `resetAppData` port and the settings preference keys; the analysis was also re-verified against
-> the source in this session — see §8).
+> synchronization, and Supabase integration. Last updated: 2026-09-23 (Phase 15 import/export:
+> the file-exchange data contract — see §9; §8's verification record is unchanged).
 
 ## Status
 
@@ -38,6 +37,10 @@ the push-before-wipe force resync). `Services/Auth/` + `Stores/SessionStore.swif
 `AuthContext.tsx` (7-second restore guard, local-data-preserving sign-out) over `supabase-swift`
 with Keychain session storage; credentials come from `Jmoney.xcconfig` → Info.plist →
 `SupabaseConfig` (§3.5), and an unconfigured build degrades to honest stubs instead of crashing.
+**File exchange implemented (Phase 15 — macOS-original, no RN counterpart)**: `Support/CSV.swift`,
+`Services/ExportService.swift` and `Services/ImportService.swift` carry the CSV/JSON data contract
+in §9 — schema-named columns, name-based entity mapping, sentinel handling, and born-dirty imports
+that ride the existing sync protocol unchanged.
 
 ---
 
@@ -388,3 +391,45 @@ were *not* yet documented and are now reflected in the macOS implementation:
 The one new implementation in this pass that has no source counterpart is the groups *service-key*
 stamp in `SyncPreference.groupServiceLastSyncKey` — it exists to reproduce the convergence in
 finding 1 without renaming the (load-bearing) sync-module key.
+
+## 9. File Exchange Data Contract (Phase 15 — macOS-original)
+
+The RN app has no import/export (§12 of the feature matrix; the README's claim was verified untrue
+in code), so this section has **no parity contract** — but everything here respects the sync
+protocol in §3, so imported data flows to Supabase exactly like user-entered data.
+
+### 9.1 CSV (transactions)
+
+* Header = the `transactions` schema's snake_case column names, in table order
+  (`ExportService.transactionCSVHeader`). Optional columns render as empty strings; numbers are
+  plain `String(Double)` descriptions — no currency grouping.
+* Export is per-user and respects `deleted = 0`; the filtered export reuses the Transactions
+  screen's live `Filters` (snapshotted on `AppState.transactionsFilters` at every list reload).
+* **Import** (`ImportService`):
+  * Header matched by column *name*; `amount`, `type`, `date`-or-`transaction_timestamp` and a
+    category are required before any row is written.
+  * Category/payee/group resolve **by name** (trimmed, case-insensitive) against the user's rows;
+    an unknown name **skips its row and is reported** — nothing is created silently.
+  * Every row passes `Validators` (amount > 0, ≤ 999,999,999; description ≤ 500) plus
+    `type ∈ {Income, Expense}` and a `yyyy-MM-dd` date (a blank `date` derives from the timestamp's
+    raw prefix via `TransactionTimestamp.day`, mirroring the save path).
+  * Ids: blank or the sentinel literals `null`/`undefined` (§7) become fresh UUIDs; a provided id is
+    kept, so re-importing an exported file upserts in place instead of duplicating.
+  * Writes go through `TransactionService.save`: `sync_status = 1` (born dirty — the next push
+    uploads the row), `deleted = 0`, `tid = 0`, denormalized names copied from the matched
+    entities, blank optionals as SQL NULL.
+  * Validation of all rows completes before any insert; the insert batch relies on the caller's
+    `pool.write` transaction (§4's `SettingsService.resetLocalData` note), so a failure rolls back
+    the whole batch.
+* The codec (`Support/CSV.swift`) is RFC 4180: minimal quoting, `""` escapes, CRLF/LF row endings
+  on decode (⚠️ a CRLF pair is **one** Swift `Character` — match `case "\r", "\r\n"`), BOM on
+  encode and skipped on decode, embedded newlines preserved.
+
+### 9.2 JSON backup
+
+`ExportService.backupJSON` writes `{format: "jmoney-backup", version: 1, exported_at, user_id,
+tables}` where `tables` holds all seven local tables for the user keyed by column name — including
+`sync_status`/`tid`/`deleted` verbatim and soft-deleted rows, because a backup is a true snapshot.
+SQL NULL becomes JSON `null` (distinct from `""`). **Restore is deliberately not implemented**:
+resolving id collisions and cooperating with the next pull is a design task of its own (recorded
+as an open item for a later phase).

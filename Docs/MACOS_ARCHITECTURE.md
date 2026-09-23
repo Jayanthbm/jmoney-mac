@@ -30,8 +30,12 @@ and the 7-second restore guard, the credential-free build-configuration path, th
 (`SyncService` + the seven entity modules) with its quirks preserved, per-entity and master
 last-sync timestamps, the management screens' manual sync buttons + first-open guards +
 reorder-exit pushes, the post-save/post-delete syncs, the transaction row's cloud badge, and the
-biometric app-lock overlay — 574 tests green.
-Next: Phase 15 (Import / Export).
+biometric app-lock overlay — 574 tests green. **Import / Export implemented (Phase 15)** — a
+deliberate macOS-original addition (the RN app has none): an RFC 4180 CSV codec, transaction/
+category/payee/goal CSV exports plus a full seven-table JSON backup, and a name-mapped,
+per-row-validated, born-dirty CSV transaction import with a per-row report; File > Export… (⌘E)
+and File > Import Transactions… — 599 tests green.
+Next: Phase 16 (commands / keyboard-shortcuts audit).
 
 ---
 
@@ -77,7 +81,8 @@ The React Native app is an offline-first personal finance tracker:
 Jmoney/
 ├── App/
 │   ├── JmoneyApp.swift            # @main: WindowGroup + Settings scene + Commands  [Phase 4 ✓]
-│   ├── AppCommands.swift          # ⌘N/⌘⇧N new+quick transaction, ⌘F find, Data menu ⌘R  [Phase 4 ✓]
+│   ├── AppCommands.swift          # ⌘N/⌘⇧N new+quick transaction, ⌘F find, ⌘E export,
+│   │                              #   import, Data menu ⌘R  [Phase 4 ✓, Phase 15 ✓]
 │   └── AppState.swift             # @Observable shell state: selection, sheets, search,
 │                                  #   status bar (AppEnvironment-style service wiring lands in Phase 5)
 ├── Navigation/
@@ -112,6 +117,8 @@ Jmoney/
 │   │                              #   with warning hard delete  [Phase 12 ✓]
 │   ├── QuickTransactions/         # Card/list, search, reorder, add/edit editor, and the real
 │   │                              #   ⌘⇧N picker that prefills the transaction editor  [Phase 12 ✓]
+│   ├── Export/                    # The export sheet (format picker + NSSavePanel) and the import
+│   │                              #   sheet (choose → preview → per-row report)  [Phase 15 ✓]
 │   └── Settings/                  # Shared settings form (both the sidebar pane and the ⌘,
 │                                  #   window host it), view model, reminder-chooser sheet,
 │                                  #   settings rows  [Phase 13 ✓]
@@ -149,6 +156,10 @@ Jmoney/
 │   │                              #   `BiometricGate`)  [Phase 13 ✓]
 │   ├── SettingsService.swift      # Reset Data (the six-table wipe) + the preference teardown
 │   │                              #   (mirror of `resetAppData` + the hook's key list)  [Phase 13 ✓]
+│   ├── ExportService.swift        # Transactions (all/filtered) + categories/payees/goals CSV and
+│   │                              #   the JSON backup of all seven tables  [Phase 15 ✓]
+│   ├── ImportService.swift        # CSV transaction import: name mapping, per-row validation,
+│   │                              #   sentinel/id rules, born-dirty inserts, report  [Phase 15 ✓]
 │   └── LocationService.swift      # GPS tagging   [Phase 7 — still outstanding]
 ├── Models/                        # 7 DTOs, column names identical to the RN schema  [Phase 5 ✓]
 ├── Stores/
@@ -177,13 +188,14 @@ Jmoney/
 │   ├── BiometricPreference.swift  # `use_biometrics` key + the pure enable/disable gate  [Phase 13 ✓]
 │   ├── SyncPreference.swift       # `@last_sync_master_<user>` read/write for the sync row
 │   │                              #   and the status bar  [Phase 13 ✓]
+│   ├── CSV.swift                  # RFC 4180 encode/decode (BOM, quoting, CRLF+LF)  [Phase 15 ✓]
 │   ├── SyncPolicy.swift           # The screens' "should we sync now?" predicates  [Phase 14 ✓]
 │   ├── KeychainStore.swift        # Keychain read/write used for the session tokens  [Phase 14 ✓]
 │   ├── SupabaseConfig.swift       # Info.plist credential resolution + unconfigured states  [Phase 14 ✓]
 │   ├── JSONValue.swift            # Codable-ish JSON for the sync payloads/records  [Phase 14 ✓]
 │   └── ManagementSyncButton.swift # The six management screens' shared toolbar sync button
 │                                  #   [Phase 14 ✓]
-JmoneyTests/                       # 574 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+JmoneyTests/                       # 599 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
@@ -199,7 +211,9 @@ JmoneyTests/                       # 574 tests: schema/defaults/indexes, record 
                                    #   reset-data scope + key list + rollback, settings toggle
                                    #   flows, settings render smoke, session/auth flows, the sync
                                    #   engine incl. every preserved quirk, sync foundation rules,
-                                   #   push-only runs + lock + guards + button   [Phase 5–14 ✓]
+                                   #   push-only runs + lock + guards + button, CSV codec, export
+                                   #   rows/backup shape, import mapping/validation/sentinels and
+                                   #   the export→import round trip   [Phase 5–15 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -233,8 +247,9 @@ JmoneyTests/                       # 574 tests: schema/defaults/indexes, record 
 | Swipe-to-edit / swipe-to-delete | Context menu, `⌫` on the selection, double-click to edit |
 | FlashList pinned (sticky) date headers | Native `List` sections with per-day headers and totals |
 | Long-press card actions | Context menu (edit, delete, filter by payee/category) |
+| File exchange (macOS-original, Phase 15) | File > Export… (⌘E) via `NSSavePanel` for the transactions/filtered/categories/payees/goals CSVs and the JSON backup; File > Import Transactions… with an open panel, a preview stage, and a per-row report sheet |
 
-Keyboard: ⌘N new transaction, ⌘⇧N quick transaction, ⌘F search, ⌘R sync, ⌘, settings,
+Keyboard: ⌘N new transaction, ⌘⇧N quick transaction, ⌘F search, ⌘R sync, ⌘E export, ⌘, settings,
 Delete remove selection, Return open selection, Escape dismiss sheets — no conflicts with
 standard macOS shortcuts.
 
