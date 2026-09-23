@@ -94,6 +94,34 @@ calculations, formatters, budget/goal/report/calendar SQL and math, the sync eng
 codec, the export/import round trip, menu-audit conflict rules, query-plan index proofs,
 10,000-row scale correctness, and location capture.
 
+## Building a debug app
+
+Debug is the default configuration, so no flag is needed:
+
+```bash
+xcodegen generate
+xcodebuild -project Jmoney.xcodeproj -scheme Jmoney \
+  -destination 'platform=macOS' build
+```
+
+The app lands at:
+
+```
+~/Library/Developer/Xcode/DerivedData/Jmoney-*/Build/Products/Debug/Jmoney.app
+```
+
+Debug-build notes:
+
+- **Debugger-friendly.** Debug builds keep the `com.apple.security.get-task-allow`
+  entitlement so lldb/Xcode can attach — this is deliberate, and the release pipeline
+  strips it again.
+- **Tests run against Debug.** `xcodebuild … test` builds the Debug configuration of the
+  app target automatically; there is no separate test setup.
+- **No credentials needed.** An empty `Jmoney.xcconfig` is fine — the app runs with cloud
+  sync disabled and says so.
+- **Fastest inner loop:** `open Jmoney.xcodeproj` and press ⌘R — Xcode builds, runs and
+  attaches the debugger in one step.
+
 ## Building a release app
 
 ### 1. Release build (fastest)
