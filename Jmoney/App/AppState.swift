@@ -245,4 +245,13 @@ final class AppState {
     /// `'true'`; `RootView` mirrors that lifecycle and reads the preference itself,
     /// so no lock request has to carry the flag around.
     var isLocked = false
+
+    /// True while a LocalAuthentication prompt (the lock screen's unlock, or the
+    /// enable flow's biometric check) is on screen.
+    ///
+    /// On macOS the auth sheet itself churns the app's activation state, so
+    /// `RootView` suppresses its re-lock-on-`didBecomeActive` while this is set —
+    /// without the guard, the sheet's own presentation can immediately re-arm the
+    /// lock on top of a *successful* authentication.
+    var isAuthPromptActive = false
 }

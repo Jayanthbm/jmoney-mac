@@ -5,6 +5,12 @@ import LocalAuthentication
 ///
 /// The request/response rules live in `BiometricGate`, which is pure and tested;
 /// this type only performs the framework calls and maps them onto that vocabulary.
+///
+/// Every `evaluatePolicy` call here is **main-actor isolated**. On macOS the auth
+/// sheet is presented by the app's own process and must run with a run loop under
+/// it — calling from a bare background task can hang or fail without presenting.
+/// (The wrapper is intentionally *not* itself `@MainActor`, so `canEvaluatePolicy`
+/// probes stay callable from anywhere, mirroring the source's capability calls.)
 enum BiometricService {
     /// `hasHardwareAsync()` + `isEnrolledAsync()`.
     ///
@@ -28,6 +34,7 @@ enum BiometricService {
     ///
     /// Biometrics only, as in the source — `.deviceOwnerAuthentication` would also
     /// accept the account password, which the source never does.
+    @MainActor
     static func authenticate(reason: String) async -> Bool {
         let context = LAContext()
         guard
@@ -57,6 +64,11 @@ enum BiometricService {
     /// The lock deliberately allows the OS account-password fallback — the source
     /// passes `disableDeviceFallback: false` — which on macOS is
     /// `.deviceOwnerAuthentication` (Touch ID first, then the account password).
+    ///
+    /// Main-actor isolation is load-bearing here: the sheet this call presents is
+    /// the app's own window-context dialog, and `RootView` suppresses its
+    /// re-lock-on-activation while this is in flight (see `AppState.isAuthPromptActive`).
+    @MainActor
     static func unlock() async -> Bool {
         let context = LAContext()
         guard

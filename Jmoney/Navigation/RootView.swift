@@ -77,6 +77,10 @@ struct RootView: View {
             for: NSApplication.didBecomeActiveNotification
         )) { _ in
             // `_layout.tsx`'s AppState listener: re-check on every activation.
+            // Suppressed while an auth prompt is up: the LA sheet churns activation
+            // state on macOS, and without this guard the sheet's own presentation
+            // re-arms the lock — a successful authentication never lands.
+            guard !appState.isAuthPromptActive else { return }
             appState.isLocked = biometricsEnabled
         }
         .onChange(of: appState.syncRequestID) { _, _ in

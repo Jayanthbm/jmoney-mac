@@ -96,7 +96,15 @@ struct SettingsView: View {
             Toggle(
                 isOn: Binding(
                     get: { viewModel.biometricsEnabled },
-                    set: { value in Task { await viewModel.setBiometrics(value) } }
+                    set: { value in
+                        // Same activation guard as the lock screen: the enable
+                        // prompt's sheet must not trigger the re-lock-on-active.
+                        appState.isAuthPromptActive = true
+                        Task {
+                            defer { appState.isAuthPromptActive = false }
+                            await viewModel.setBiometrics(value)
+                        }
+                    }
                 )
             ) {
                 SettingsRowLabel(

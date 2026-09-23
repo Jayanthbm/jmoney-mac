@@ -14,6 +14,7 @@ import SwiftUI
 struct AppLockView: View {
     /// Called after a successful unlock.
     let onUnlock: () -> Void
+    @Environment(AppState.self) private var appState
 
     @State private var isAuthenticating = false
     @State private var errorMessage: String?
@@ -73,7 +74,9 @@ struct AppLockView: View {
         guard !isAuthenticating else { return }
         isAuthenticating = true
         errorMessage = nil
+        appState.isAuthPromptActive = true
         Task {
+            defer { appState.isAuthPromptActive = false }
             let success = await BiometricService.unlock()
             isAuthenticating = false
             if success {
