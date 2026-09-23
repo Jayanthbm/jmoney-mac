@@ -288,6 +288,7 @@
 		6882A63BD64E27170062B6D6 /* ReportDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDestination.swift; sourceTree = "<group>"; };
 		6AFA2D7B9B3D4968775E9633 /* ReportServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportServiceTests.swift; sourceTree = "<group>"; };
 		6BB7F978AC138DD6E08BC578 /* GoalCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalCalculationTests.swift; sourceTree = "<group>"; };
+		6C54EC93BF65F0E05E0890CC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6D6E197AAD1C7D4AC0C75315 /* SettingsViewRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewRenderingTests.swift; sourceTree = "<group>"; };
 		6E3DEF999882865F045B30B8 /* MonthYearPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthYearPicker.swift; sourceTree = "<group>"; };
 		6F2C88C5C4E36331E8A8E3A2 /* Credits.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = Credits.html; sourceTree = "<group>"; };
@@ -736,6 +737,7 @@
 			isa = PBXGroup;
 			children = (
 				24A7C177D6C3EAA16BC78C45 /* Assets.xcassets */,
+				6C54EC93BF65F0E05E0890CC /* Info.plist */,
 				86166E757EFFA294105763A8 /* App */,
 				FF0D6CE90E5F7270B3756060 /* Features */,
 				590B6F5A2F0C427D746B923C /* Models */,
@@ -1174,9 +1176,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Jmoney/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Jmoney;
-				INFOPLIST_KEY_JMoneySupabaseAnonKey = "$(JMONEY_SUPABASE_ANON_KEY)";
-				INFOPLIST_KEY_JMoneySupabaseURL = "$(JMONEY_SUPABASE_URL)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Jmoney. All rights reserved.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Jmoney uses your location to attach a location to a transaction when you turn on Include Location.";
@@ -1218,9 +1219,8 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Jmoney/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Jmoney;
-				INFOPLIST_KEY_JMoneySupabaseAnonKey = "$(JMONEY_SUPABASE_ANON_KEY)";
-				INFOPLIST_KEY_JMoneySupabaseURL = "$(JMONEY_SUPABASE_URL)";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.finance";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Jmoney. All rights reserved.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Jmoney uses your location to attach a location to a transaction when you turn on Include Location.";

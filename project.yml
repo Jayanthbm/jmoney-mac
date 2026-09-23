@@ -46,9 +46,6 @@ targets:
         # The app icon (Phase 19): rendered by Scripts/make_app_icon.swift into
         # Assets.xcassets — a Big Sur tile with the app's ₹ glyph.
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        # Credentials are read from Info.plist at runtime; see Jmoney.xcconfig.
-        INFOPLIST_KEY_JMoneySupabaseURL: "$(JMONEY_SUPABASE_URL)"
-        INFOPLIST_KEY_JMoneySupabaseAnonKey: "$(JMONEY_SUPABASE_ANON_KEY)"
         # Location tagging (Phase 18): the system refuses to show the permission
         # prompt without a usage string; matching the source's add-transaction
         # screen (the only caller).
@@ -60,6 +57,17 @@ targets:
       configs:
         Release:
           CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+
+    # The Supabase credentials ride into Info.plist through this generated file —
+    # NOT through INFOPLIST_KEY_<custom>, which Xcode only honors for its built-in
+    # key whitelist (verified: custom names silently never reach the plist).
+    # The $(…) values expand from Jmoney.xcconfig at build time; see that file's
+    # note on escaping `//` in URLs.
+    info:
+      path: Jmoney/Info.plist
+      properties:
+        JMoneySupabaseURL: $(JMONEY_SUPABASE_URL)
+        JMoneySupabaseAnonKey: $(JMONEY_SUPABASE_ANON_KEY)
 
     configFiles:
       # Supabase credentials are build configuration, never source (master prompt

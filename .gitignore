@@ -69,3 +69,6 @@ Config/Local/
 *.swo
 
 .freebuff
+# XcodeGen-generated Info.plist (contains $(...) placeholders only, but is a
+# local build artifact — regenerate with `xcodegen generate`)
+Jmoney/Info.plist
