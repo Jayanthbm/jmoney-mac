@@ -1420,5 +1420,5 @@ pass — see the Phase 14 section above.
 
 ### Phase 15 Commit
 
-`PENDING` — 2026-09-23 — "phase: implement import and export" (hash recorded in a follow-up docs
+`4947adc` — 2026-09-23 — "phase: implement import and export" (hash recorded in a follow-up docs
 commit per the established pattern).
