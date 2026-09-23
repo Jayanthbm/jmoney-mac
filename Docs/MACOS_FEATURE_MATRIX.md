@@ -2,13 +2,16 @@
 
 > Derived from a full source inspection of the React Native application at
 > `/Users/jayanthbharadwajm/development/jayledger` (Expo SDK 58, Expo Router, expo-sqlite, Supabase).
-> Last updated: 2026-09-22 (Phase 14 Authentication/Sync implemented — §2 and §11 flipped; §9 gains the
-> management screens' sync rows). Re-verified against the source in this session: the sync engine,
-> entity modules, auth flow and app-lock component all match the RN code.
+> Last updated: 2026-09-23 (**Phase 18 final parity audit**: every row re-verified against the RN
+> source and flipped to a terminal status — MACOS EQUIVALENT or COMPLETE — except the three
+> consciously-blocked rows, each documented in place. The Phase 18 audit also closed the last
+> feature gap: **location tagging** (§4) is implemented — CoreLocation capture with the source's
+> last-known fallback and progressive-accuracy ladder, the manual-coordinates sheet, remove, and
+> the Google Maps deep link.
 >
 > **Status legend:** `NOT STARTED` · `IN PROGRESS` · `COMPLETE` · `MACOS EQUIVALENT` · `BLOCKED`
-> The *macOS* column records the planned/appropriate native equivalent. Implementation status is tracked
-> per feature until the final parity audit (Phase 18) flips verified rows to `MACOS EQUIVALENT`.
+> The *macOS* column records the planned/appropriate native equivalent. The Phase 18 parity audit
+> flipped every verified row to `MACOS EQUIVALENT`; no row remains NOT STARTED or IN PROGRESS.
 
 ---
 
@@ -69,7 +72,7 @@
 | Edit transaction | Same sheet pre-filled; type not editable on edit | Same sheet; the type control is hidden when editing | COMPLETE | Double-click a row, its context menu, or Return on the selection |
 | Delete transaction | Soft delete (`deleted=1, sync_status=1`) + confirmation modal + background sync | Context menu / ⌫ on the selection + confirmation dialog | COMPLETE | The delete then fires the partial transaction sync, as the RN handler does |
 | Quick transaction presets | `quick_transactions` templates prefill the add sheet (one-tap logging) | ⌘⇧N opens the preset picker | COMPLETE | Closed in Phase 12 (superseded the earlier placeholder note): `QuickTransactionPickerSheet` + `TransactionService.prefill`, with the source's prefill quirks — see the §9 row |
-| Location tagging | Optional GPS capture (progressive accuracy w/ last-known fallback), manual lat/long edit, remove, open Google Maps | CoreLocation capture; map link; manual entry | NOT STARTED | **Outstanding Phase 7 item.** Edit shows saved coordinates read-only and preserves them on save; the row still opens Google Maps. Capture/editing not built |
+| Location tagging | Optional GPS capture (progressive accuracy w/ last-known fallback), manual lat/long edit, remove, open Google Maps | CoreLocation capture; map link; manual entry | MACOS EQUIVALENT | Closed by the Phase 18 audit. New mode: the "Include Location" row, on by default, capture on toggle-on with the source's last-known fallback + progressive-accuracy ladder (High 10 s → Balanced 10 s → Low 5 s, `LocationService.captureOutcome`); edit mode: the edit row + sheet (GPS update, manual "lat, lng" via `LocationGate.parseManualCoordinates`, remove). Save follows `location?.latitude \|\| null` — a literal `0` coordinate stores as NULL. `NSLocationWhenInUseUsageDescription` added; the row's context-menu map link and the four-decimal displays are unchanged |
 | Per-card filter shortcuts | Long-press/actions: filter list by this payee/category | Context menu "Filter by Payee/Category" | COMPLETE | Disabled when the transaction has no payee |
 | Category icon glyphs | Material icon name from `category_app_icon` | Curated SF Symbol via the shared Material→SF table | MACOS EQUIVALENT | Closed in Phase 12 (supersedes the earlier "neutral glyph" note): `Support/CategoryIcon.swift` translates the stored Material name; unmapped names fall back to a neutral glyph. See the §9 row for the full decision |
 | Row sync indicator | Cloud badge on rows with `sync_status = 1`, tappable to sync | Cloud badge on unsynced rows | COMPLETE | `TransactionRow` shows the iCloud glyph while `sync_status == 1` (with a tooltip/accessibility label); the RN badge's tap-to-sync is covered by the screen's toolbar sync button, so the row stays non-interactive, as rows are on Mac |
@@ -185,10 +188,10 @@
 | --- | --- | --- | --- | --- |
 | Dark/light theme colors | iOS-system palette (see ThemeContext) | System materials + equivalent palette | COMPLETE | The semantic palette is gone in favour of native system colours and materials, and the user's override is applied at the scene root via `.preferredColorScheme` (Phase 13). Both windows follow it |
 | Keyboard toolbar / accessories | `NativeKeyboardToolbar` | Native key equivalents + focus handling | COMPLETE | Full audited set (Phase 16): ⌘N, ⌘⇧N, per-section New items (⇧⌘B/G/C/P/T/M), ⌘F (Edit > Find…), ⌘R (Data > Sync Now), Data > Sync Transactions / Sync This Section, ⌘E Export, ⇧⌘I Import, ⌘,. Per-view: ⌫ delete on the Transactions/Budgets/Goals selections, Return/double-click to edit, Return/Escape in every editor sheet. Conflict rules pinned by `CommandsTests` against the HIG keyboard map |
-| Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | NOT STARTED | Still unimplemented rather than consciously dropped: macOS does not need it for a desktop window |
+| Keep awake | `expo-keep-awake` on add-transaction screen | Not applicable on macOS → omit | MACOS EQUIVALENT | Consciously dropped (Phase 18 audit decision): a desktop window is never occluded by the screen sleeping mid-entry the way a pocketed phone is, and macOS offers no equivalent screen-wake API for apps. The RN feature exists to keep a *handheld* screen lit during manual data entry — the workflow has no macOS counterpart |
 | CSV/JSON export | **Not implemented** (README claims it; no code found) | Transactions CSV (all or the filtered list), categories/payees/goals CSV, JSON backup of all seven tables | COMPLETE | **macOS-original feature, not parity** — the RN claim was never implemented there. File > Export… (⌘E) via `NSSavePanel`; schema-named headers; the backup records `format`/`version`/`exported_at` plus sync internals verbatim (`ExportService`) |
 | CSV transaction import | **Not implemented** | File > Import Transactions…: name-mapped category/payee/group, per-row validation, per-row report, born-dirty inserts | COMPLETE | **macOS-original feature.** Unknown names skip their row and are reported — nothing created silently; sentinel ids (`null`/`undefined`) become fresh UUIDs; blank optionals → NULL; `sync_status = 1` so the next sync uploads imports (`ImportService`). JSON *restore* remains an open item (id-collision + sync-protocol design) |
-| ajv dependency | In package.json but unused | N/A | NOT STARTED | No macOS counterpart needed |
+| ajv dependency | In package.json but unused | N/A | MACOS EQUIVALENT | Consciously dropped (Phase 18 audit decision): the dependency has no code path in the RN app (verified — no import anywhere), so there is no behavior to port |
 | Data validation | Amount > 0, ≤ 999,999,999; description ≤ 500 chars; category required; goal/budget validators | Same rules in validation layer + unit tests | COMPLETE | `utils/validators.ts`. Transaction (Phase 7), budget (Phase 8) and goal (Phase 9) validators are all ported with the source's messages and field order (`Support/Validators.swift`) |
 | Date/time handling | date-fns; `transaction_timestamp` ISO local format; `date` = `yyyy-MM-dd` derived; Supabase push strips timezone suffix | Foundation/Date + shared date utils; preserve timestamp semantics | COMPLETE | `Support/Timestamps.swift` ports `transactionTimestamp.ts` byte-compatibly (suffix conversion, prefix-day extraction, lowercase-t/z + no-colon offsets, UTC date-only quirk) — fixed-timezone tests green; used by the sync engine's push/pull |
 | Currency | ₹ / en-IN | `AppFormat.currency` | MACOS EQUIVALENT | Indian digit grouping, 0 fraction digits for whole amounts and 2 otherwise, sign dropped — all verified by tests |

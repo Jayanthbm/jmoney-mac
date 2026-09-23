@@ -34,6 +34,10 @@ targets:
       # Credentials are read from Info.plist at runtime; see Jmoney.xcconfig.
       INFOPLIST_KEY_JMoneySupabaseURL: "$(JMONEY_SUPABASE_URL)"
       INFOPLIST_KEY_JMoneySupabaseAnonKey: "$(JMONEY_SUPABASE_ANON_KEY)"
+      # Location tagging (Phase 18): the system refuses to show the permission
+      # prompt without a usage string; matching the source's add-transaction
+      # screen (the only caller).
+      INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Jmoney uses your location to attach a location to a transaction when you turn on Include Location."
 
     configFiles:
       # Supabase credentials are build configuration, never source (master prompt

@@ -160,36 +160,31 @@ Design notes for the next agent:
 | 15    | Import / Export                     | COMPLETE    |
 | 16    | macOS commands / keyboard shortcuts | COMPLETE    |
 | 17    | Accessibility / performance         | COMPLETE    |
-| 18    | Final feature parity audit          | NOT STARTED |
+| 18    | Final feature parity audit          | COMPLETE    |
 | 19    | Release preparation                 | NOT STARTED |
 
 ---
 
 # Current Phase
 
-**Phase:** 18 — Final feature parity audit
+**Phase:** 19 — Release preparation
 
-Phases 0–17 are complete, built, and tested (620 tests green — see the Progress Log).
+Phases 0–18 are complete, built, and tested (634 tests green — see the Progress Log).
 
-## Phase 18 brief — Final feature parity audit
+## Phase 19 brief — Release preparation
 
 Suggested scope:
 
-1. Walk the RN app's screens one final time against `MACOS_FEATURE_MATRIX.md`, screen by screen,
-   with the macOS app open beside it. For each row: verify the macOS behaviour actually matches
-   the RN source (re-read the RN screen when in doubt — the Phase 1 analysis was verified twice,
-   but this audit is the last line of defense), then flip the row to MACOS EQUIVALENT, or
-   document the deliberate difference in place.
-2. The known deliberate differences are already documented in the matrix (§12 macOS-original
-   features, the row-badge tap-to-sync, import/export) — the audit's job is to find *undocumented*
-   differences, not to re-litigate documented ones.
-3. Re-verify the calc-parity list (`DATA_ARCHITECTURE.md` §7): daily limit, pay-day, budget
-   progress, goal sorting — these have pinned tests; spot-check the test names still match the
-   RN helpers they pin.
-4. End state: every matrix row is either MACOS EQUIVALENT, COMPLETE (macOS-original, documented)
-   or explicitly BLOCKED with a reason. No row may remain NOT STARTED or IN PROGRESS.
-
-After Phase 18 the only remaining phase is 19 (release preparation).
+1. **Release build**: an archive/Release configuration build with warnings-as-errors if cheap;
+   confirm the unconfigured-credential state still degrades honestly (the auth gate explains
+   itself, sync reports the configuration reason).
+2. **App identity**: app name/category/version in `project.yml` (`MARKETING_VERSION`,
+   `CURRENT_PROJECT_VERSION`), a real app icon (the Phase 4 placeholder), and the
+   About panel's credits.
+3. **Packaging hygiene**: verify the exported app has no debug entitlements, the Info.plist
+   usage strings are complete (location is in), and the app launches from `/Applications`.
+4. **Docs close-out**: the master prompt's §19 checklist; freeze the docs as the
+   handoff record.
 
 ---
 
@@ -1245,6 +1240,60 @@ here beyond the data itself.
   and the c1-filter expectation ignored that income rows are routed to c5 (2500 − 500 = 2000).
 * Location tagging remains open (the Phase 7 item) — carried into Phase 18 as a follow-up.
 
+## Phase 18 — Final Feature Parity Audit
+
+**Status:** COMPLETE (2026-09-23)
+
+### The audit
+
+Every matrix row was re-verified against the RN source (`jayledger`), with the rows carrying
+macOS-specific notes spot-checked against the macOS implementation files. Calc parity re-pinned:
+`DashboardCalculationTests` still names and pins the source's `calculateDailyLimit` edge cases,
+and the budget/goal sort tests still pin the source modal's re-select-flips-direction and
+stability rules. No undocumented difference was found beyond the three rows resolved below.
+
+### What was done
+
+* **Location tagging implemented** — the one real feature gap (open since Phase 7), closed by
+  this audit after re-reading `add-transaction.tsx` end to end:
+  * `LocationGate` (`Support/`) is the pure half: the verbatim accuracy ladder (High 10 s →
+    Balanced 10 s → Low 5 s with the source's names), manual "lat, lng" parsing, the `toFixed(4)`
+    / `toFixed(6)` display formats, and the Google Maps deep link.
+  * `LocationService` (`Services/`, the file the progress file promised) is the CoreLocation
+    wrapper, main-actor bound: permission (already-granted short-circuit + a 15 s safety
+    timeout), `getLastKnownPosition` equivalent, `getCurrentPosition` equivalent, and
+    `captureOutcome()` — permission-denied vs failed vs fix, matching the source's `fetchLocation`
+    branches, including keeping the last-known fix when every ladder rung fails.
+  * The editor: new mode gets the "Include Location" row (on by default, `useState(!editTx)`),
+    source-suffixed label, tappable coordinates; edit mode gets the edit row + the
+    `LocationEditSheet` equivalent (GPS update, manual entry, remove). Save follows the source's
+    `location?.latitude || null` idiom — a literal `0` coordinate stores as NULL.
+  * `NSLocationWhenInUseUsageDescription` added to `project.yml` (verified present in the built
+    Info.plist).
+  * 14 new tests (`LocationTests`): ladder config, parsing accept/reject, display, deep link,
+    the null-or-zero record idiom, persistence, and the editor state machine (initial states,
+    prefill, manual round trip, remove-writes-NULL, save path).
+* **Keep awake (§12)** flipped to MACOS EQUIVALENT as a conscious drop: the RN feature keeps a
+  *handheld* screen lit during data entry; a desktop window has no such workflow, and macOS has
+  no equivalent app-facing screen-wake API. The note now states the decision rather than
+  "unimplemented".
+* **ajv (§12)** flipped to MACOS EQUIVALENT as a conscious drop: verified the dependency has no
+  code path in the RN app (no import anywhere), so there is no behavior to port.
+* The matrix header now records the audit; the legend note states the terminal end state
+  (no NOT STARTED / IN PROGRESS rows remain).
+* One superseded test updated: `testMakeTransactionPreservesIdentityAndLocationWhenEditing`
+  asserted the pre-port "preserve from existing" contract; it now pins the source-faithful flow
+  (the editor seeds the working pair; `makeTransaction` writes it through).
+* Tests: 634 total, 0 failures (14 new).
+
+### Issues / deviations
+
+* The source saves `location` regardless of `includeLocation` (the toggle gates capture UX, not
+  the save) — modeled exactly, with a test covering remove-writes-NULL-over-the-old-pair.
+* The manual-coordinate parser rejects trailing garbage after a number where JS `parseFloat`
+  would accept it (`"12abc"` → 12); noted in `LocationGate`'s doc comment as a conscious
+  tightening, since the sheet's field is explicitly two numbers.
+
 ---
 
 # Decision Log
@@ -1371,12 +1420,11 @@ here beyond the data itself.
 
 # Next Agent Instructions
 
-Phases 0–17 are complete and green (620 tests). Start **Phase 18 (final feature parity audit)** —
-the brief is
-in the "Current Phase" section above. Walk every matrix row against the RN source one last time,
-flip verified rows to MACOS EQUIVALENT, and document (not re-litigate) the deliberate differences.
-The one remaining Phase 7 item is **location tagging** (create-time capture plus the location edit
-sheet); carry it into Phase 18 or a follow-up, and create `Services/LocationService.swift` when you do.
+Phases 0–18 are complete and green (634 tests). Start **Phase 19 (release preparation)** — the
+brief is in the "Current Phase" section above. The feature matrix is now fully terminal (every
+row MACOS EQUIVALENT or COMPLETE); do not reopen parity questions — treat the matrix as frozen
+except for a discovered regression. The one remaining Phase 7 item, location tagging, was closed
+in Phase 18 (create-time capture + the location edit sheet, `LocationService`/`LocationGate`).
 
 Existing infrastructure (don't redo):
 

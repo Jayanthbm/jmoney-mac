@@ -309,6 +309,11 @@ Service ──write (sync_status=1)──▶ SQLite           │
   `is_living_cost` survives a reorder. `GroupService.hardDelete` is the only hard delete in the app,
   and it removes the group row alone; `QuickTransactionService.softDelete` follows the standard
   soft-delete-then-push-delete path (§3.2).
+- Transaction location (Phase 18): the save writes `location?.latitude || null` exactly as the
+  source does — a literal `0` coordinate (either axis) stores as SQL NULL, not 0, so a GPS fix at
+  the Gulf of Guinea cannot produce a half-null row. A removed location writes NULL over the old
+  pair. The coordinates ride the normal transaction push/pull; the pull's NULL-latitude sentinel
+  behavior (§4) is unaffected.
 - The category icon mapping is a **display-only** translation. Never write an SF Symbol name into
   `categories.app_icon` or `transactions.category_app_icon`: those columns carry Material names that
   the sync layer exchanges verbatim with Supabase.

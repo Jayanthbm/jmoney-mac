@@ -370,15 +370,18 @@ enum TransactionService {
         var payee: Payee?
         var group: TransactionGroup?
         var productLink: String
+        /// `location?.latitude || null` on the source side: the editor's captured
+        /// coordinate pair, where a literal `0` value becomes `NULL` (JS `0 || null`).
+        /// nil means "no location".
+        var location: LocationGate.Fix?
     }
 
     /// Reproduces `handleSave` in `add-transaction.tsx`: the UTC ISO timestamp and
     /// derived `date`, the denormalized name columns, `sync_status = 1`, and the
     /// `created_at`/`tid` values preserved from the edited row.
     ///
-    /// Location is **preserved from the existing row** — location tagging is a
-    /// remaining Phase 7 item, and silently dropping saved coordinates would lose
-    /// data.
+    /// Location comes from the draft (the editor's captured/edited pair); the
+    /// editor is responsible for seeding it from the existing row in edit mode.
     static func makeTransaction(
         from draft: Draft,
         userId: String,
@@ -407,8 +410,10 @@ enum TransactionService {
             userId: userId,
             productLink: link.isEmpty ? nil : link,
             tid: existing?.tid ?? 0,
-            latitude: existing?.latitude,
-            longitude: existing?.longitude,
+            // `latitude: location?.latitude || null` — the JS idiom means a literal
+            // 0 coordinate (Gulf of Guinea) stores as NULL, in both directions.
+            latitude: draft.location?.latitude == 0 ? nil : draft.location?.latitude,
+            longitude: draft.location?.longitude == 0 ? nil : draft.location?.longitude,
             syncStatus: 1,
             createdAt: existing?.createdAt ?? TransactionTimestamp.utcISOString(from: now),
             updatedAt: TransactionTimestamp.utcISOString(from: now),

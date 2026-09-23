@@ -41,8 +41,12 @@ menu's section sync) driven by `AppCommands.menuAuditTable` with the HIG conflic
 the two colour-only figures (the day-header net and the filtered net) now state their direction in
 words for VoiceOver, and `PerformanceTests` proves the core queries run through indexes
 (`EXPLAIN QUERY PLAN`) and that the list/filter/search/dashboard/report/soft-delete paths stay
-correct on a 10,000-row ledger — 620 tests green.
-Next: Phase 18 (final feature parity audit).
+correct on a 10,000-row ledger — 620 tests green. **Final parity audit complete (Phase 18)**: every
+matrix row re-verified against the RN source and flipped to a terminal status, and the last feature
+gap closed — location tagging (create-time capture with the last-known fallback + the
+progressive-accuracy ladder, the manual-coordinates sheet, remove, the maps deep link;
+`LocationService` + `LocationGate`) — 634 tests green.
+Next: Phase 19 (release preparation).
 
 ---
 
@@ -199,10 +203,14 @@ Jmoney/
 │   ├── SyncPolicy.swift           # The screens' "should we sync now?" predicates  [Phase 14 ✓]
 │   ├── KeychainStore.swift        # Keychain read/write used for the session tokens  [Phase 14 ✓]
 │   ├── SupabaseConfig.swift       # Info.plist credential resolution + unconfigured states  [Phase 14 ✓]
+│   ├── LocationService.swift      # CoreLocation wrapper: permission, fixes, capture strategy
+│                                  #   [Phase 18 ✓]
 │   ├── JSONValue.swift            # Codable-ish JSON for the sync payloads/records  [Phase 14 ✓]
+│   ├── LocationGate.swift         # Pure location rules: accuracy ladder, manual parsing, maps
+│   │                              #   link [Phase 18 ✓]
 │   └── ManagementSyncButton.swift # The six management screens' shared toolbar sync button
 │                                  #   [Phase 14 ✓]
-JmoneyTests/                       # 620 tests: schema/defaults/indexes, record round-trips, timestamp rules,
+JmoneyTests/                       # 634 tests: schema/defaults/indexes, record round-trips, timestamp rules,
                                    #   dashboard calculations/queries, formatters, widget render smoke,
                                    #   transaction filters/sections/validation, transaction SQL & writes,
                                    #   budget card maths/sorting/month bounds/validation, budget SQL,
@@ -221,8 +229,9 @@ JmoneyTests/                       # 620 tests: schema/defaults/indexes, record 
                                    #   push-only runs + lock + guards + button, CSV codec, export
                                    #   rows/backup shape, import mapping/validation/sentinels and
                                    #   the export→import round trip, the menu-audit conflict rules,
-                                   #   query-plan index proofs, 10k-row scale correctness
-                                   #   [Phase 5–17 ✓]
+                                   #   query-plan index proofs, 10k-row scale correctness, the
+                                   #   location port (ladder/parsing/save idiom/editor state)
+                                   #   [Phase 5–18 ✓]
 ```
 
 ## 4. macOS Interaction Mapping
@@ -305,9 +314,9 @@ View (@Observable VM) ⇄ GRDB ValueObservation ⇄ SQLite (WAL)
   than pretending to succeed. The lock overlay uses `.deviceOwnerAuthentication` (password fallback
   allowed), while the Settings enable flow stays biometrics-only, matching the source's two different
   calls. ⌘R now runs the real full sync.
-- Location tagging (create-time GPS capture plus the location edit sheet) remains the one feature
-  gap; `Services/LocationService.swift` does not exist yet and the editor shows saved coordinates
-  read-only.
+- Location tagging (create-time GPS capture plus the location edit sheet) was implemented in
+  Phase 18: `Services/LocationService.swift` + `Support/LocationGate.swift`, the editor's
+  Include-Location row and edit sheet, and the `NSLocationWhenInUseUsageDescription` key.
 - Data-layer decisions are recorded in DATA_ARCHITECTURE.md.
 - Settings notes: the sidebar pane and the ⌘, window render one shared `SettingsView`, so the RN
   settings *tab* and the Mac-conventional settings window cannot drift apart; both scenes therefore

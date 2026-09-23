@@ -18,8 +18,12 @@ import SwiftUI
 /// route param does — including the quirks: no product link, no group, no default
 /// category fallback, and the date left at now.
 ///
-/// Location tagging is a remaining Phase 7 item. Existing coordinates are shown
-/// read-only (and preserved on save) rather than being silently dropped.
+/// Location tagging (Phase 18; closes the Phase 7 item): a new transaction gets
+/// the source's "Include Location" row — on by default, capturing on toggle-on
+/// with the last-known fallback and the progressive-accuracy ladder — and an
+/// existing transaction gets the edit row + sheet (GPS update, manual
+/// "lat, lng" entry, remove). The saved value follows the source's
+/// `location?.latitude || null` idiom, so a literal `0` coordinate stores as NULL.
 struct TransactionEditorView: View {
     @Environment(AppState.self) private var appState
     @Environment(SessionStore.self) private var sessionStore
@@ -95,13 +99,10 @@ struct TransactionEditorView: View {
 
                 TextField("Product Link", text: $viewModel.productLinkText)
 
-                if let latitude = target.transaction?.latitude,
-                   let longitude = target.transaction?.longitude {
-                    LabeledContent("Location") {
-                        Text(String(format: "%.4f, %.4f", latitude, longitude))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
+                if !viewModel.isEditing {
+                    newLocationRow
+                } else {
+                    editLocationRow
                 }
             }
             .formStyle(.grouped)
@@ -139,10 +140,125 @@ struct TransactionEditorView: View {
             .padding(12)
         }
         .frame(width: 460, height: 520)
+        .sheet(isPresented: $viewModel.isPresentingLocationEditor) {
+            locationEditorSheet
+        }
         .task(id: sessionStore.userId) {
             await viewModel.load(pool: database.pool, userId: sessionStore.userId)
             if !viewModel.isEditing { amountFocused = true }
         }
+    }
+
+    // MARK: - Location UI
+
+    /// The source's new-mode "Include Location" row: label + source, the coords
+    /// tappable through to Google Maps, and the capture toggle.
+    private var newLocationRow: some View {
+        LabeledContent {
+            Toggle("Include", isOn: Binding(
+                get: { viewModel.includeLocation },
+                set: { _ in Task { await toggleLocation() } }
+            ))
+            .toggleStyle(.switch)
+            .disabled(viewModel.isFetchingLocation)
+            .labelsHidden()
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Include Location\(viewModel.locationSourceSuffix)")
+                if let location = viewModel.location, viewModel.includeLocation,
+                   let url = LocationGate.mapsURL(latitude: location.latitude, longitude: location.longitude) {
+                    Text(LocationGate.display(location.latitude, location.longitude, digits: 4))
+                        .font(.caption)
+                        .foregroundStyle(.tint)
+                        .monospacedDigit()
+                        .onTapGesture { NSWorkspace.shared.open(url) }
+                }
+            }
+        }
+    }
+
+    /// The edit-mode row (`TransactionLocationEditRow`): the saved pair (or "No
+    /// location set") and the Edit button that opens the sheet.
+    private var editLocationRow: some View {
+        LabeledContent("Location") {
+            HStack(spacing: 8) {
+                if let location = viewModel.location {
+                    Text(LocationGate.display(location.latitude, location.longitude, digits: 6))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                } else {
+                    Text("No location set").foregroundStyle(.secondary)
+                }
+                Button("Edit…") { viewModel.presentLocationEditor() }
+            }
+        }
+    }
+
+    /// The `LocationEditSheet` menu, as a macOS sheet: GPS update, manual
+    /// coordinates, remove.
+    private var locationEditorSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Edit Location").font(.headline)
+            Button {
+                Task { await viewModel.updateLocationFromGPS(pool: database.pool) }
+            } label: {
+                Label("Update from GPS", systemImage: "location.fill")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .disabled(viewModel.isFetchingLocation)
+            .overlay(alignment: .trailing) {
+                if viewModel.isFetchingLocation {
+                    ProgressView().controlSize(.small)
+                }
+            }
+
+            Divider()
+
+            TextField("Latitude, Longitude", text: $viewModel.manualCoordinatesText)
+                .onSubmit { applyManualLocation() }
+            if viewModel.manualLocationError {
+                Text("Enter coordinates as \"latitude, longitude\" — two numbers.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            Button("Enter Coordinates") { applyManualLocation() }
+
+            Divider()
+
+            Button(role: .destructive) {
+                viewModel.removeLocation()
+                viewModel.isPresentingLocationEditor = false
+            } label: {
+                Label("Remove Location", systemImage: "location.slash")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .disabled(viewModel.location == nil)
+
+            HStack {
+                Spacer()
+                Button("Done") { viewModel.isPresentingLocationEditor = false }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 320)
+    }
+
+    private func applyManualLocation() {
+        if viewModel.applyManualLocation(viewModel.manualCoordinatesText) {
+            viewModel.isPresentingLocationEditor = false
+        }
+    }
+
+    private func toggleLocation() async {
+        let wasIncluded = viewModel.includeLocation
+        await viewModel.toggleLocation(on: database.pool)
+        if !wasIncluded, !viewModel.includeLocation {
+            appState.statusMessage = viewModel.location == nil
+                ? "Permission to access location was denied"
+                : "Failed to get current location. Please try again."
+        }
+        viewModel.isPresentingLocationEditor = false
     }
 
     // MARK: - Bindings

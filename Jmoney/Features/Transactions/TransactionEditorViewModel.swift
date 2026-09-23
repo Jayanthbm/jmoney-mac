@@ -35,6 +35,41 @@ final class TransactionEditorViewModel {
     private(set) var selectedPayeeId: String?
     private(set) var selectedGroupId: String?
 
+    // MARK: Location (the Phase 18 port of the source's location tagging)
+
+    /// The captured/edited coordinate pair — the source's `location` state.
+    private(set) var location: LocationGate.Fix?
+    /// The source's `includeLocation` toggle (`useState(!editTx)`): on for a new
+    /// transaction, off when editing (the edit branch hides the toggle row).
+    /// It drives capture UX only — the save always writes the working `location`.
+    private(set) var includeLocation: Bool
+    /// The source's `fetchingLocation` — drives the toggle's spinner.
+    private(set) var isFetchingLocation = false
+    /// The manual-entry sheet / GPS update / remove actions of the source's
+    /// `LocationEditSheet`, presented for an existing transaction.
+    var isPresentingLocationEditor = false
+    /// The manual-entry field's content and its validation state.
+    var manualCoordinatesText = ""
+    var manualLocationError = false
+
+    /// The `(${locationSource})` suffix on the Include Location label.
+    var locationSourceSuffix: String {
+        guard let location else { return "" }
+        return " (\(location.source.rawValue))"
+    }
+
+    /// Prefills the manual-entry field when the sheet opens, as the source's
+    /// `LocationEditSheet` does.
+    func presentLocationEditor() {
+        if let location {
+            manualCoordinatesText = LocationGate.display(location.latitude, location.longitude, digits: 6)
+        } else {
+            manualCoordinatesText = ""
+        }
+        manualLocationError = false
+        isPresentingLocationEditor = true
+    }
+
     private(set) var lookups = TransactionService.Lookups.empty
     private(set) var validation = Validators.Result()
     private(set) var isSaving = false
@@ -54,6 +89,12 @@ final class TransactionEditorViewModel {
         selectedCategoryId = existing?.categoryId
         selectedPayeeId = existing?.payeeId
         selectedGroupId = existing?.groupId
+        // The source's initial location state: an existing pair seeds both
+        // `location` and `locationSource = 'Last Known'`.
+        if let latitude = existing?.latitude, let longitude = existing?.longitude {
+            location = LocationGate.Fix(latitude: latitude, longitude: longitude, source: .lastKnown)
+        }
+        includeLocation = existing == nil
     }
 
     /// JavaScript `amount.toString()`: a whole number has no decimal part.
@@ -111,6 +152,64 @@ final class TransactionEditorViewModel {
 
     func select(payeeId: String?) { selectedPayeeId = payeeId }
     func select(groupId: String?) { selectedGroupId = groupId }
+
+    // MARK: Location mutations (the source's handlers)
+
+    /// `handleLocationToggle`'s enable branch: capture, and the toggle flips to
+    /// included only when a fix actually landed. The disable branch is
+    /// `setIncludeLocation(false)` + clear, like the source.
+    @MainActor
+    func toggleLocation(on pool: DatabasePool?) async {
+        if !includeLocation {
+            isFetchingLocation = true
+            defer { isFetchingLocation = false }
+            guard case .fix(let fix) = await LocationService.captureOutcome() else {
+                // The source's failure path clears the working location and
+                // disables the toggle; the view reports the reason.
+                location = nil
+                return
+            }
+            location = fix
+            includeLocation = true
+        } else {
+            includeLocation = false
+            location = nil
+        }
+    }
+
+    /// `LocationEditSheet`'s "Update from GPS".
+    @MainActor
+    func updateLocationFromGPS(pool: DatabasePool?) async {
+        isFetchingLocation = true
+        defer { isFetchingLocation = false }
+        if case .fix(let fix) = await LocationService.captureOutcome() {
+            location = fix
+            includeLocation = true
+        }
+    }
+
+    /// `LocationEditSheet`'s "Enter Coordinates" — invalid input is a no-op
+    /// there (the sheet simply stays open); the flag surfaces the message.
+    @discardableResult
+    func applyManualLocation(_ text: String) -> Bool {
+        guard let parsed = LocationGate.parseManualCoordinates(text) else {
+            manualLocationError = true
+            return false
+        }
+        manualLocationError = false
+        location = LocationGate.Fix(latitude: parsed.latitude, longitude: parsed.longitude, source: .current)
+        includeLocation = true
+        return true
+    }
+
+    /// `LocationEditSheet`'s "Remove Location".
+    func removeLocation() {
+        location = nil
+        includeLocation = false
+    }
+
+    /// The source's fetchLocation error paths both disable the toggle and clear
+    /// the working location; the view surfaces the denial in the status bar.
 
     /// Switching the type re-applies the default category, mirroring the source.
     ///
@@ -204,7 +303,11 @@ final class TransactionEditorViewModel {
             category: category,
             payee: selectedPayee,
             group: selectedGroup,
-            productLink: productLinkText
+            productLink: productLinkText,
+            // `latitude: location?.latitude || null` — the source saves the working
+            // `location` regardless of the toggle (which only drives capture UX);
+            // a removed location writes NULL over the old pair.
+            location: location
         )
         let record = TransactionService.makeTransaction(from: draft, userId: userId ?? "")
 

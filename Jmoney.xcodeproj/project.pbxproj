@@ -68,6 +68,7 @@
 		5978EADBEBE2D51EEE4741FA /* CategoryEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8F6FFA440604EE5B63D9A2 /* CategoryEditorView.swift */; };
 		5999012C117F800120D74789 /* ReportsViewRenderingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7B92DCC39DE3680D6E09F6B /* ReportsViewRenderingTests.swift */; };
 		5A991E99E07A9A7454464D33 /* GoalEditorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1B7C961AA108AADAB99DDB8 /* GoalEditorViewModel.swift */; };
+		5B53A9DA8D4E903B57960014 /* LocationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 541238C648396A1D516A650D /* LocationTests.swift */; };
 		5C3DDEC86A947B5739DBC9C0 /* PayeesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7EC135C29C51BF6828D102E /* PayeesViewModel.swift */; };
 		5C519330CC2D2562B6BC2B55 /* GoalEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0845A3F843BF219B53DC1BEE /* GoalEditorView.swift */; };
 		5CB4158A0D532B181B327964 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 2049DC3A4558067EF3C12BB1 /* GRDB */; };
@@ -185,7 +186,9 @@
 		F59E44F29C87223B78155F19 /* DailyLimitCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A95E090BC960379C09DA95A /* DailyLimitCard.swift */; };
 		F5BA088EDFA004DCD5543B83 /* TransactionBounds.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58011079C26DCBCEACFBC87A /* TransactionBounds.swift */; };
 		FBC692D1A64F71C22F321FFA /* SupabaseAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 312DA5DA87BBEB59E78610D9 /* SupabaseAuthService.swift */; };
+		FD55AF980D062442D79023D2 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0306BFA0A2C41C0BD21809AC /* LocationService.swift */; };
 		FE3ED1B1178E29D990DCF84E /* BudgetEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46B24F58E352A878F85F558E /* BudgetEditorView.swift */; };
+		FEE2663A20FE57796E73ECAF /* LocationGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8107C8008B2FEB5BD5F1072 /* LocationGate.swift */; };
 		FF6499D2FCF0D219527F59D8 /* AppearancePreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = C89211270A28AE41BF58200E /* AppearancePreference.swift */; };
 /* End PBXBuildFile section */
 
@@ -202,6 +205,7 @@
 /* Begin PBXFileReference section */
 		004D25A05B0711E6A619C3E4 /* CategoriesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoriesView.swift; sourceTree = "<group>"; };
 		01CFE2218338102D1329B819 /* QuickTransactionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickTransactionService.swift; sourceTree = "<group>"; };
+		0306BFA0A2C41C0BD21809AC /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
 		032B035613E173EE807C5370 /* Jmoney.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Jmoney.xcconfig; sourceTree = "<group>"; };
 		04A5251CFD9647B0BB802D0B /* SyncPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncPreference.swift; sourceTree = "<group>"; };
 		05636106BC22D4EB1C5E1D97 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
@@ -262,6 +266,7 @@
 		4BD27797EE3E7B50909567A6 /* BudgetEditorTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetEditorTarget.swift; sourceTree = "<group>"; };
 		4E126ABC43F06779F26BC2C9 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		520F238EDF78B9CF288A49DB /* InitialSyncGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InitialSyncGuard.swift; sourceTree = "<group>"; };
+		541238C648396A1D516A650D /* LocationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationTests.swift; sourceTree = "<group>"; };
 		546ED06EA3019C1C3FC8A58C /* CalendarServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarServiceTests.swift; sourceTree = "<group>"; };
 		56259ED28F7B8869A20C40B0 /* ReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportService.swift; sourceTree = "<group>"; };
 		58011079C26DCBCEACFBC87A /* TransactionBounds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionBounds.swift; sourceTree = "<group>"; };
@@ -332,6 +337,7 @@
 		C2AFF264AC21F724372C03D4 /* GroupEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupEditorView.swift; sourceTree = "<group>"; };
 		C3C1F5CFAE7934B884B56FC2 /* BudgetCalculationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetCalculationTests.swift; sourceTree = "<group>"; };
 		C7E2C3A7C3EB9D58217836F3 /* DashboardQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardQueryTests.swift; sourceTree = "<group>"; };
+		C8107C8008B2FEB5BD5F1072 /* LocationGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationGate.swift; sourceTree = "<group>"; };
 		C89211270A28AE41BF58200E /* AppearancePreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearancePreference.swift; sourceTree = "<group>"; };
 		C8CB90602DFE0A8ECBB05BEC /* ImportSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportSheetView.swift; sourceTree = "<group>"; };
 		CA6D45A38D475965D8E2E00C /* CategoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryService.swift; sourceTree = "<group>"; };
@@ -456,6 +462,7 @@
 				520F238EDF78B9CF288A49DB /* InitialSyncGuard.swift */,
 				F01F3A6654F59AEC197FE2B6 /* JSONValue.swift */,
 				05636106BC22D4EB1C5E1D97 /* KeychainStore.swift */,
+				C8107C8008B2FEB5BD5F1072 /* LocationGate.swift */,
 				0F335826FBA3B3C2C266860C /* ManagementSyncButton.swift */,
 				6E3DEF999882865F045B30B8 /* MonthYearPicker.swift */,
 				1AD174739D446888570937C4 /* ProgressViews.swift */,
@@ -518,6 +525,7 @@
 				2C047EF35EBD75CFCAF81BDF /* GoalService.swift */,
 				2547A609460875A46E440889 /* GroupService.swift */,
 				F5595EC1395A2DC5DE3DBE7F /* ImportService.swift */,
+				0306BFA0A2C41C0BD21809AC /* LocationService.swift */,
 				876BB8B34BE7030EDA53CCF0 /* NotificationService.swift */,
 				9A628D7EB2F5D70EB665697E /* PayeeService.swift */,
 				01CFE2218338102D1329B819 /* QuickTransactionService.swift */,
@@ -676,6 +684,7 @@
 				5BE3EEAFE0C6239843E0E407 /* GoalServiceTests.swift */,
 				E16937B6F11EF8BD543258C5 /* GoalsViewRenderingTests.swift */,
 				1D19BB1002E290015D85D7D4 /* ImportExportTests.swift */,
+				541238C648396A1D516A650D /* LocationTests.swift */,
 				7F721474BD8E40928DD1C1F7 /* ManagementViewsRenderingTests.swift */,
 				F4C887AE77E778CF0F0D8D37 /* MetaEntityCalculationTests.swift */,
 				176B1671E48B8C6FE31F25E6 /* MetaEntityServiceTests.swift */,
@@ -897,6 +906,7 @@
 				0F5938F143D8A94F49BE6D61 /* GoalServiceTests.swift in Sources */,
 				B2780B8B7A95A985F96C8811 /* GoalsViewRenderingTests.swift in Sources */,
 				B557DE63E0460E0018A90955 /* ImportExportTests.swift in Sources */,
+				5B53A9DA8D4E903B57960014 /* LocationTests.swift in Sources */,
 				E91DA35E15A7C1C3A42F7EF5 /* ManagementViewsRenderingTests.swift in Sources */,
 				90145F370E1CB75BDCBE7755 /* MetaEntityCalculationTests.swift in Sources */,
 				C09C20CB5F4E341F9479CC55 /* MetaEntityServiceTests.swift in Sources */,
@@ -994,6 +1004,8 @@
 				C711E563970D247523BB07D5 /* JmoneyApp.swift in Sources */,
 				0841BCB9B80616DB231B1949 /* KeychainStore.swift in Sources */,
 				7EFD124136B091A87D02788D /* LivingCostConfigView.swift in Sources */,
+				FEE2663A20FE57796E73ECAF /* LocationGate.swift in Sources */,
+				FD55AF980D062442D79023D2 /* LocationService.swift in Sources */,
 				C3DD099F8BEE7BE813BBBB3B /* ManagementSyncButton.swift in Sources */,
 				1397B7860FE7E71FB24F7A0F /* MonthYearPicker.swift in Sources */,
 				CB5FB58D3971E5CE89850B1F /* NetWorthCard.swift in Sources */,
@@ -1143,6 +1155,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_JMoneySupabaseAnonKey = "$(JMONEY_SUPABASE_ANON_KEY)";
 				INFOPLIST_KEY_JMoneySupabaseURL = "$(JMONEY_SUPABASE_URL)";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Jmoney uses your location to attach a location to a transaction when you turn on Include Location.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -1181,6 +1194,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_JMoneySupabaseAnonKey = "$(JMONEY_SUPABASE_ANON_KEY)";
 				INFOPLIST_KEY_JMoneySupabaseURL = "$(JMONEY_SUPABASE_URL)";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Jmoney uses your location to attach a location to a transaction when you turn on Include Location.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

@@ -389,7 +389,8 @@ final class TransactionServiceTests: XCTestCase {
                 category: category(id: "c1", name: "Food", type: "Expense"),
                 payee: nil,
                 group: nil,
-                productLink: "  https://example.com  "
+                productLink: "  https://example.com  ",
+                location: nil
             ),
             userId: user,
             now: now,
@@ -422,7 +423,11 @@ final class TransactionServiceTests: XCTestCase {
                 existing: existing, amount: 99, description: "new",
                 date: date(2026, 9, 21), type: "Expense",
                 category: category(id: "c1", name: "Food", type: "Expense"),
-                payee: nil, group: nil, productLink: ""
+                payee: nil, group: nil, productLink: "",
+                // The editor seeds the working location from the existing row
+                // (TransactionEditorViewModel.init); makeTransaction writes it
+                // through — removal is the editor's explicit action.
+                location: LocationGate.Fix(latitude: 12.9716, longitude: 77.5946, source: .lastKnown)
             ),
             userId: user,
             calendar: calendar
@@ -430,7 +435,7 @@ final class TransactionServiceTests: XCTestCase {
 
         XCTAssertEqual(record.id, "t1", "The id is preserved on edit")
         XCTAssertEqual(record.tid, 5, "The server tid is preserved on edit")
-        XCTAssertEqual(record.latitude, 12.9716, "Location must not be dropped by an edit")
+        XCTAssertEqual(record.latitude, 12.9716, "The editor-seeded pair survives the save")
         XCTAssertEqual(record.longitude, 77.5946)
         XCTAssertNil(record.productLink, "An empty link is stored as NULL")
         XCTAssertEqual(record.syncStatus, 1)
@@ -444,7 +449,7 @@ final class TransactionServiceTests: XCTestCase {
                 existing: nil, amount: 15, description: "Tea",
                 date: self.date(2026, 9, 22), type: "Expense",
                 category: self.category(id: "c1", name: "Food", type: "Expense"),
-                payee: nil, group: nil, productLink: ""
+                payee: nil, group: nil, productLink: "", location: nil
             )
             let record = TransactionService.makeTransaction(
                 from: draft, userId: self.user, calendar: self.calendar, newID: { "new-1" }
@@ -480,7 +485,7 @@ final class TransactionServiceTests: XCTestCase {
                     existing: existing, amount: 120, description: "Groceries updated",
                     date: self.date(2026, 9, 20), type: "Expense",
                     category: self.category(id: "c1", name: "Food", type: "Expense"),
-                    payee: nil, group: nil, productLink: ""
+                    payee: nil, group: nil, productLink: "", location: nil
                 ),
                 userId: self.user, calendar: self.calendar
             )
