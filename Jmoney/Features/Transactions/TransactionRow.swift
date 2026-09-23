@@ -17,6 +17,8 @@ import SwiftUI
 struct TransactionRow: View {
     let transaction: Transaction
 
+    @State private var isHovered = false
+
     private var isIncome: Bool { transaction.type == "Income" }
 
     private var categoryTitle: String {
@@ -24,25 +26,29 @@ struct TransactionRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: CategoryIcon.transactionSymbol(transaction.categoryAppIcon))
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(isIncome ? Color.green : Color.accentColor)
-                .frame(width: 24, height: 24)
-                .background(
-                    Circle().fill((isIncome ? Color.green : Color.accentColor).opacity(0.15))
-                )
-                .accessibilityHidden(true)
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill((isIncome ? Color.green : Color.accentColor).opacity(0.15))
+                    .frame(width: 36, height: 36)
+                Image(systemName: CategoryIcon.transactionSymbol(transaction.categoryAppIcon))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(isIncome ? Color.green : Color.accentColor)
+                    .accessibilityHidden(true)
+            }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(categoryTitle)
-                        .font(.body)
+                        .font(.body.weight(.semibold))
                         .lineLimit(1)
 
                     if let payee = nonEmpty(transaction.payeeName) {
+                        Text("•")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
                         Text(payee)
-                            .font(.caption)
+                            .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
                     }
@@ -67,9 +73,9 @@ struct TransactionRow: View {
 
             Spacer(minLength: 8)
 
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: 3) {
                 Text("\(isIncome ? "+" : "-") \(AppFormat.currency(transaction.amount))")
-                    .font(.body.weight(.semibold))
+                    .font(.body.weight(.bold))
                     .foregroundStyle(isIncome ? Color.green : Color.red)
                     .monospacedDigit()
                 Text(AppFormat.preciseTimestamp(transaction.transactionTimestamp))
@@ -77,8 +83,6 @@ struct TransactionRow: View {
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
 
-                // The RN card's "not yet uploaded" indicator, deferred in Phase 7
-                // while no sync engine existed (every row would have been flagged).
                 if transaction.syncStatus == 1 {
                     Image(systemName: "arrow.triangle.2.circlepath.icloud")
                         .font(.caption2)
@@ -88,7 +92,35 @@ struct TransactionRow: View {
                 }
             }
         }
-        .padding(.vertical, 3)
+        .padding(12)
+        .frame(height: 72)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(isHovered ? 0.4 : 0.2),
+                            Color.white.opacity(0.05),
+                            Color.black.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: isHovered ? Color.black.opacity(0.1) : Color.black.opacity(0.03),
+            radius: isHovered ? 10 : 4,
+            x: 0,
+            y: isHovered ? 4 : 2
+        )
+        .scaleEffect(isHovered ? 1.008 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.75), value: isHovered)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .accessibilityElement(children: .combine)
     }
 

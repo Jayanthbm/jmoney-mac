@@ -76,23 +76,34 @@ final class TransactionsViewModel {
 
     // MARK: - Loading
 
+    private(set) var hasLoadedOnce = false
+
     @MainActor
     func load(pool: DatabasePool?, userId: String?) async {
         guard let pool, let userId else {
-            page = TransactionService.ListPage()
+            if !hasLoadedOnce {
+                page = TransactionService.ListPage()
+            }
             errorMessage = nil
             isLoading = false
             return
         }
 
-        isLoading = true
-        defer { isLoading = false }
+        // Show full loading spinner only if we have never loaded and have no sections
+        if !hasLoadedOnce && page.sections.isEmpty {
+            isLoading = true
+        }
+        defer {
+            isLoading = false
+            hasLoadedOnce = true
+        }
 
         let filters = filters
         do {
-            page = try await pool.read { db in
+            let fetchedPage = try await pool.read { db in
                 try TransactionService.list(userId: userId, filters: filters, in: db)
             }
+            page = fetchedPage
             errorMessage = nil
         } catch {
             errorMessage = error.localizedDescription

@@ -48,6 +48,30 @@ struct TransactionEditorView: View {
         @Bindable var viewModel = viewModel
 
         VStack(spacing: 0) {
+            // Header
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(Color.accentColor.opacity(0.15))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: viewModel.isEditing ? "pencil.line" : "plus.circle.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(Color.accentColor)
+                }
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(viewModel.isEditing ? "Edit Transaction" : "New Transaction")
+                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                    Text(viewModel.isEditing ? "Update transaction details" : "Add a financial record to your ledger")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+
             Form {
                 if viewModel.typeIsEditable {
                     Picker("Type", selection: typeBinding) {
@@ -64,6 +88,7 @@ struct TransactionEditorView: View {
                 )
 
                 Picker("Category", selection: categoryBinding) {
+                    Text("Select a category…").tag(String?.none)
                     ForEach(viewModel.categoriesForPicker) { category in
                         Text(category.name).tag(Optional(category.id))
                     }
@@ -106,6 +131,7 @@ struct TransactionEditorView: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
 
             if let message = viewModel.saveErrorMessage {
                 Text(message)
@@ -116,11 +142,10 @@ struct TransactionEditorView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Divider()
-
+            // Glass Action Footer Bar
             HStack {
                 if !viewModel.typeIsEditable {
-                    Text("Expense/Income can't be changed on an existing transaction.")
+                    Text("Type cannot be changed.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -130,6 +155,7 @@ struct TransactionEditorView: View {
                 Button(viewModel.saveButtonTitle) { save() }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
+                    .tint(.accentColor)
                     .disabled(viewModel.isSaving)
                     .overlay(alignment: .trailing) {
                         if viewModel.isSaving {
@@ -137,9 +163,17 @@ struct TransactionEditorView: View {
                         }
                     }
             }
-            .padding(12)
+            .padding(16)
+            .background(.ultraThinMaterial)
+            .overlay(
+                Rectangle()
+                    .fill(Color.primary.opacity(0.08))
+                    .frame(height: 1),
+                alignment: .top
+            )
         }
-        .frame(width: 460, height: 520)
+        .background(.regularMaterial)
+        .frame(width: 480, height: 550)
         .sheet(isPresented: $viewModel.isPresentingLocationEditor) {
             locationEditorSheet
         }
@@ -272,21 +306,21 @@ struct TransactionEditorView: View {
 
     private var categoryBinding: Binding<String?> {
         Binding(
-            get: { viewModel.selectedCategoryId },
+            get: { viewModel.selectedCategoryId.flatMap { $0.isEmpty ? nil : $0 } },
             set: { viewModel.select(categoryId: $0) }
         )
     }
 
     private var payeeBinding: Binding<String?> {
         Binding(
-            get: { viewModel.selectedPayeeId },
+            get: { viewModel.selectedPayeeId.flatMap { $0.isEmpty ? nil : $0 } },
             set: { viewModel.select(payeeId: $0) }
         )
     }
 
     private var groupBinding: Binding<String?> {
         Binding(
-            get: { viewModel.selectedGroupId },
+            get: { viewModel.selectedGroupId.flatMap { $0.isEmpty ? nil : $0 } },
             set: { viewModel.select(groupId: $0) }
         )
     }

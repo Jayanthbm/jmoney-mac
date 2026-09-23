@@ -12,6 +12,9 @@ final class AppState {
 
     var selectedSection: AppSection = .dashboard
 
+    /// Shared persistent view model for Transactions screen to retain list state during navigation.
+    let transactionsViewModel = TransactionsViewModel()
+
     // MARK: Sheets
 
     /// Non-nil while the transaction editor sheet is open — `.new` from ⌘N, or

@@ -13,7 +13,9 @@ struct TransactionsView: View {
     @Environment(DatabaseService.self) private var database
     @Environment(SyncService.self) private var syncService
 
-    @State private var viewModel = TransactionsViewModel()
+    private var viewModel: TransactionsViewModel {
+        appState.transactionsViewModel
+    }
     @State private var searchText = ""
     @State private var isSearchPresented = false
     @State private var selection: Transaction.ID?
@@ -104,38 +106,50 @@ struct TransactionsView: View {
         VStack(spacing: 0) {
             if viewModel.filters.hasEntityOrDateFilter {
                 filterSummaryBar
-                Divider()
             }
 
-            List(selection: $selection) {
-                ForEach(viewModel.page.sections) { section in
-                    Section {
-                        ForEach(section.transactions) { transaction in
-                            TransactionRow(transaction: transaction)
-                                .tag(transaction.id)
-                                .contentShape(Rectangle())
-                                .onTapGesture(count: 2) {
-                                    appState.editTransaction(transaction)
+            GeometryReader { geometry in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 20) {
+                        ForEach(viewModel.page.sections) { section in
+                            VStack(alignment: .leading, spacing: 10) {
+                                TransactionDayHeader(section: section)
+                                    .padding(.horizontal, 4)
+
+                                let columns = geometry.size.width >= 700
+                                    ? [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+                                    : [GridItem(.flexible())]
+
+                                LazyVGrid(columns: columns, spacing: 10) {
+                                    ForEach(section.transactions) { transaction in
+                                        TransactionRow(transaction: transaction)
+                                            .onTapGesture(count: 2) {
+                                                appState.editTransaction(transaction)
+                                            }
+                                            .contextMenu { rowMenu(for: transaction) }
+                                    }
                                 }
-                                .contextMenu { rowMenu(for: transaction) }
+                            }
                         }
-                    } header: {
-                        TransactionDayHeader(section: section)
                     }
+                    .padding(16)
                 }
             }
-            .listStyle(.inset)
             .onDeleteCommand { requestDeletion(for: selection) }
         }
     }
 
     private var filterSummaryBar: some View {
         HStack(spacing: 12) {
-            Text(viewModel.filterSummaryText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .accessibilityLabel("Active filters: \(viewModel.filterSummaryText)")
+            HStack(spacing: 6) {
+                Image(systemName: "line.3.horizontal.decrease.circle.fill")
+                    .foregroundStyle(Color.accentColor)
+                Text(viewModel.filterSummaryText)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            .accessibilityLabel("Active filters: \(viewModel.filterSummaryText)")
 
             Spacer(minLength: 8)
 
@@ -154,15 +168,16 @@ struct TransactionsView: View {
                             .foregroundStyle(viewModel.page.totalFiltered >= 0 ? Color.green : Color.red)
                             .monospacedDigit()
                         Image(systemName: "chevron.right")
-                            .font(.caption2)
+                            .font(.caption2.weight(.bold))
                             .accessibilityHidden(true)
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(.thinMaterial, in: Capsule())
                 }
                 .buttonStyle(.borderless)
                 .help("Show the last 5 months for these filters")
                 .accessibilityLabel("Filtered net")
-                // Phase 17: the sign-dropped figure's direction lives only in
-                // colour; speak it explicitly (the day header's rule).
                 .accessibilityValue(
                     "net \(viewModel.page.totalFiltered >= 0 ? "increased" : "decreased") \(AppFormat.currency(viewModel.page.totalFiltered))"
                 )
@@ -177,11 +192,18 @@ struct TransactionsView: View {
             Button("Clear All") {
                 clearAllFilters()
             }
+            .font(.caption.weight(.semibold))
             .buttonStyle(.borderless)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(.bar)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.ultraThinMaterial)
+        .overlay(
+            Rectangle()
+                .fill(Color.primary.opacity(0.08))
+                .frame(height: 1),
+            alignment: .bottom
+        )
     }
 
     @ViewBuilder
